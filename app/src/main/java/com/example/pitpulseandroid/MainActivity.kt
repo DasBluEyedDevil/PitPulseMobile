@@ -6,12 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Place
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -29,6 +23,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.pitpulseandroid.data.model.Band
+import com.example.pitpulseandroid.data.model.Venue
 import com.example.pitpulseandroid.ui.bands.BandsScreen
 import com.example.pitpulseandroid.ui.bands.BandDetailScreen
 import com.example.pitpulseandroid.ui.home.HomeScreen
@@ -37,6 +33,11 @@ import com.example.pitpulseandroid.ui.splash.SplashScreen
 import com.example.pitpulseandroid.ui.theme.PitPulseAndroidTheme
 import com.example.pitpulseandroid.ui.venues.VenuesScreen
 import com.example.pitpulseandroid.ui.venues.VenueDetailScreen
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Person
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,37 +71,60 @@ fun PitPulseApp() {
         // Main app content with navigation
         Scaffold(
             bottomBar = {
-                BottomAppBar {
-                    NavigationBar {
-                        // Home
-                        NavigationBarItem(
-                            icon = { Icon(Icons.Filled.Home, contentDescription = "Home") },
-                            label = { Text("Home") },
-                            selected = navController.currentDestination?.route == "home",
-                            onClick = { navController.navigate("home") { popUpTo("home") { inclusive = true } } }
-                        )
-                        // Venues
-                        NavigationBarItem(
-                            icon = { Icon(Icons.Filled.Place, contentDescription = "Venues") },
-                            label = { Text("Venues") },
-                            selected = navController.currentDestination?.route == "venues",
-                            onClick = { navController.navigate("venues") { popUpTo("home") } }
-                        )
-                        // Bands
-                        NavigationBarItem(
-                            icon = { Icon(Icons.Filled.MusicNote, contentDescription = "Bands") },
-                            label = { Text("Bands") },
-                            selected = navController.currentDestination?.route == "bands",
-                            onClick = { navController.navigate("bands") { popUpTo("home") } }
-                        )
-                        // Profile
-                        NavigationBarItem(
-                            icon = { Icon(Icons.Filled.Person, contentDescription = "Profile") },
-                            label = { Text("Profile") },
-                            selected = navController.currentDestination?.route == "profile",
-                            onClick = { navController.navigate("profile") { popUpTo("home") } }
-                        )
-                    }
+                NavigationBar {
+                    // Home
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Filled.Home, contentDescription = "Home") },
+                        label = { Text("Home") },
+                        selected = navController.currentDestination?.route == "home",
+                        onClick = { 
+                            if (navController.currentDestination?.route != "home") {
+                                navController.navigate("home") {
+                                    popUpTo("home") { inclusive = false }
+                                    launchSingleTop = true
+                                }
+                            }
+                        }
+                    )
+                    // Venues
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Filled.Place, contentDescription = "Venues") },
+                        label = { Text("Venues") },
+                        selected = navController.currentDestination?.route == "venues",
+                        onClick = { 
+                            if (navController.currentDestination?.route != "venues") {
+                                navController.navigate("venues") {
+                                    launchSingleTop = true
+                                }
+                            }
+                        }
+                    )
+                    // Bands
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Filled.MusicNote, contentDescription = "Bands") },
+                        label = { Text("Bands") },
+                        selected = navController.currentDestination?.route == "bands",
+                        onClick = { 
+                            if (navController.currentDestination?.route != "bands") {
+                                navController.navigate("bands") {
+                                    launchSingleTop = true
+                                }
+                            }
+                        }
+                    )
+                    // Profile
+                    NavigationBarItem(
+                        icon = { Icon(Icons.Filled.Person, contentDescription = "Profile") },
+                        label = { Text("Profile") },
+                        selected = navController.currentDestination?.route == "profile",
+                        onClick = { 
+                            if (navController.currentDestination?.route != "profile") {
+                                navController.navigate("profile") {
+                                    launchSingleTop = true
+                                }
+                            }
+                        }
+                    )
                 }
             }
         ) { innerPadding ->
@@ -111,10 +135,9 @@ fun PitPulseApp() {
             ) {
                 composable("home") {
                     HomeScreen(
-                        onVenueClick = { venue -> navController.navigate("venue/${venue.id}") },
-                        onBandClick = { band -> navController.navigate("band/${band.id}") },
+                        onVenueClick = { venue: Venue -> navController.navigate("venue/${venue.id}") },
+                        onBandClick = { band: Band -> navController.navigate("band/${band.id}") },
                         onUserClick = { navController.navigate("profile") },
-                        onMenuClick = { /* Open drawer menu */ },
                         onNotificationClick = { /* Open notifications */ }
                     )
                 }

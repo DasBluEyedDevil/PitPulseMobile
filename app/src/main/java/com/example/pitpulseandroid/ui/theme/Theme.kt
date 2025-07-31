@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 // Dark theme color scheme based on the web app's dark mode
 private val DarkColorScheme = darkColorScheme(
@@ -57,8 +58,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun PitPulseAndroidTheme(
     darkTheme: Boolean = true, // Always use dark theme by default
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = false, // Disabled by default to use our custom colors
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -66,20 +66,27 @@ fun PitPulseAndroidTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 
-    // Set status bar color to match the theme
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = if (darkTheme) DarkBackground.toArgb() else LightBackground.toArgb()
 
-            // Set status bar icons to light or dark based on theme
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            // Set up the modern approach for window insets
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+
+            // Use WindowInsetsControllerCompat for status bar appearance
+            WindowInsetsControllerCompat(window, view).apply {
+                isAppearanceLightStatusBars = !darkTheme
+            }
+
+            // Setting the status bar color to transparent or a color that matches your design
+            // This is the modern approach - setting the color to transparent and letting
+            // the content draw under the status bar for a seamless look
+            window.statusBarColor = Color.Transparent.toArgb()
         }
     }
 

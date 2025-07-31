@@ -1,6 +1,5 @@
 package com.example.pitpulseandroid.ui.home
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,20 +33,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.pitpulseandroid.R
 import com.example.pitpulseandroid.data.model.Band
 import com.example.pitpulseandroid.data.model.Venue
 import com.example.pitpulseandroid.ui.components.BandCard
-import com.example.pitpulseandroid.ui.components.BottomNavigationBar
 import com.example.pitpulseandroid.ui.components.SearchBarComponent
 import com.example.pitpulseandroid.ui.components.UserStatsCard
 import com.example.pitpulseandroid.ui.components.VenueCard
-import com.example.pitpulseandroid.ui.theme.DarkBackground
 import com.example.pitpulseandroid.ui.theme.PitPulseAndroidTheme
 import com.example.pitpulseandroid.ui.theme.Purple600
 
@@ -58,7 +51,6 @@ import com.example.pitpulseandroid.ui.theme.Purple600
  * @param onVenueClick Callback when a venue is clicked
  * @param onBandClick Callback when a band is clicked
  * @param onUserClick Callback when the user stats card is clicked
- * @param onMenuClick Callback when the menu button is clicked
  * @param onNotificationClick Callback when the notification button is clicked
  * @param viewModel ViewModel for the Home screen
  */
@@ -68,13 +60,11 @@ fun HomeScreen(
     onVenueClick: (Venue) -> Unit = {},
     onBandClick: (Band) -> Unit = {},
     onUserClick: (String) -> Unit = {},
-    onMenuClick: () -> Unit = {},
     onNotificationClick: () -> Unit = {},
     viewModel: HomeViewModel = remember { HomeViewModel(com.example.pitpulseandroid.data.Repository.getInstance()) }
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
-    var selectedRoute by remember { mutableStateOf("home") }
 
     Scaffold(
         topBar = {
@@ -110,17 +100,6 @@ fun HomeScreen(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
-            )
-        },
-        bottomBar = {
-            BottomNavigationBar(
-                selectedRoute = selectedRoute,
-                onRouteSelected = { route ->
-                    selectedRoute = route
-                    // Here we would typically navigate to the selected route
-                    // For now, we'll just log that it was clicked
-                    println("Navigation to $route")
-                }
             )
         }
     ) { paddingValues ->
@@ -234,9 +213,9 @@ private fun HomeContent(
 
 @Composable
 private fun SectionHeader(
+    modifier: Modifier = Modifier,
     title: String,
-    onViewAllClick: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onViewAllClick: () -> Unit = {}
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),

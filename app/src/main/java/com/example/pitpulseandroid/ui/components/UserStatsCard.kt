@@ -15,7 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,14 +35,14 @@ import com.example.pitpulseandroid.ui.theme.Purple600
  * A card component that displays user statistics.
  * 
  * @param user The user whose stats to display
- * @param onClick Callback when the card is clicked
  * @param modifier Modifier to be applied to the card
+ * @param onClick Callback when the card is clicked
  */
 @Composable
 fun UserStatsCard(
+    modifier: Modifier = Modifier,
     user: User,
-    onClick: (User) -> Unit = {},
-    modifier: Modifier = Modifier
+    onClick: (User) -> Unit = {}
 ) {
     Card(
         modifier = modifier
@@ -83,7 +83,7 @@ fun UserStatsCard(
             }
             
             Spacer(modifier = Modifier.height(16.dp))
-            Divider()
+            HorizontalDivider()
             Spacer(modifier = Modifier.height(16.dp))
             
             // Stats row

@@ -1,0 +1,14 @@
+{
+  "sequential-thinking": {
+    "path": "npx",
+    "args": [
+      "@modelcontextprotocol/server-sequential-thinking@1.0.0"
+    ]
+  },
+  "memory": {
+    "path": "npx",
+    "args": [
+      "@modelcontextprotocol/server-memory@1.0.0"
+    ]
+  }
+}
