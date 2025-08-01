@@ -15,50 +15,38 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsControllerCompat
 
-// Dark theme color scheme based on the web app's dark mode
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple600,
+    primary = Color(0xFF6200EE),
+    secondary = Color(0xFF03DAC5),
+    tertiary = Color(0xFF3700B3),
+    background = Color(0xFF121212),
+    surface = Color(0xFF121212),
     onPrimary = Color.White,
-    primaryContainer = Purple700,
-    onPrimaryContainer = Color.White,
-    secondary = DarkSecondary,
-    onSecondary = DarkSecondaryForeground,
-    tertiary = Purple500,
-    background = DarkBackground,
-    onBackground = DarkForeground,
-    surface = DarkCard,
-    onSurface = DarkCardForeground,
-    surfaceVariant = DarkAccent,
-    onSurfaceVariant = DarkAccentForeground,
-    outline = DarkBorder,
-    outlineVariant = DarkMuted
+    onSecondary = Color.Black,
+    onTertiary = Color.White,
+    onBackground = Color.White,
+    onSurface = Color.White
 )
 
-// Light theme color scheme based on the web app's light mode
 private val LightColorScheme = lightColorScheme(
-    primary = Purple600,
+    primary = Color(0xFF6200EE),
+    secondary = Color(0xFF03DAC5),
+    tertiary = Color(0xFF3700B3),
+    background = Color.White,
+    surface = Color.White,
     onPrimary = Color.White,
-    primaryContainer = Purple500,
-    onPrimaryContainer = Color.White,
-    secondary = LightSecondary,
-    onSecondary = LightSecondaryForeground,
-    tertiary = Purple700,
-    background = LightBackground,
-    onBackground = LightForeground,
-    surface = LightCard,
-    onSurface = LightCardForeground,
-    surfaceVariant = LightAccent,
-    onSurfaceVariant = LightAccentForeground,
-    outline = LightBorder,
-    outlineVariant = LightMuted
+    onSecondary = Color.Black,
+    onTertiary = Color.White,
+    onBackground = Color.Black,
+    onSurface = Color.Black
 )
 
 @Composable
 fun PitPulseAndroidTheme(
-    darkTheme: Boolean = true, // Always use dark theme by default
-    dynamicColor: Boolean = false,
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    // Dynamic color is available on Android 12+
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -69,24 +57,13 @@ fun PitPulseAndroidTheme(
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
-
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-
-            // Set up the modern approach for window insets
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-
-            // Use WindowInsetsControllerCompat for status bar appearance
-            WindowInsetsControllerCompat(window, view).apply {
-                isAppearanceLightStatusBars = !darkTheme
-            }
-
-            // Setting the status bar color to transparent or a color that matches your design
-            // This is the modern approach - setting the color to transparent and letting
-            // the content draw under the status bar for a seamless look
-            window.statusBarColor = Color.Transparent.toArgb()
+            @Suppress("DEPRECATION")
+            window.statusBarColor = colorScheme.primary.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 
