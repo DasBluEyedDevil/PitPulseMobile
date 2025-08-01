@@ -7,14 +7,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -24,23 +31,23 @@ import com.example.pitpulseandroid.ui.theme.PitPulseAndroidTheme
 
 /**
  * A card component that displays band information.
- * 
+ *
  * @param band The band to display
- * @param onClick Callback when the card is clicked
+ * @param onBandClick Callback when the card is clicked
  * @param modifier Modifier to be applied to the card
  * @param showBio Whether to show the band's bio
  */
 @Composable
 fun BandCard(
-    band: Band,
-    onClick: (Band) -> Unit = {},
     modifier: Modifier = Modifier,
+    band: Band,
+    onBandClick: (Band) -> Unit = {},
     showBio: Boolean = false
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick(band) },
+            .clickable { onBandClick(band) },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column {
@@ -68,10 +75,25 @@ fun BandCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 // Rating
-                RatingComponent(
-                    rating = band.rating,
-                    reviewCount = band.reviewCount
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = "Rating",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = band.rating.toString(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "(${band.reviewCount} reviews)",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -95,7 +117,7 @@ fun BandCard(
                 }
 
                 // Next show if available
-                if (band.nextShow != null) {
+                if (band.nextShow.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Next show: ${band.nextShow}",
@@ -128,16 +150,10 @@ fun BandCardPreview() {
                 id = "1",
                 name = "Radiohead",
                 image = "placeholder",
-                rating = 4.9,
+                rating = 4.9f,
                 reviewCount = 1245,
                 genre = "Alternative Rock",
-                bio = "Radiohead are an English rock band formed in Abingdon, Oxfordshire, in 1985. The band consists of Thom Yorke, brothers Jonny Greenwood and Colin Greenwood, Ed O'Brien and Philip Selway.",
-                performanceRatings = mapOf(
-                    "Live Performance" to 4.9,
-                    "Crowd Engagement" to 4.7,
-                    "Setlist" to 4.8,
-                    "Sound Quality" to 4.9
-                )
+                bio = "Radiohead are an English rock band formed in Abingdon, Oxfordshire, in 1985. The band consists of Thom Yorke, brothers Jonny Greenwood and Colin Greenwood, Ed O'Brien and Philip Selway."
             ),
             modifier = Modifier.padding(16.dp)
         )

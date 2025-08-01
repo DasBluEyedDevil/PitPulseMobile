@@ -2,6 +2,7 @@ package com.example.pitpulseandroid.util
 
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavOptionsBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -23,14 +24,14 @@ object NavigationUtils {
      * @param popUpToRoute The route to pop up to, default is null
      * @param inclusive Whether to include the route in pop up to, default is false
      */
-    fun NavController.navigateSingleTop(route: String, popUpToRoute: String? = null, inclusive: Boolean = false) {
+    fun NavController.navigateSingleTopWithOptions(route: String, popUpToRoute: String? = null, inclusive: Boolean = false) {
         val currentTime = System.currentTimeMillis()
 
         // Prevent rapid multiple navigations
         if (currentTime - lastNavigationTime < NAVIGATION_DEBOUNCE_TIME) {
             return
         }
-
+        
         lastNavigationTime = currentTime
 
         // Cancel any pending navigation
@@ -53,14 +54,40 @@ object NavigationUtils {
     }
 
     /**
+     * Navigate to a route with singleTop behavior to avoid stacking multiple instances of the same destination.
+     */
+    @Suppress("unused") // Kept for compatibility
+    fun NavController.navigateSingleTop(route: String) {
+        this.navigate(route) {
+            // Pop up to the start destination of the graph to avoid building up a large stack of destinations
+            popUpTo(this@navigateSingleTop.graph.startDestinationId) {
+                saveState = true
+            }
+            // Avoid multiple copies of the same destination when reselecting the same item
+            launchSingleTop = true
+            // Restore state when reselecting a previously selected item
+            restoreState = true
+        }
+    }
+
+    /**
      * Safely retrieve a string argument from navigation back stack entry.
      * 
      * @param key The argument key
      * @param defaultValue The default value if argument is null
      * @return The argument value or default value
      */
+    @Suppress("unused") // Kept for compatibility
     fun NavController.getStringArgument(key: String, defaultValue: String = ""): String {
         return currentBackStackEntry?.arguments?.getString(key) ?: defaultValue
+    }
+
+    /**
+     * Get a string argument from navigation back stack entry
+     */
+    @Suppress("unused") // Kept for compatibility
+    fun NavController.getStringArgument(key: String): String {
+        return this.currentBackStackEntry?.arguments?.getString(key) ?: ""
     }
 
     /**

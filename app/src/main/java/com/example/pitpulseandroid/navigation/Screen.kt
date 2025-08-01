@@ -1,7 +1,7 @@
 package com.example.pitpulseandroid.navigation
 
 /**
- * Type-safe route definitions for app navigation.
+ * Sealed class representing all screens in the app.
  */
 sealed class Screen(val route: String) {
     object Home : Screen("home")
