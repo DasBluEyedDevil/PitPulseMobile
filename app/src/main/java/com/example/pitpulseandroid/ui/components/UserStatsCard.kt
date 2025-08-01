@@ -30,6 +30,8 @@ import com.example.pitpulseandroid.data.model.Badge
 import com.example.pitpulseandroid.data.model.User
 import com.example.pitpulseandroid.ui.theme.PitPulseAndroidTheme
 import com.example.pitpulseandroid.ui.theme.Purple600
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 
 /**
  * A card component that displays user statistics.
@@ -160,9 +162,11 @@ private fun RecentBadgeItem(
                 .clip(CircleShape)
                 .background(Purple600)
         ) {
-            Text(
-                text = badge.icon,
-                style = MaterialTheme.typography.titleMedium
+            // Using an Icon component instead of directly referencing the icon
+            androidx.compose.material3.Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = "Badge icon",
+                tint = Color.White
             )
         }
         
@@ -190,15 +194,21 @@ fun UserStatsCardPreview() {
     PitPulseAndroidTheme {
         UserStatsCard(
             user = User(
+                id = "user123",
                 username = "rockfan92",
+                email = "rockfan92@example.com",
                 level = 12,
                 reviewCount = 47,
                 badgeCount = 15,
                 badges = listOf(
                     Badge(
+                        id = "badge123",
                         name = "Night Owl",
                         description = "Attended 5 shows that started after 10pm",
-                        icon = "🦉"
+                        imageUrl = "",
+                        icon = android.R.drawable.ic_dialog_info, // Using a public system icon instead
+                        badgeType = com.example.pitpulseandroid.data.model.BadgeType.SPECIAL_EVENT,
+                        threshold = 5
                     )
                 )
             ),
