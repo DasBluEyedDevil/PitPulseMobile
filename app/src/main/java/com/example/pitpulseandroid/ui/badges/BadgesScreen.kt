@@ -136,10 +136,10 @@ fun BadgesScreen(
 @Composable
 fun BadgeItem(progress: BadgeProgress) {
     val badge = progress.badge
-    val tierColor = when (badge.tier) {
-        1 -> Color(0xFFCD7F32) // Bronze
-        2 -> Color(0xFFC0C0C0) // Silver
-        3 -> Color(0xFFFFD700) // Gold
+    val tierColor = when (progress.tier) {  // Changed from badge.tier to progress.tier
+        "Bronze" -> Color(0xFFCD7F32) // Bronze
+        "Silver" -> Color(0xFFC0C0C0) // Silver
+        "Gold" -> Color(0xFFFFD700) // Gold
         else -> MaterialTheme.colorScheme.primary
     }
 
