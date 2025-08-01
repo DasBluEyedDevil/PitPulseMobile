@@ -1,7 +1,6 @@
 package com.example.pitpulseandroid.ui.home
 
 import androidx.lifecycle.ViewModel
-//
 import androidx.lifecycle.viewModelScope
 import com.example.pitpulseandroid.data.repository.Repository
 import com.example.pitpulseandroid.data.model.Band
@@ -17,7 +16,8 @@ import kotlinx.coroutines.launch
  * ViewModel for the Home screen.
  * This class is used by the Home screen to display venues, bands, and user information.
  */
-@Suppress(" unused\)\nclass HomeViewModel(private val repository: Repository) : ViewModel() {
+@Suppress("unused")
+class HomeViewModel(private val repository: Repository) : ViewModel() {
 
     // UI state for the Home screen
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -26,7 +26,8 @@ import kotlinx.coroutines.launch
      * Public accessor for the UI state.
      * This is observed by the Home screen to display content and handle loading/error states.
      */
-    @Suppress(" unused\)\n val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    @Suppress("unused")
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     init {
         // Initialize repository with mock data
@@ -92,7 +93,8 @@ import kotlinx.coroutines.launch
     /**
      * Search venues and bands.
      */
-    @Suppress(" unused\)\n fun search(query: String) {
+    @Suppress("unused")
+    fun search(query: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSearching = true)
 
@@ -136,7 +138,8 @@ import kotlinx.coroutines.launch
                 reviewCount = 120,
                 capacity = 500,
                 contactInfo = "info@soundgarden.com",
-                distance = 0.8f
+                distance = 0.8f,
+                amenities = listOf("Live Music", "Full Bar", "Food Service")
             ),
             Venue(
                 id = "v2",
@@ -151,7 +154,8 @@ import kotlinx.coroutines.launch
                 reviewCount = 85,
                 capacity = 350,
                 contactInfo = "contact@electricavenue.com",
-                distance = 1.2f
+                distance = 1.2f,
+                amenities = listOf("DJ Booth", "Dance Floor", "Cocktail Bar")
             ),
             Venue(
                 id = "v3",
@@ -166,7 +170,8 @@ import kotlinx.coroutines.launch
                 reviewCount = 210,
                 capacity = 200,
                 contactInfo = "basement@music.com",
-                distance = 1.5f
+                distance = 1.5f,
+                amenities = listOf("Indie Bands", "Craft Beer", "Intimate Setting")
             )
         )
     }
@@ -187,7 +192,11 @@ import kotlinx.coroutines.launch
                 rating = 4.7f,
                 reviewCount = 156,
                 genres = listOf("Rock", "Alternative", "Indie"),
-                nextShow = "Tonight at The Sound Garden"
+                nextShow = "Tonight at The Sound Garden",
+                socialLinks = listOf(
+                    Pair("Instagram", "https://instagram.com/electricharmony"),
+                    Pair("Twitter", "https://twitter.com/electricharmony")
+                )
             ),
             Band(
                 id = "b2",
@@ -200,7 +209,11 @@ import kotlinx.coroutines.launch
                 rating = 4.3f,
                 reviewCount = 98,
                 genres = listOf("R&B", "Soul", "Funk"),
-                nextShow = "Tomorrow at Electric Avenue"
+                nextShow = "Tomorrow at Electric Avenue",
+                socialLinks = listOf(
+                    Pair("Instagram", "https://instagram.com/midnightgroove"),
+                    Pair("YouTube", "https://youtube.com/midnightgroove")
+                )
             ),
             Band(
                 id = "b3",
@@ -213,7 +226,11 @@ import kotlinx.coroutines.launch
                 rating = 4.9f,
                 reviewCount = 230,
                 genres = listOf("Psychedelic", "Space Rock", "Experimental"),
-                nextShow = "Sat at The Basement"
+                nextShow = "Sat at The Basement",
+                socialLinks = listOf(
+                    Pair("Bandcamp", "https://cosmictravelers.bandcamp.com"),
+                    Pair("SoundCloud", "https://soundcloud.com/cosmictravelers")
+                )
             )
         )
     }
