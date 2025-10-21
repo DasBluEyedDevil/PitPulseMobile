@@ -164,7 +164,7 @@ export class VenueService {
 
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);
-    const venues = venuesResult.rows.map(row => this.mapDbVenueToVenue(row));
+    const venues = venuesResult.rows.map((row: any) => this.mapDbVenueToVenue(row));
 
     return {
       venues,
@@ -248,7 +248,7 @@ export class VenueService {
     `;
 
     const result = await this.db.query(query, [limit]);
-    return result.rows.map(row => this.mapDbVenueToVenue(row));
+    return result.rows.map((row: any) => this.mapDbVenueToVenue(row));
   }
 
   /**
@@ -277,7 +277,7 @@ export class VenueService {
     `;
 
     const result = await this.db.query(query, [latitude, longitude, radiusKm, limit]);
-    return result.rows.map(row => this.mapDbVenueToVenue(row));
+    return result.rows.map((row: any) => this.mapDbVenueToVenue(row));
   }
 
   /**

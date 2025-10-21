@@ -1,9 +1,9 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { JWTPayload } from '../types';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const JWT_SECRET: string = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
+const JWT_EXPIRES_IN: string = process.env.JWT_EXPIRES_IN || '7d';
 
 export class AuthUtils {
   /**
@@ -25,11 +25,12 @@ export class AuthUtils {
    * Generate a JWT token for a user
    */
   static generateToken(payload: JWTPayload): string {
-    return jwt.sign(payload, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN,
+    const options: SignOptions = {
+      expiresIn: JWT_EXPIRES_IN as any, // '7d' format is valid but types are strict
       issuer: 'pitpulse-api',
       audience: 'pitpulse-mobile',
-    });
+    };
+    return jwt.sign(payload, JWT_SECRET, options);
   }
 
   /**

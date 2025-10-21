@@ -14,10 +14,8 @@ import { ApiResponse } from './types';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-// Security middleware
-a// CORS configuration - Allow mobile apps and web clients
+const PORT = process.env// Security middleware
+// CORS configuration - Allow mobile apps and web clientspps and web clients
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
     // Allow requests with no origin (mobile apps, Postman, etc.)

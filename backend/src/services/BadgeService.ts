@@ -15,7 +15,7 @@ export class BadgeService {
     `;
 
     const result = await this.db.query(query);
-    return result.rows.map(row => this.mapDbBadgeToBadge(row));
+    return result.rows.map((row: any) => this.mapDbBadgeToBadge(row));
   }
 
   /**
@@ -32,7 +32,7 @@ export class BadgeService {
     `;
 
     const result = await this.db.query(query, [userId]);
-    return result.rows.map(row => ({
+    return result.rows.map((row: any) => ({
       id: row.id,
       userId: row.user_id,
       badgeId: row.badge_id,
@@ -87,10 +87,10 @@ export class BadgeService {
     `;
 
     const result = await this.db.query(query, [badgeType, userCount]);
-    const eligibleBadges = result.rows.map(row => this.mapDbBadgeToBadge(row));
+    const eligibleBadges = result.rows.map((row: any) => this.mapDbBadgeToBadge(row));
 
     // Filter out badges the user already has
-    return eligibleBadges.filter(badge => !existingBadgeIds.includes(badge.id));
+    return eligibleBadges.filter((badge: Badge) => !existingBadgeIds.includes(badge.id));
   }
 
   /**
@@ -197,7 +197,7 @@ export class BadgeService {
       `;
 
       const recentBadgesResult = await this.db.query(recentBadgesQuery, [row.id]);
-      const recentBadges = recentBadgesResult.rows.map(badgeRow => this.mapDbBadgeToBadge(badgeRow));
+      const recentBadges = recentBadgesResult.rows.map((badgeRow: any) => this.mapDbBadgeToBadge(badgeRow));
 
       leaderboard.push({
         user: {

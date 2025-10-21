@@ -286,7 +286,7 @@ export class ReviewService {
 
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);
-    const reviews = reviewsResult.rows.map(row => {
+    const reviews = reviewsResult.rows.map((row: any) => {
       const review = this.mapDbReviewToReview(row);
       
       // Add related data
@@ -351,7 +351,7 @@ export class ReviewService {
 
     for (const [key, value] of Object.entries(updateData)) {
       if (allowedFields.includes(key) && value !== undefined) {
-        if (key === 'rating' && (value < 1 || value > 5)) {
+        if (key === 'rating' && typeof value === 'number' && (value < 1 || value > 5)) {
           throw new Error('Rating must be between 1 and 5');
         }
         

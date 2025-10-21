@@ -1,14 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthUtils } from '../utils/auth';
 import { UserService } from '../services/UserService';
-import { ApiResponse } from '../types';
+import { ApiResponse, User } from '../types';
 
 export interface AuthenticatedRequest extends Request {
-  user: {
-    id: string;
-    email: string;
-    username: string;
-  };
+  user: User;
 }
 
 /**
@@ -56,11 +52,7 @@ export const authenticateToken = async (
     }
 
     // Attach user info to request
-    req.user = {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-    };
+    req.user = user;
 
     next();
   } catch (error) {
@@ -92,11 +84,7 @@ export const optionalAuth = async (
         const user = await userService.findById(payload.userId);
         
         if (user && user.isActive) {
-          req.user = {
-            id: user.id,
-            email: user.email,
-            username: user.username,
-          };
+          req.user = user;
         }
       }
     }

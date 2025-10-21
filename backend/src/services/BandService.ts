@@ -145,7 +145,7 @@ export class BandService {
 
     const total = parseInt(countResult.rows[0].total);
     const totalPages = Math.ceil(total / limit);
-    const bands = bandsResult.rows.map(row => this.mapDbBandToBand(row));
+    const bands = bandsResult.rows.map((row: any) => this.mapDbBandToBand(row));
 
     return {
       bands,
@@ -228,7 +228,7 @@ export class BandService {
     `;
 
     const result = await this.db.query(query, [limit]);
-    return result.rows.map(row => this.mapDbBandToBand(row));
+    return result.rows.map((row: any) => this.mapDbBandToBand(row));
   }
 
   /**
@@ -246,7 +246,7 @@ export class BandService {
     `;
 
     const result = await this.db.query(query, [`%${genre}%`, limit]);
-    return result.rows.map(row => this.mapDbBandToBand(row));
+    return result.rows.map((row: any) => this.mapDbBandToBand(row));
   }
 
   /**
@@ -266,7 +266,7 @@ export class BandService {
     `;
 
     const result = await this.db.query(query, [limit]);
-    return result.rows.map(row => this.mapDbBandToBand(row));
+    return result.rows.map((row: any) => this.mapDbBandToBand(row));
   }
 
   /**
@@ -281,7 +281,7 @@ export class BandService {
     `;
 
     const result = await this.db.query(query);
-    return result.rows.map(row => row.genre);
+    return result.rows.map((row: any) => row.genre);
   }
 
   /**
