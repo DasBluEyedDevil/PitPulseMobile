@@ -17,15 +17,31 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Security middleware
-app.use(helmet());
-
-// CORS configuration
+a// CORS configuration - Allow mobile apps and web clients
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // In development, allow all origins
+    if (process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    
+    // In production, allow mobile apps (no origin) and whitelisted domains
+    const allowedOrigins = (process.env.CORS_ORIGIN || '*').split(',').map(o => o.trim());
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Allow for mobile apps which don't send origin
+    callback(null, true);
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
+  credentials: false, // Set to false for mobile apps
 };
+app.use(cors(corsOptions));
 app.use(cors(corsOptions));
 
 // Body parsing middleware

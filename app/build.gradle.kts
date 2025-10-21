@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -9,22 +10,31 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.pitpulseandroid"
+        // TODO: Change this package name before uploading to Play Store!
+        // See PACKAGE_NAME_CHANGE.md for instructions
+        applicationId = "com.example.pitpulseandroid"  // Change to: com.pitpulse.android
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.1.0-beta"  // Beta versioning
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Signing config will be added here after keystore generation
+            // signingConfig = signingConfigs.getByName("release")
+        }
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
         }
     }
     compileOptions {
@@ -65,6 +75,22 @@ dependencies {
 
     // Coil for image loading
     implementation(libs.coil.compose)
+
+    // Networking
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.moshi)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    implementation(libs.moshi)
+    ksp(libs.moshi.codegen)
+
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.core)
+
+    // Secure storage
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.security.crypto)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

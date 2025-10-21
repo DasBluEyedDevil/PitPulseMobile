@@ -1,4 +1,9 @@
 *.iml
+# Keystore files - NEVER commit these!
+*.keystore
+*.jks
+keystore.properties
+
 .gradle
 /local.properties
 /.idea/caches

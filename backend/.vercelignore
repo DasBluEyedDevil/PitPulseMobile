@@ -1,0 +1,9 @@
+node_modules
+.env
+.env.local
+.git
+*.log
+src
+__tests__
+jest.config.js
+tsconfig.json
