@@ -8,11 +8,9 @@
     </base-config>
     
     <!-- Debug: Allow localhost HTTP for development -->
-    <debug-overrides>
-        <domain-config cleartextTrafficPermitted="true">
-            <domain includeSubdomains="true">localhost</domain>
-            <domain includeSubdomains="true">10.0.2.2</domain>
-            <domain includeSubdomains="true">127.0.0.1</domain>
-        </domain-config>
+    <debug-overrides cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
     </debug-overrides>
 </network-security-config>
