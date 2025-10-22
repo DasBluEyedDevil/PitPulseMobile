@@ -16,7 +16,7 @@ object ApiConfig {
             PROD_BASE_URL
         }
     
-    private fun isDebugBuild(): Boolean {
+    fun isDebugBuild(): Boolean {
         return try {
             // This will be replaced by BuildConfig at compile time
             true // Change to false for production builds

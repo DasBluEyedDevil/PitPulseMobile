@@ -84,7 +84,7 @@ object NetworkModule {
      * Create API service
      */
     inline fun <reified T> createApiService(
-        tokenProvider: () -> String? = { null }
+        noinline tokenProvider: () -> String? = { null }
     ): T {
         val okHttpClient = createOkHttpClient(tokenProvider)
         val retrofit = createRetrofit(okHttpClient)
