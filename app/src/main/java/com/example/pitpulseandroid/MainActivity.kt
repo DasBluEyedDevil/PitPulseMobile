@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -106,7 +107,9 @@ fun MainContent(navController: NavHostController) {
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
                 tabs.forEach { tab ->
                     val selected = currentRoute == tab.screen.route ||
                             (currentRoute?.startsWith(tab.screen.route) == true && 
@@ -125,7 +128,14 @@ fun MainContent(navController: NavHostController) {
                             if (!selected) {
                                 navController.navigateSingleTop(tab.screen.route)
                             }
-                        }
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                            indicatorColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
                     )
                 }
             }

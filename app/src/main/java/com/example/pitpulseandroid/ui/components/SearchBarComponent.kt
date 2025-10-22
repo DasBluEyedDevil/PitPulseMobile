@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
@@ -16,7 +17,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.pitpulseandroid.ui.theme.PitPulseAndroidTheme
@@ -40,6 +40,9 @@ fun SearchBarComponent(
 ) {
     var searchText by remember { mutableStateOf(initialValue) }
 
+    val accent = Purple600
+    val neutral = MaterialTheme.colorScheme.onSurfaceVariant
+
     OutlinedTextField(
         value = searchText,
         onValueChange = { 
@@ -51,7 +54,7 @@ fun SearchBarComponent(
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Search",
-                tint = Purple600
+                tint = accent
             )
         },
         modifier = modifier
@@ -59,11 +62,11 @@ fun SearchBarComponent(
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(24.dp),
         colors = TextFieldDefaults.colors(
-            focusedIndicatorColor = Purple600,
-            unfocusedIndicatorColor = Color.Gray.copy(alpha = 0.5f),
-            cursorColor = Purple600,
-            focusedContainerColor = Color.Transparent,
-            unfocusedContainerColor = Color.Transparent
+            focusedIndicatorColor = accent,
+            unfocusedIndicatorColor = neutral.copy(alpha = 0.5f),
+            cursorColor = accent,
+            focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+            unfocusedContainerColor = androidx.compose.ui.graphics.Color.Transparent
         ),
         singleLine = true
     )
