@@ -8,6 +8,7 @@
     "dev": "nodemon src/index.ts",
     "build": "node node_modules/typescript/lib/tsc.js",
     "migrate": "ts-node src/scripts/migrate.ts",
+    "seed": "node seed-data.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

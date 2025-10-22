@@ -11,7 +11,7 @@ object ApiConfig {
     // Use BuildConfig to determine which URL to use
     val BASE_URL: String
         get() = if (isDebugBuild()) {
-            DEV_EMULATOR_URL
+            PROD_BASE_URL  // Using Railway for testing
         } else {
             PROD_BASE_URL
         }
