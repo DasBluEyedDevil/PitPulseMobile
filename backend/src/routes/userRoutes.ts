@@ -13,16 +13,16 @@ const generalRateLimit = rateLimit(15 * 60 * 1000, 30); // 30 requests per 15 mi
 router.post('/register', authRateLimit, userController.register);
 router.post('/login', authRateLimit, userController.login);
 
-// Username and email availability check
-router.get('/check-username/:username', generalRateLimit, userController.checkUsername);
-router.get('/check-email/:email', generalRateLimit, userController.checkEmail);
-
-// Public user profiles
-router.get('/:username', generalRateLimit, userController.getUserByUsername);
-
-// Protected routes (authentication required)
+// Protected routes (authentication required) - MUST come before /:username
 router.get('/me', authenticateToken, userController.getProfile);
 router.put('/me', authenticateToken, userController.updateProfile);
 router.delete('/me', authenticateToken, userController.deactivateAccount);
+
+// Username and email availability check - MUST come before /:username
+router.get('/check-username/:username', generalRateLimit, userController.checkUsername);
+router.get('/check-email', generalRateLimit, userController.checkEmail); // Changed to query param
+
+// Public user profiles - MUST be last as it's a catch-all
+router.get('/:username', generalRateLimit, userController.getUserByUsername);
 
 export default router;

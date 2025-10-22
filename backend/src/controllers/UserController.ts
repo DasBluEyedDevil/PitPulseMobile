@@ -293,11 +293,20 @@ export class UserController {
 
   /**
    * Check email availability
-   * GET /api/users/check-email/:email
+   * GET /api/users/check-email?email=test@example.com
    */
   checkEmail = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { email } = req.params;
+      const { email } = req.query;
+
+      if (!email || typeof email !== 'string') {
+        const response: ApiResponse = {
+          success: false,
+          error: 'Email parameter is required',
+        };
+        res.status(400).json(response);
+        return;
+      }
 
       const existingUser = await this.userService.findByEmail(email);
       const isAvailable = !existingUser;
