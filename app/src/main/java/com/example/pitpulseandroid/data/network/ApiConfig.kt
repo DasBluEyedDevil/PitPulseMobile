@@ -1,8 +1,8 @@
 package com.example.pitpulseandroid.data.network
 
 object ApiConfig {
-    // Production API URL - Update this with your deployed backend URL
-    private const val PROD_BASE_URL = "https://your-backend-url.vercel.app/api/"
+    // Production API URL - Railway deployment
+    private const val PROD_BASE_URL = "https://pitpulsemobile-production.up.railway.app/api/"
     
     // Development API URLs
     private const val DEV_EMULATOR_URL = "http://10.0.2.2:3000/api/"  // Android emulator
