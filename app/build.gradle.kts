@@ -7,14 +7,14 @@ plugins {
 
 android {
     namespace = "com.example.pitpulseandroid"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         // TODO: Change this package name before uploading to Play Store!
         // See PACKAGE_NAME_CHANGE.md for instructions
         applicationId = "com.example.pitpulseandroid"  // Change to: com.pitpulse.android
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "0.1.0-beta"  // Beta versioning
 
