@@ -16,20 +16,35 @@ data class Badge(
     companion object {
         /**
          * Returns a list of sample badges for development and testing
+         *
+         * Source mirrored from backend/database-schema.sql default badges:
+         * - First Review (review_count, 1)
+         * - Review Master (review_count, 10)
+         * - Review Legend (review_count, 50)
+         * - Venue Explorer (venue_explorer, 5)
+         * - Music Lover (music_lover, 10)
+         * - Concert Goer (event_attendance, 25)
+         * - Helpful Reviewer (helpful_count, 20)
+         *
+         * Mapped backend types -> Android BadgeType for now:
+         * - review_count, helpful_count -> REVIEW
+         * - venue_explorer -> VENUE_VISIT
+         * - music_lover -> REVIEW (reviews of different bands)
+         * - event_attendance -> SPECIAL_EVENT
          */
         fun getSampleBadges(): List<Badge> {
             return listOf(
                 Badge(
-                    id = "badge1",
-                    name = "Venue Explorer",
-                    description = "Visit 5 different venues",
+                    id = "first_review",
+                    name = "First Review",
+                    description = "Write your first review",
                     imageUrl = "",
-                    icon = android.R.drawable.ic_menu_compass,
-                    badgeType = BadgeType.VENUE_VISIT,
-                    threshold = 5
+                    icon = android.R.drawable.ic_menu_edit,
+                    badgeType = BadgeType.REVIEW,
+                    threshold = 1
                 ),
                 Badge(
-                    id = "badge2",
+                    id = "review_master",
                     name = "Review Master",
                     description = "Write 10 reviews",
                     imageUrl = "",
@@ -38,31 +53,49 @@ data class Badge(
                     threshold = 10
                 ),
                 Badge(
-                    id = "badge3",
-                    name = "Feedback Pro",
-                    description = "Receive 15 helpful votes on your reviews",
+                    id = "review_legend",
+                    name = "Review Legend",
+                    description = "Write 50 reviews",
                     imageUrl = "",
-                    icon = android.R.drawable.ic_menu_send,
+                    icon = android.R.drawable.ic_menu_edit,
                     badgeType = BadgeType.REVIEW,
-                    threshold = 15
+                    threshold = 50
                 ),
                 Badge(
-                    id = "badge4",
-                    name = "Night Owl",
-                    description = "Attend 3 shows that started after 10pm",
+                    id = "venue_explorer",
+                    name = "Venue Explorer",
+                    description = "Review 5 different venues",
                     imageUrl = "",
-                    icon = android.R.drawable.ic_menu_recent_history,
-                    badgeType = BadgeType.SPECIAL_EVENT,
-                    threshold = 3
-                ),
-                Badge(
-                    id = "badge5",
-                    name = "Local Champion",
-                    description = "Visit 8 venues in your city",
-                    imageUrl = "",
-                    icon = android.R.drawable.ic_menu_myplaces,
+                    icon = android.R.drawable.ic_menu_compass,
                     badgeType = BadgeType.VENUE_VISIT,
-                    threshold = 8
+                    threshold = 5
+                ),
+                Badge(
+                    id = "music_lover",
+                    name = "Music Lover",
+                    description = "Review 10 different bands",
+                    imageUrl = "",
+                    icon = android.R.drawable.ic_media_play,
+                    badgeType = BadgeType.REVIEW,
+                    threshold = 10
+                ),
+                Badge(
+                    id = "concert_goer",
+                    name = "Concert Goer",
+                    description = "Attend and review 25 events",
+                    imageUrl = "",
+                    icon = android.R.drawable.ic_menu_my_calendar,
+                    badgeType = BadgeType.SPECIAL_EVENT,
+                    threshold = 25
+                ),
+                Badge(
+                    id = "helpful_reviewer",
+                    name = "Helpful Reviewer",
+                    description = "Get 20 helpful votes on reviews",
+                    imageUrl = "",
+                    icon = android.R.drawable.ic_menu_agenda,
+                    badgeType = BadgeType.REVIEW,
+                    threshold = 20
                 )
             )
         }
