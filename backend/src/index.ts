@@ -8,10 +8,14 @@ import bandRoutes from './routes/bandRoutes';
 import reviewRoutes from './routes/reviewRoutes';
 import badgeRoutes from './routes/badgeRoutes';
 import Database from './config/database';
-import { ApiResponse } from './types';
-
-// Load environment variables
-dotenv.config();
+import { ApiResponse } from '.// Load environment variables from .env file (development only)
+// In production (Railway, etc.), environment variables are injected directly
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+  console.log('📄 Loaded .env file for development');
+} else {
+  console.log('🚀 Using production environment variables');
+}env.config();
 
 const app = express();
 const PORT = process.env// Security middleware
@@ -115,14 +119,16 @@ app.use((error: Error, req: express.Request, res: express.Response, next: expres
   
   const response: ApiResponse = {
     success: false,
-    error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
-  };
-  
-  res.status(500).json(response);
-});
-
-// Start server
+    error: process.env.NODE_ENV === 'development' ? // Start server
 const startServer = async () => {
+  try {
+    // Log environment info (without exposing sensitive data)
+    console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
+    console.log('🔌 DATABASE_URL present:', !!process.env.DATABASE_URL);
+    console.log('🔌 DB_HOST present:', !!process.env.DB_HOST);
+    
+    // Test database connection
+    const db = Database.getInstance(); = async () => {
   try {
     // Test database connection
     const db = Database.getInstance();

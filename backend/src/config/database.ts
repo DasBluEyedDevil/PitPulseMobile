@@ -6,19 +6,34 @@ class Database {
   private static instance: Database;
 
   private constructor() {
-    const config: DatabaseConfig = {
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME || 'pitpulse',
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'password',
-    };
+    // Check if DATABASE_URL is provided (Railway, Heroku, etc.)
+    if (process.env.DATABASE_URL) {
+      console.log('🔗 Using DATABASE_URL for database connection');
+      this.pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 2000,
+      });
+    } else {
+      // Fall back to individual environment variables
+      console.log('🔗 Using individual DB_* environment variables');
+      const config: DatabaseConfig = {
+        host: process.env.DB_HOST || 'localhost',
+        port: parseInt(process.env.DB_PORT || '5432'),
+        database: process.env.DB_NAME || 'pitpulse',
+        user: process.env.DB_USER || 'postgres',
+        password: process.env.DB_PASSWORD || 'password',
+      };
 
-    this.pool = new Pool({
-      ...config,
-      max: 20, // Maximum number of clients in the pool
-      idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-      connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+      this.pool = new Pool({
+        ...config,
+        max: 20, // Maximum number of clients in the pool
+        idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+        connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+      });
+    } established
     });
 
     // Handle pool errors
