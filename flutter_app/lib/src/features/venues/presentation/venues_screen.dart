@@ -6,7 +6,7 @@ import '../../../core/providers/providers.dart';
 import '../domain/venue.dart';
 import '../../../shared/widgets/venue_card.dart';
 
-final venuesProvider = FutureProvider<List<Venue>>((ref) async {
+final venuesProvider = FutureProvider.autoDispose<List<Venue>>((ref) async {
   final repository = ref.watch(venueRepositoryProvider);
   return repository.getVenues();
 });
@@ -41,8 +41,37 @@ class VenuesScreen extends ConsumerWidget {
                 ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Text('Error: $error'),
+        error: (error, stackTrace) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacing24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: AppTheme.error,
+                ),
+                const SizedBox(height: AppTheme.spacing16),
+                Text(
+                  'Could not load venues',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: AppTheme.spacing8),
+                Text(
+                  'Please check your connection and try again.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppTheme.spacing24),
+                ElevatedButton.icon(
+                  onPressed: () => ref.invalidate(venuesProvider),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

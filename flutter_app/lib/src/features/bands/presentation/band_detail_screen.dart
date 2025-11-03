@@ -6,7 +6,7 @@ import '../../../core/providers/providers.dart';
 import '../domain/band.dart';
 import '../../../shared/widgets/star_rating.dart';
 
-final bandDetailProvider = FutureProvider.family<Band, String>((ref, id) async {
+final bandDetailProvider = FutureProvider.autoDispose.family<Band, String>((ref, id) async {
   final repository = ref.watch(bandRepositoryProvider);
   return repository.getBandById(id);
 });
@@ -91,8 +91,48 @@ class BandDetailScreen extends ConsumerWidget {
             ),
           ],
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Error: $error')),
+        loading: () => const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+        error: (error, _) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Band Details'),
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTheme.spacing24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: AppTheme.error,
+                  ),
+                  const SizedBox(height: AppTheme.spacing16),
+                  const Text(
+                    'Could not load band details',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacing8),
+                  const Text(
+                    'Please check your connection and try again.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppTheme.spacing24),
+                  ElevatedButton.icon(
+                    onPressed: () => ref.invalidate(bandDetailProvider(bandId)),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

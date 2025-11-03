@@ -5,7 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
 import '../../badges/domain/badge.dart';
 
-final myBadgesProvider = FutureProvider<List<UserBadge>>((ref) async {
+final myBadgesProvider = FutureProvider.autoDispose<List<UserBadge>>((ref) async {
   final repository = ref.watch(badgeRepositoryProvider);
   return repository.getMyBadges();
 });
@@ -162,7 +162,17 @@ class ProfileScreen extends ConsumerWidget {
                           child: CircularProgressIndicator(),
                         ),
                         error: (error, _) => Center(
-                          child: Text('Error loading badges: $error'),
+                          child: Column(
+                            children: [
+                              const Text('Could not load badges'),
+                              const SizedBox(height: AppTheme.spacing8),
+                              TextButton.icon(
+                                onPressed: () => ref.invalidate(myBadgesProvider),
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Retry'),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],

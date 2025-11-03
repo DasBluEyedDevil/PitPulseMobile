@@ -6,7 +6,7 @@ import '../../../core/providers/providers.dart';
 import '../domain/venue.dart';
 import '../../../shared/widgets/star_rating.dart';
 
-final venueDetailProvider = FutureProvider.family<Venue, String>((ref, id) async {
+final venueDetailProvider = FutureProvider.autoDispose.family<Venue, String>((ref, id) async {
   final repository = ref.watch(venueRepositoryProvider);
   return repository.getVenueById(id);
 });
@@ -84,8 +84,48 @@ class VenueDetailScreen extends ConsumerWidget {
             ),
           ],
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Error: $error')),
+        loading: () => const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        ),
+        error: (error, _) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Venue Details'),
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTheme.spacing24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: AppTheme.error,
+                  ),
+                  const SizedBox(height: AppTheme.spacing16),
+                  const Text(
+                    'Could not load venue details',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacing8),
+                  const Text(
+                    'Please check your connection and try again.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppTheme.spacing24),
+                  ElevatedButton.icon(
+                    onPressed: () => ref.invalidate(venueDetailProvider(venueId)),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

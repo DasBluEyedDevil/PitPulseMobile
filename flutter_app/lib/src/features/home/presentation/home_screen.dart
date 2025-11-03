@@ -9,12 +9,12 @@ import '../../../shared/widgets/venue_card.dart';
 import '../../../shared/widgets/band_card.dart';
 
 // Providers for popular content
-final popularVenuesProvider = FutureProvider<List<Venue>>((ref) async {
+final popularVenuesProvider = FutureProvider.autoDispose<List<Venue>>((ref) async {
   final repository = ref.watch(venueRepositoryProvider);
   return repository.getPopularVenues(limit: 5);
 });
 
-final popularBandsProvider = FutureProvider<List<Band>>((ref) async {
+final popularBandsProvider = FutureProvider.autoDispose<List<Band>>((ref) async {
   final repository = ref.watch(bandRepositoryProvider);
   return repository.getPopularBands(limit: 5);
 });
@@ -138,9 +138,19 @@ class HomeScreen extends ConsumerWidget {
                 error: (error, _) => Center(
                   child: Padding(
                     padding: const EdgeInsets.all(AppTheme.spacing24),
-                    child: Text(
-                      'Error loading venues: $error',
-                      style: TextStyle(color: AppTheme.error),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Could not load venues',
+                          style: TextStyle(color: AppTheme.error),
+                        ),
+                        const SizedBox(height: AppTheme.spacing8),
+                        TextButton.icon(
+                          onPressed: () => ref.invalidate(popularVenuesProvider),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -198,9 +208,19 @@ class HomeScreen extends ConsumerWidget {
                 error: (error, _) => Center(
                   child: Padding(
                     padding: const EdgeInsets.all(AppTheme.spacing24),
-                    child: Text(
-                      'Error loading bands: $error',
-                      style: TextStyle(color: AppTheme.error),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Could not load bands',
+                          style: TextStyle(color: AppTheme.error),
+                        ),
+                        const SizedBox(height: AppTheme.spacing8),
+                        TextButton.icon(
+                          onPressed: () => ref.invalidate(popularBandsProvider),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
                     ),
                   ),
                 ),
