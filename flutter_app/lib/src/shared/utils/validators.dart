@@ -82,7 +82,7 @@ class Validators {
     }
     
     if (value.length > max) {
-      return '$fieldName must be less than $max characters';
+      return '$fieldName must be no more than $max characters';
     }
     
     return null;

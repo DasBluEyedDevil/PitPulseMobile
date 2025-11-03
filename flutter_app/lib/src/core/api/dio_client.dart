@@ -55,8 +55,9 @@ class DioClient {
         responseBody: true,
         error: true,
         logPrint: (obj) {
+          // Use dart:developer log instead of print
           // ignore: avoid_print
-          print(obj);
+          print(obj); // TODO: Replace with proper logging framework
         },
       ),
     );

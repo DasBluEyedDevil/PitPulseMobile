@@ -79,7 +79,8 @@ class BandDetailScreen extends ConsumerWidget {
                     const SizedBox(height: AppTheme.spacing24),
                     ElevatedButton.icon(
                       onPressed: () {
-                        context.push('/add-review?bandId=$bandId');
+                        final encodedId = Uri.encodeQueryComponent(bandId);
+                        context.push('/add-review?bandId=$encodedId');
                       },
                       icon: const Icon(Icons.rate_review),
                       label: const Text('Write a Review'),

@@ -72,7 +72,8 @@ class VenueDetailScreen extends ConsumerWidget {
                     const SizedBox(height: AppTheme.spacing24),
                     ElevatedButton.icon(
                       onPressed: () {
-                        context.push('/add-review?venueId=$venueId');
+                        final encodedId = Uri.encodeQueryComponent(venueId);
+                        context.push('/add-review?venueId=$encodedId');
                       },
                       icon: const Icon(Icons.rate_review),
                       label: const Text('Write a Review'),
