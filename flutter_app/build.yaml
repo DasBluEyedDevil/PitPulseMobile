@@ -1,0 +1,28 @@
+targets:
+  $default:
+    builders:
+      freezed:
+        enabled: true
+        options:
+          # Generate when_or_null, map, or other union helpers
+          union: true
+          # Generate copyWith methods
+          copyWith: true
+          # Generate equality and hashCode
+          equal: true
+          # Generate toString
+          to_string: true
+
+      json_serializable:
+        enabled: true
+        options:
+          # Create factory methods
+          create_factory: true
+          # Create toJson methods
+          create_to_json: true
+          # Handle null values explicitly
+          explicit_to_json: true
+          # Use snake_case for JSON keys
+          field_rename: none
+          # Generate nullable fields properly
+          nullable: true
