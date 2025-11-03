@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
+import '../../../shared/utils/validators.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -113,15 +114,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     hintText: 'Enter your email',
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Please enter a valid email';
-                    }
-                    return null;
-                  },
+                  validator: Validators.email,
                 ),
                 const SizedBox(height: AppTheme.spacing16),
                 
@@ -133,15 +126,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     hintText: 'Choose a username',
                     prefixIcon: Icon(Icons.person_outlined),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a username';
-                    }
-                    if (value.length < 3) {
-                      return 'Username must be at least 3 characters';
-                    }
-                    return null;
-                  },
+                  validator: Validators.username,
                 ),
                 const SizedBox(height: AppTheme.spacing16),
                 
@@ -186,15 +171,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       },
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a password';
-                    }
-                    if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
-                    return null;
-                  },
+                  validator: Validators.password,
                 ),
                 const SizedBox(height: AppTheme.spacing16),
                 

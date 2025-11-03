@@ -1,0 +1,122 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pitpulse_flutter/src/shared/widgets/band_card.dart';
+import 'package:pitpulse_flutter/src/features/bands/domain/band.dart';
+
+void main() {
+  group('BandCard Widget', () {
+    final testBand = Band(
+      id: '1',
+      name: 'Test Band',
+      description: 'A great band',
+      genre: 'Rock',
+      averageRating: 4.5,
+      totalReviews: 150,
+      isActive: true,
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+    );
+
+    testWidgets('displays band name', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: BandCard(band: testBand),
+          ),
+        ),
+      );
+
+      expect(find.text('Test Band'), findsOneWidget);
+    });
+
+    testWidgets('displays genre', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: BandCard(band: testBand),
+          ),
+        ),
+      );
+
+      expect(find.text('Rock'), findsOneWidget);
+    });
+
+    testWidgets('displays total reviews count', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: BandCard(band: testBand),
+          ),
+        ),
+      );
+
+      expect(find.text('(150)'), findsOneWidget);
+    });
+
+    testWidgets('shows music icon for genre', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: BandCard(band: testBand),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.music_note), findsOneWidget);
+    });
+
+    testWidgets('displays placeholder when no image URL', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: BandCard(band: testBand),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.music_video), findsOneWidget);
+    });
+
+    testWidgets('calls onTap when card is tapped', (WidgetTester tester) async {
+      var tapped = false;
+      
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: BandCard(
+              band: testBand,
+              onTap: () => tapped = true,
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(InkWell));
+      await tester.pumpAndSettle();
+
+      expect(tapped, true);
+    });
+
+    testWidgets('does not show genre when it is null', (WidgetTester tester) async {
+      final bandNoGenre = Band(
+        id: '1',
+        name: 'Test Band',
+        averageRating: 4.5,
+        totalReviews: 150,
+        isActive: true,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: BandCard(band: bandNoGenre),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.music_note), findsNothing);
+    });
+  });
+}

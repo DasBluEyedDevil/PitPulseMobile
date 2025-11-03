@@ -6,7 +6,7 @@ import '../../../core/providers/providers.dart';
 import '../domain/band.dart';
 import '../../../shared/widgets/band_card.dart';
 
-final bandsProvider = FutureProvider<List<Band>>((ref) async {
+final bandsProvider = FutureProvider.autoDispose<List<Band>>((ref) async {
   final repository = ref.watch(bandRepositoryProvider);
   return repository.getBands();
 });
@@ -41,8 +41,37 @@ class BandsScreen extends ConsumerWidget {
                 ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Text('Error: $error'),
+        error: (error, stackTrace) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacing24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: AppTheme.error,
+                ),
+                const SizedBox(height: AppTheme.spacing16),
+                Text(
+                  'Could not load bands',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: AppTheme.spacing8),
+                Text(
+                  'Please check your connection and try again.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppTheme.spacing24),
+                ElevatedButton.icon(
+                  onPressed: () => ref.invalidate(bandsProvider),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
