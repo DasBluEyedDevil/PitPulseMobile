@@ -1,0 +1,123 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:pitpulse_flutter/src/shared/widgets/venue_card.dart';
+import 'package:pitpulse_flutter/src/features/venues/domain/venue.dart';
+
+void main() {
+  group('VenueCard Widget', () {
+    final testVenue = Venue(
+      id: '1',
+      name: 'Test Venue',
+      description: 'A great venue',
+      city: 'San Francisco',
+      state: 'CA',
+      averageRating: 4.5,
+      totalReviews: 100,
+      isActive: true,
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+    );
+
+    testWidgets('displays venue name', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: VenueCard(venue: testVenue),
+          ),
+        ),
+      );
+
+      expect(find.text('Test Venue'), findsOneWidget);
+    });
+
+    testWidgets('displays city and state', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: VenueCard(venue: testVenue),
+          ),
+        ),
+      );
+
+      expect(find.text('San Francisco, CA'), findsOneWidget);
+    });
+
+    testWidgets('displays total reviews count', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: VenueCard(venue: testVenue),
+          ),
+        ),
+      );
+
+      expect(find.text('(100)'), findsOneWidget);
+    });
+
+    testWidgets('shows location icon', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: VenueCard(venue: testVenue),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.location_on_outlined), findsOneWidget);
+    });
+
+    testWidgets('displays placeholder when no image URL', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: VenueCard(venue: testVenue),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.location_city), findsOneWidget);
+    });
+
+    testWidgets('calls onTap when card is tapped', (WidgetTester tester) async {
+      var tapped = false;
+      
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: VenueCard(
+              venue: testVenue,
+              onTap: () => tapped = true,
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(InkWell));
+      await tester.pumpAndSettle();
+
+      expect(tapped, true);
+    });
+
+    testWidgets('does not show location when city and state are null', (WidgetTester tester) async {
+      final venueNoLocation = Venue(
+        id: '1',
+        name: 'Test Venue',
+        averageRating: 4.5,
+        totalReviews: 100,
+        isActive: true,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: VenueCard(venue: venueNoLocation),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.location_on_outlined), findsNothing);
+    });
+  });
+}
