@@ -1,0 +1,58 @@
+name: pitpulse_flutter
+description: A Flutter app for discovering and reviewing concert venues and bands
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  
+  # Navigation
+  go_router: ^14.0.2
+  
+  # Networking
+  dio: ^5.4.0
+  
+  # Data Models
+  freezed_annotation: ^2.4.1
+  json_annotation: ^4.8.1
+  
+  # Secure Storage
+  flutter_secure_storage: ^9.0.0
+  
+  # UI
+  cupertino_icons: ^1.0.6
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  # Code Generation
+  build_runner: ^2.4.8
+  freezed: ^2.4.7
+  json_serializable: ^6.7.1
+  riverpod_generator: ^2.4.0
+  
+  # Linting
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+  # Fonts (can be added later)
+  # fonts:
+  #   - family: Roboto
+  #     fonts:
+  #       - asset: fonts/Roboto-Regular.ttf
+  
+  # Assets
+  # assets:
+  #   - images/
