@@ -67,7 +67,7 @@ private const val PROD_BASE_URL = "https://your-railway-url.up.railway.app/api/"
 
 ## Need Help?
 
-See **RAILWAY_DEPLOYMENT_STEPS.md** for detailed instructions.
+See [RAILWAY_DEPLOYMENT_STEPS.md](RAILWAY_DEPLOYMENT_STEPS.md) for detailed instructions.
 
 ---
 
