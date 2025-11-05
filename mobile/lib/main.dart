@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'src/core/theme/app_theme.dart';
+import 'src/core/theme/theme_provider.dart';
 import 'src/core/router/app_router.dart';
 
 void main() {
@@ -17,11 +18,14 @@ class PitPulseApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
+    final themeMode = ref.watch(themeProvider);
 
     return MaterialApp.router(
       title: 'PitPulse',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ref.read(themeProvider.notifier).getThemeMode(),
       routerConfig: router,
     );
   }

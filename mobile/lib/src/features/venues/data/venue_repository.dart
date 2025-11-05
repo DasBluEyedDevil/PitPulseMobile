@@ -12,7 +12,10 @@ class VenueRepository {
     String? search,
     String? city,
     String? venueType,
-    double? rating,
+    double? minRating,
+    int? minCapacity,
+    int? maxCapacity,
+    String? sortBy,
     int page = 1,
     int limit = 20,
   }) async {
@@ -25,7 +28,10 @@ class VenueRepository {
       if (search != null) queryParams['q'] = search;
       if (city != null) queryParams['city'] = city;
       if (venueType != null) queryParams['venueType'] = venueType;
-      if (rating != null) queryParams['rating'] = rating;
+      if (minRating != null) queryParams['minRating'] = minRating;
+      if (minCapacity != null) queryParams['minCapacity'] = minCapacity;
+      if (maxCapacity != null) queryParams['maxCapacity'] = maxCapacity;
+      if (sortBy != null) queryParams['sort'] = sortBy;
 
       final response = await _dioClient.get(
         ApiConfig.venues,
