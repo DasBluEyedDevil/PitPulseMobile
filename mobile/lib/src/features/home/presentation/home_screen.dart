@@ -3,10 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
+import '../../../shared/utils/haptic_feedback.dart';
 import '../../venues/domain/venue.dart';
 import '../../bands/domain/band.dart';
 import '../../../shared/widgets/venue_card.dart';
 import '../../../shared/widgets/band_card.dart';
+import '../../../shared/widgets/venue_card_skeleton.dart';
+import '../../../shared/widgets/band_card_skeleton.dart';
+import '../../../shared/widgets/empty_state_widget.dart';
+import '../../../shared/widgets/error_state_widget.dart';
 
 // Providers for popular content
 final popularVenuesProvider = FutureProvider.autoDispose<List<Venue>>((ref) async {
@@ -31,15 +36,10 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('PitPulse'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () => context.push('/profile'),
-          ),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
+          await HapticFeedbackUtil.mediumImpact();
           ref.invalidate(popularVenuesProvider);
           ref.invalidate(popularBandsProvider);
         },
@@ -76,13 +76,20 @@ class HomeScreen extends ConsumerWidget {
               ),
 
               // Search Bar
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.search),
-                  title: const Text('Search venues, bands...'),
-                  onTap: () {
-                    // TODO: Implement search
-                  },
+              Semantics(
+                label: 'Search button for venues and bands',
+                button: true,
+                child: Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.search),
+                    title: const Text('Search venues, bands...'),
+                    onTap: () async {
+                      await HapticFeedbackUtil.lightImpact();
+                      if (context.mounted) {
+                        context.push('/search');
+                      }
+                    },
+                  ),
                 ),
               ),
               const SizedBox(height: AppTheme.spacing24),
@@ -95,9 +102,18 @@ class HomeScreen extends ConsumerWidget {
                     'Popular Venues',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
-                  TextButton(
-                    onPressed: () => context.push('/venues'),
-                    child: const Text('See All'),
+                  Semantics(
+                    label: 'See all venues button',
+                    button: true,
+                    child: TextButton(
+                      onPressed: () async {
+                        await HapticFeedbackUtil.lightImpact();
+                        if (context.mounted) {
+                          context.go('/venues');
+                        }
+                      },
+                      child: const Text('See All'),
+                    ),
                   ),
                 ],
               ),
@@ -105,10 +121,13 @@ class HomeScreen extends ConsumerWidget {
 
               popularVenues.when(
                 data: (venues) => venues.isEmpty
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(AppTheme.spacing24),
-                          child: Text('No venues available'),
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
+                        child: Text(
+                          'No popular venues at the moment',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
                         ),
                       )
                     : SizedBox(
@@ -129,29 +148,44 @@ class HomeScreen extends ConsumerWidget {
                           },
                         ),
                       ),
-                loading: () => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(AppTheme.spacing24),
-                    child: CircularProgressIndicator(),
+                loading: () => SizedBox(
+                  height: 200,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: 3,
+                    itemBuilder: (context, index) {
+                      return const SizedBox(
+                        width: 300,
+                        child: VenueCardSkeleton(),
+                      );
+                    },
                   ),
                 ),
-                error: (error, _) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppTheme.spacing24),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Could not load venues',
-                          style: TextStyle(color: AppTheme.error),
+                error: (error, stackTrace) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Could not load venues',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.error,
                         ),
-                        const SizedBox(height: AppTheme.spacing8),
-                        TextButton.icon(
-                          onPressed: () => ref.invalidate(popularVenuesProvider),
+                      ),
+                      const SizedBox(height: AppTheme.spacing8),
+                      Semantics(
+                        label: 'Retry loading venues',
+                        button: true,
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            await HapticFeedbackUtil.lightImpact();
+                            ref.invalidate(popularVenuesProvider);
+                          },
                           icon: const Icon(Icons.refresh),
                           label: const Text('Retry'),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -165,9 +199,18 @@ class HomeScreen extends ConsumerWidget {
                     'Popular Bands',
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
-                  TextButton(
-                    onPressed: () => context.push('/bands'),
-                    child: const Text('See All'),
+                  Semantics(
+                    label: 'See all bands button',
+                    button: true,
+                    child: TextButton(
+                      onPressed: () async {
+                        await HapticFeedbackUtil.lightImpact();
+                        if (context.mounted) {
+                          context.go('/bands');
+                        }
+                      },
+                      child: const Text('See All'),
+                    ),
                   ),
                 ],
               ),
@@ -175,10 +218,13 @@ class HomeScreen extends ConsumerWidget {
 
               popularBands.when(
                 data: (bands) => bands.isEmpty
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(AppTheme.spacing24),
-                          child: Text('No bands available'),
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
+                        child: Text(
+                          'No popular bands at the moment',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
                         ),
                       )
                     : SizedBox(
@@ -199,72 +245,50 @@ class HomeScreen extends ConsumerWidget {
                           },
                         ),
                       ),
-                loading: () => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(AppTheme.spacing24),
-                    child: CircularProgressIndicator(),
+                loading: () => SizedBox(
+                  height: 200,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: 3,
+                    itemBuilder: (context, index) {
+                      return const SizedBox(
+                        width: 300,
+                        child: BandCardSkeleton(),
+                      );
+                    },
                   ),
                 ),
-                error: (error, _) => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppTheme.spacing24),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Could not load bands',
-                          style: TextStyle(color: AppTheme.error),
+                error: (error, stackTrace) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Could not load bands',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.error,
                         ),
-                        const SizedBox(height: AppTheme.spacing8),
-                        TextButton.icon(
-                          onPressed: () => ref.invalidate(popularBandsProvider),
+                      ),
+                      const SizedBox(height: AppTheme.spacing8),
+                      Semantics(
+                        label: 'Retry loading bands',
+                        button: true,
+                        child: TextButton.icon(
+                          onPressed: () async {
+                            await HapticFeedbackUtil.lightImpact();
+                            ref.invalidate(popularBandsProvider);
+                          },
                           icon: const Icon(Icons.refresh),
                           label: const Text('Retry'),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.location_on),
-            label: 'Venues',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.music_note),
-            label: 'Bands',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              // Already on home
-              break;
-            case 1:
-              context.push('/venues');
-              break;
-            case 2:
-              context.push('/bands');
-              break;
-            case 3:
-              context.push('/profile');
-              break;
-          }
-        },
       ),
     );
   }

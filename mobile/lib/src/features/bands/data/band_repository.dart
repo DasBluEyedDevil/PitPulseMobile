@@ -11,7 +11,9 @@ class BandRepository {
   Future<List<Band>> getBands({
     String? search,
     String? genre,
-    double? rating,
+    String? hometown,
+    double? minRating,
+    String? sortBy,
     int page = 1,
     int limit = 20,
   }) async {
@@ -23,7 +25,9 @@ class BandRepository {
 
       if (search != null) queryParams['q'] = search;
       if (genre != null) queryParams['genre'] = genre;
-      if (rating != null) queryParams['rating'] = rating;
+      if (hometown != null) queryParams['hometown'] = hometown;
+      if (minRating != null) queryParams['minRating'] = minRating;
+      if (sortBy != null) queryParams['sort'] = sortBy;
 
       final response = await _dioClient.get(
         ApiConfig.bands,
