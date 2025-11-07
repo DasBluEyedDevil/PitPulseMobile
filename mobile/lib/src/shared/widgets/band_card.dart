@@ -106,7 +106,8 @@ class BandCard extends StatelessWidget {
                   ),
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );

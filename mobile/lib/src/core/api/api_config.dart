@@ -2,8 +2,8 @@
 class ApiConfig {
   ApiConfig._();
 
-  // Base URL - Update this to match your backend server
-  static const String baseUrl = 'http://localhost:3000/api';
+  // Base URL - Production Railway backend
+  static const String baseUrl = 'https://pitpulsemobile-production.up.railway.app/api';
   
   // Timeouts
   static const Duration connectTimeout = Duration(seconds: 30);

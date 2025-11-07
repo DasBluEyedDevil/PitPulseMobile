@@ -24,5 +24,3 @@ targets:
           explicit_to_json: true
           # Use snake_case for JSON keys
           field_rename: none
-          # Generate nullable fields properly
-          nullable: true

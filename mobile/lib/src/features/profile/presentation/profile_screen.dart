@@ -219,7 +219,7 @@ class ProfileScreen extends ConsumerWidget {
                                         value: DateFormat('MMM yyyy').format(
                                           DateTime.parse(stats.memberSince),
                                         ),
-                                        color: AppTheme.info,
+                                        color: AppTheme.primary,
                                       ),
                                     ),
                                   ],
