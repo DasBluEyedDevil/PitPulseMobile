@@ -4,13 +4,11 @@
   "private": true,
   "description": "PitPulse monorepo - delegates to backend for Railway deployment",
   "scripts": {
-    "install": "cd backend && npm install",
-    "build": "cd backend && npm run build",
-    "start": "cd backend && npm start",
-    "dev": "cd backend && npm run dev",
-    "test": "cd backend && npm test"
-  },
-  "workspaces": [
-    "backend"
-  ]
+    "preinstall": "echo 'Installing from backend directory...'",
+    "install": "npm install --prefix backend",
+    "build": "npm run build --prefix backend",
+    "start": "npm start --prefix backend",
+    "dev": "npm run dev --prefix backend",
+    "test": "npm test --prefix backend"
+  }
 }
