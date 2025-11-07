@@ -11,6 +11,12 @@ keystore.properties
 backend/.env
 backend/.env.local
 
+# Node modules - NEVER commit these!
+node_modules/
+**/node_modules/
+backend/node_modules/
+backend/dist/
+
 .gradle
 /local.properties
 /.idea/caches
@@ -25,4 +31,3 @@ backend/.env.local
 .externalNativeBuild
 .cxx
 local.propertiescal.properties
-/backend/node_modules
