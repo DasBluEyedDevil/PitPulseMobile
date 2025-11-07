@@ -1,0 +1,105 @@
+import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
+import '../../core/theme/app_theme.dart';
+
+/// Skeleton loading state for BandCard
+class BandCardSkeleton extends StatelessWidget {
+  const BandCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image skeleton
+          Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Container(
+              height: 120,
+              width: double.infinity,
+              color: Colors.white,
+            ),
+          ),
+
+          // Content skeleton
+          Padding(
+            padding: const EdgeInsets.all(AppTheme.spacing12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title skeleton
+                Shimmer.fromColors(
+                  baseColor: Colors.grey[300]!,
+                  highlightColor: Colors.grey[100]!,
+                  child: Container(
+                    height: 20,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacing8),
+
+                // Genre skeleton
+                Shimmer.fromColors(
+                  baseColor: Colors.grey[300]!,
+                  highlightColor: Colors.grey[100]!,
+                  child: Container(
+                    height: 14,
+                    width: 120,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacing8),
+
+                // Rating skeleton
+                Row(
+                  children: [
+                    Shimmer.fromColors(
+                      baseColor: Colors.grey[300]!,
+                      highlightColor: Colors.grey[100]!,
+                      child: Row(
+                        children: List.generate(
+                          5,
+                          (index) => Padding(
+                            padding: const EdgeInsets.only(right: 2),
+                            child: Icon(
+                              Icons.star,
+                              size: 16,
+                              color: Colors.grey[300],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.spacing8),
+                    Shimmer.fromColors(
+                      baseColor: Colors.grey[300]!,
+                      highlightColor: Colors.grey[100]!,
+                      child: Container(
+                        height: 12,
+                        width: 30,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

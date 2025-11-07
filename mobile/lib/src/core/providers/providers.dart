@@ -49,6 +49,12 @@ final badgeRepositoryProvider = Provider<BadgeRepository>((ref) {
   return BadgeRepository(dioClient: dioClient);
 });
 
+final profileRepositoryProvider = Provider((ref) {
+  final dioClient = ref.watch(dioClientProvider);
+  // Dynamically import to avoid circular dependency issues
+  return null; // ProfileRepository will be used directly in providers
+});
+
 // Auth State Provider
 final authStateProvider = StateNotifierProvider<AuthStateNotifier, AsyncValue<User?>>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
