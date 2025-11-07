@@ -1,14 +1,10 @@
 # Configure Nixpacks for monorepo structure
-# This tells Nixpacks to build the backend subdirectory
 
 [phases.setup]
-nixPkgs = ["nodejs_20"]
-
-[phases.install]
-cmds = ["cd backend && npm ci --production=false"]
+nixPkgs = ["nodejs_20", "bash"]
 
 [phases.build]
-cmds = ["cd backend && npm run build"]
+cmds = ["bash build.sh"]
 
 [start]
-cmd = "cd backend && npm start"
+cmd = "bash start.sh"
