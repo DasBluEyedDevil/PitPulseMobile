@@ -25,3 +25,4 @@ backend/.env.local
 .externalNativeBuild
 .cxx
 local.propertiescal.properties
+/backend/node_modules
