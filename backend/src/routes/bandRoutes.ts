@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { BandController } from '../controllers/BandController';
+import { EventController } from '../controllers/EventController';
 import { authenticateToken, optionalAuth, rateLimit } from '../middleware/auth';
 
 const router = Router();
 const bandController = new BandController();
+const eventController = new EventController();
 
 // Rate limiting
 const generalRateLimit = rateLimit(15 * 60 * 1000, 100); // 100 requests per 15 minutes
@@ -19,7 +21,11 @@ router.get('/:id', generalRateLimit, optionalAuth, bandController.getBandById);
 
 // Protected routes (authentication required)
 router.post('/', authenticateToken, createRateLimit, bandController.createBand);
+router.post('/import', authenticateToken, createRateLimit, bandController.importBand);
 router.put('/:id', authenticateToken, generalRateLimit, bandController.updateBand);
 router.delete('/:id', authenticateToken, generalRateLimit, bandController.deleteBand);
+
+// Band events
+router.get('/:id/events', generalRateLimit, eventController.getEventsByBand);
 
 export default router;

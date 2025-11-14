@@ -2,9 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BandController = void 0;
 const BandService_1 = require("../services/BandService");
+const MusicBrainzService_1 = require("../services/MusicBrainzService");
 class BandController {
     constructor() {
         this.bandService = new BandService_1.BandService();
+        this.musicBrainzService = new MusicBrainzService_1.MusicBrainzService();
         /**
          * Create a new band
          * POST /api/bands
@@ -236,6 +238,39 @@ class BandController {
                 const response = {
                     success: false,
                     error: 'Failed to fetch genres',
+                };
+                res.status(500).json(response);
+            }
+        };
+        /**
+         * Import band from MusicBrainz
+         * POST /api/bands/import
+         * Body: { musicbrainz_id: string }
+         */
+        this.importBand = async (req, res) => {
+            try {
+                const { musicbrainz_id } = req.body;
+                if (!musicbrainz_id) {
+                    const response = {
+                        success: false,
+                        error: 'MusicBrainz ID is required',
+                    };
+                    res.status(400).json(response);
+                    return;
+                }
+                const band = await this.musicBrainzService.importBand(musicbrainz_id);
+                const response = {
+                    success: true,
+                    data: band,
+                    message: band.alreadyExists ? 'Band already exists in database' : 'Band imported successfully',
+                };
+                res.status(band.alreadyExists ? 200 : 201).json(response);
+            }
+            catch (error) {
+                console.error('Import band error:', error);
+                const response = {
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Failed to import band',
                 };
                 res.status(500).json(response);
             }

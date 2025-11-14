@@ -1,23 +1,28 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
 import dotenv from 'dotenv';
-import userRoutes from './routes/userRoutes';
-import venueRoutes from './routes/venueRoutes';
-import bandRoutes from './routes/bandRoutes';
-import reviewRoutes from './routes/reviewRoutes';
-import badgeRoutes from './routes/badgeRoutes';
-import Database from './config/database';
-import { ApiResponse } from './types';
 
 // Load environment variables from .env file (development only)
 // In production (Railway, etc.), environment variables are injected directly
+// IMPORTANT: This must be done BEFORE any other imports that use env vars
 if (process.env.NODE_ENV !== 'production') {
   dotenv.config();
   console.log('📄 Loaded .env file for development');
 } else {
   console.log('🚀 Using production environment variables');
 }
+
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import userRoutes from './routes/userRoutes';
+import venueRoutes from './routes/venueRoutes';
+import bandRoutes from './routes/bandRoutes';
+import reviewRoutes from './routes/reviewRoutes';
+import badgeRoutes from './routes/badgeRoutes';
+import discoveryRoutes from './routes/discoveryRoutes';
+import eventRoutes from './routes/eventRoutes';
+import checkinRoutes from './routes/checkinRoutes';
+import Database from './config/database';
+import { ApiResponse } from './types';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -95,6 +100,9 @@ app.use('/api/venues', venueRoutes);
 app.use('/api/bands', bandRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/badges', badgeRoutes);
+app.use('/api/discover', discoveryRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/checkins', checkinRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

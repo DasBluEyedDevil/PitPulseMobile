@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added - 2025-11-14
+- **External API Integration - COMPLETE**: Untappd-style discovery system for venues and bands
+  - Database migration complete: Events-based check-in model with dual ratings
+  - **setlist.fm API integration - WORKING**: Venue and concert discovery with setlist data
+  - MusicBrainz API integration complete and working (band/artist discovery)
+  - Event system: Unique constraint on venue + band + date combination
+  - Check-in social features: Toasts (kudos), comments, activity feeds
+  - Discovery endpoints: `/api/discover/venues`, `/api/discover/bands`, `/api/discover/setlists`
+  - Event endpoints: `/api/events` (create, upcoming, trending)
+  - Check-in endpoints: `/api/checkins` (create, feed, toast, comment)
+
+### Technical Details - 2025-11-14 (setlist.fm Integration)
+- **API Configuration**:
+  - Base URL: `https://api.setlist.fm/rest/1.0`
+  - Authentication: `x-api-key` header (no Bearer prefix needed)
+  - Rate Limits: 2 requests/second, 1440 requests/day
+  - API Key: `Oshv7jIuK1HJQFaYApwqmVNGvA52MiSyh-K-` (free for non-commercial use)
+
+- **Key Features**:
+  - Venue search with coordinates for mapping
+  - Concert/event search with full setlist data (songs played!)
+  - Artist MusicBrainz IDs (perfect integration with existing MusicBrainzService)
+  - Tour information and event dates
+  - Venue import functionality
+
+- **Advantages over Foursquare**:
+  - Free for non-commercial use (vs $200/month credits)
+  - Music-specific data (concerts, setlists, tours)
+  - MusicBrainz ID integration
+  - Actual concert history and setlists (unique feature for PitPulse!)
+  - Simple authentication (just API key, no complex OAuth or version headers)
+
 ### Added - 2025-11-13
 - **Beta-Ready Configuration Complete**: All critical blockers for beta release resolved
   - Android INTERNET and ACCESS_NETWORK_STATE permissions added to AndroidManifest.xml
@@ -50,21 +82,98 @@ All notable changes to this project will be documented in this file.
   - Includes: phase-by-phase action plan, testing checklists, success metrics, support info
 
 ## Most Recent Task
-**Date**: 2025-11-13 (Latest - Critical Router Fix)
+**Date**: 2025-11-13 (Latest - Backend API Integration Complete)
+**Task**: Implemented complete backend API for "Untappd for Live Music" check-in system
+**Status**: Completed ✅ (All backend services and endpoints implemented)
+
+### Backend Implementation Completed:
+
+**Database Changes**:
+- ✅ Created events-based schema migration (`migrate-events-model.ts`)
+- ✅ Added `events` table (venue + band + date with unique constraint)
+- ✅ Added `checkins` table (dual ratings, reviews, images)
+- ✅ Added `checkin_toasts` table (social kudos like Untappd)
+- ✅ Added `checkin_comments` table (social interactions)
+- ✅ Added external ID columns to venues (`foursquare_place_id`) and bands (`musicbrainz_id`)
+- ✅ Added `source` field to track data origin (foursquare, musicbrainz, user_created)
+
+**Services Created**:
+- ✅ `FoursquareService.ts` - Venue search and import from Foursquare Places API
+- ✅ `MusicBrainzService.ts` - Band search and import from MusicBrainz API (with 1 req/sec rate limiting)
+- ✅ `EventService.ts` - Event management (create, read, trending, upcoming)
+- ✅ `CheckinService.ts` - Check-in CRUD, toasts, comments, activity feed
+
+**Controllers Created**:
+- ✅ `DiscoveryController.ts` - External API search endpoints
+- ✅ `EventController.ts` - Event management endpoints
+- ✅ `CheckinController.ts` - Social check-in endpoints
+
+**Controllers Updated**:
+- ✅ `VenueController.ts` - Added `importVenue` method
+- ✅ `BandController.ts` - Added `importBand` method
+
+**API Routes Implemented**:
+- ✅ `/api/discover/venues` - Search Foursquare for venues
+- ✅ `/api/discover/venues/nearby` - Find nearby venues
+- ✅ `/api/discover/bands` - Search MusicBrainz for bands
+- ✅ `/api/discover/bands/genre` - Search bands by genre
+- ✅ `/api/venues/import` - Import venue from Foursquare
+- ✅ `/api/venues/:id/events` - Get events at venue
+- ✅ `/api/bands/import` - Import band from MusicBrainz
+- ✅ `/api/bands/:id/events` - Get events for band
+- ✅ `/api/events/*` - Full event CRUD (create, read, upcoming, trending, delete)
+- ✅ `/api/checkins/*` - Full check-in system (create, read, toast, comment, feed, delete)
+
+**Package Dependencies Added**:
+- ✅ `axios` - HTTP client for external API calls
+- ✅ `@types/axios` - TypeScript definitions
+
+### Previous: API Integration Design
+**Date**: 2025-11-13 (API Integration Design Complete)
+**Task**: Designed complete API integration system for "Untappd for Live Music" experience
+**Status**: Completed ✅
+**What was designed**:
+- Events-based check-in model (venue + band + date as core entity)
+- Foursquare Places API integration for venue discovery
+- MusicBrainz API integration for band/artist data
+- Dual rating system (separate venue and band ratings)
+- Social features (activity feed, toasts, comments, friends)
+- 5-tab navigation (Activity, Venues, Discover, Map, Profile)
+- Floating Action Button for check-ins
+- Hybrid data approach (external APIs + user contributions)
+
+**APIs Configured**:
+- ✅ Foursquare API key added to .env ($200/month free credits)
+- ✅ MusicBrainz user-agent configured (100% free)
+
+**Design Document**: `docs/plans/2025-11-13-api-integration-design.md`
+
+**Previous Task** (Same Day - Database Seed Data):
+**Task**: Added seed data script to populate app with realistic venues and bands
+**Status**: Completed ✅ (Database populated with test data)
+**What was added**:
+- Created comprehensive seed script (`backend/src/scripts/seed.ts`)
+- Added 15 realistic venues across major US cities (The Fillmore, Red Rocks, Brooklyn Steel, etc.)
+- Added 20 diverse bands across multiple genres (Rock, Electronic, Jazz, Metal, Hip Hop, etc.)
+- Added 5 sample reviews to demonstrate rating system
+- Created npm scripts: `npm run seed` and `npm run seed:dev`
+
+**Database Content**:
+- ✅ 15 venues with real addresses, coordinates, capacities, and images
+- ✅ 20 bands with descriptions, genres, formed years, and hometowns
+- ✅ 5 sample reviews with ratings and detailed content
+- ✅ Automatic rating calculations for venues and bands
+
+**Previous Task** (Same Day - Auth Response Parsing):
+**Task**: Fixed login/register flow to parse Railway API response wrapper
+**Status**: Completed ✅ (Authentication fully working)
+**Fix**: Updated auth_repository.dart to extract nested `data` object from API wrapper
+
+**Previous Task** (Same Day - Critical Router Fix):
 **Task**: Fixed app crash on launch due to router error handling
 **Status**: Completed ✅ (Router crash resolved)
-**Bug**: App crashed immediately on launch with cascading errors from router redirect
 **Root Cause**: Router was accessing `authState.value` without checking if state had an error first
-**Error Flow**:
-1. App launches → router checks if user is authenticated
-2. AuthState has error (no stored token/user)
-3. Router tries `authState.value` → throws error because AsyncValue.error doesn't have `.value`
-4. Error propagates through widget tree → app crashes
-
-**Fix Applied**:
-- Changed `authState.value != null` to `authState.hasValue && authState.value != null` in app_router.dart line 29
-- Now safely checks if AsyncValue contains data before accessing `.value`
-- Prevents crash when auth state has errors (expected on first launch)
+**Fix Applied**: Changed to `authState.hasValue && authState.value != null` in app_router.dart line 29
 
 **Previous Fix** (Same Day):
 **Task**: Fixed button rendering issue in login/register screens

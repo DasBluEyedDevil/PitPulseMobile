@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
 import { BandService } from '../services/BandService';
+import { MusicBrainzService } from '../services/MusicBrainzService';
 import { CreateBandRequest, SearchQuery, ApiResponse } from '../types';
 
 export class BandController {
   private bandService = new BandService();
+  private musicBrainzService = new MusicBrainzService();
 
   /**
    * Create a new band
@@ -278,6 +280,45 @@ export class BandController {
       const response: ApiResponse = {
         success: false,
         error: 'Failed to fetch genres',
+      };
+
+      res.status(500).json(response);
+    }
+  };
+
+  /**
+   * Import band from MusicBrainz
+   * POST /api/bands/import
+   * Body: { musicbrainz_id: string }
+   */
+  importBand = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { musicbrainz_id } = req.body;
+
+      if (!musicbrainz_id) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'MusicBrainz ID is required',
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      const band = await this.musicBrainzService.importBand(musicbrainz_id);
+
+      const response: ApiResponse = {
+        success: true,
+        data: band,
+        message: band.alreadyExists ? 'Band already exists in database' : 'Band imported successfully',
+      };
+
+      res.status(band.alreadyExists ? 200 : 201).json(response);
+    } catch (error) {
+      console.error('Import band error:', error);
+
+      const response: ApiResponse = {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to import band',
       };
 
       res.status(500).json(response);

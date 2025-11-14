@@ -2,9 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VenueController = void 0;
 const VenueService_1 = require("../services/VenueService");
+const FoursquareService_1 = require("../services/FoursquareService");
 class VenueController {
     constructor() {
         this.venueService = new VenueService_1.VenueService();
+        this.foursquareService = new FoursquareService_1.FoursquareService();
         /**
          * Create a new venue
          * POST /api/venues
@@ -210,6 +212,39 @@ class VenueController {
                 const response = {
                     success: false,
                     error: 'Failed to fetch nearby venues',
+                };
+                res.status(500).json(response);
+            }
+        };
+        /**
+         * Import venue from Foursquare
+         * POST /api/venues/import
+         * Body: { foursquare_place_id: string }
+         */
+        this.importVenue = async (req, res) => {
+            try {
+                const { foursquare_place_id } = req.body;
+                if (!foursquare_place_id) {
+                    const response = {
+                        success: false,
+                        error: 'Foursquare place ID is required',
+                    };
+                    res.status(400).json(response);
+                    return;
+                }
+                const venue = await this.foursquareService.importVenue(foursquare_place_id);
+                const response = {
+                    success: true,
+                    data: venue,
+                    message: venue.alreadyExists ? 'Venue already exists in database' : 'Venue imported successfully',
+                };
+                res.status(venue.alreadyExists ? 200 : 201).json(response);
+            }
+            catch (error) {
+                console.error('Import venue error:', error);
+                const response = {
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Failed to import venue',
                 };
                 res.status(500).json(response);
             }

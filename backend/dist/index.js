@@ -12,6 +12,9 @@ const venueRoutes_1 = __importDefault(require("./routes/venueRoutes"));
 const bandRoutes_1 = __importDefault(require("./routes/bandRoutes"));
 const reviewRoutes_1 = __importDefault(require("./routes/reviewRoutes"));
 const badgeRoutes_1 = __importDefault(require("./routes/badgeRoutes"));
+const discoveryRoutes_1 = __importDefault(require("./routes/discoveryRoutes"));
+const eventRoutes_1 = __importDefault(require("./routes/eventRoutes"));
+const checkinRoutes_1 = __importDefault(require("./routes/checkinRoutes"));
 const database_1 = __importDefault(require("./config/database"));
 // Load environment variables from .env file (development only)
 // In production (Railway, etc.), environment variables are injected directly
@@ -89,6 +92,9 @@ app.use('/api/venues', venueRoutes_1.default);
 app.use('/api/bands', bandRoutes_1.default);
 app.use('/api/reviews', reviewRoutes_1.default);
 app.use('/api/badges', badgeRoutes_1.default);
+app.use('/api/discover', discoveryRoutes_1.default);
+app.use('/api/events', eventRoutes_1.default);
+app.use('/api/checkins', checkinRoutes_1.default);
 // Root endpoint
 app.get('/', (req, res) => {
     const response = {

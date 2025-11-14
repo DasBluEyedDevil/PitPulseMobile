@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 export declare class VenueController {
     private venueService;
+    private foursquareService;
     /**
      * Create a new venue
      * POST /api/venues
@@ -36,5 +37,11 @@ export declare class VenueController {
      * GET /api/venues/near
      */
     getVenuesNear: (req: Request, res: Response) => Promise<void>;
+    /**
+     * Import venue from Foursquare
+     * POST /api/venues/import
+     * Body: { foursquare_place_id: string }
+     */
+    importVenue: (req: Request, res: Response) => Promise<void>;
 }
 //# sourceMappingURL=VenueController.d.ts.map

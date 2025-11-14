@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
 import { VenueService } from '../services/VenueService';
+import { SetlistFmService } from '../services/SetlistFmService';
 import { CreateVenueRequest, SearchQuery, ApiResponse } from '../types';
 
 export class VenueController {
   private venueService = new VenueService();
+  private setlistFmService = new SetlistFmService();
 
   /**
    * Create a new venue
@@ -246,6 +248,45 @@ export class VenueController {
       const response: ApiResponse = {
         success: false,
         error: 'Failed to fetch nearby venues',
+      };
+
+      res.status(500).json(response);
+    }
+  };
+
+  /**
+   * Import venue from setlist.fm
+   * POST /api/venues/import
+   * Body: { setlistfm_venue_id: string }
+   */
+  importVenue = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { setlistfm_venue_id } = req.body;
+
+      if (!setlistfm_venue_id) {
+        const response: ApiResponse = {
+          success: false,
+          error: 'setlist.fm venue ID is required',
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      const venue = await this.setlistFmService.importVenue(setlistfm_venue_id);
+
+      const response: ApiResponse = {
+        success: true,
+        data: venue,
+        message: venue.alreadyExists ? 'Venue already exists in database' : 'Venue imported successfully',
+      };
+
+      res.status(venue.alreadyExists ? 200 : 201).json(response);
+    } catch (error) {
+      console.error('Import venue error:', error);
+
+      const response: ApiResponse = {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to import venue',
       };
 
       res.status(500).json(response);

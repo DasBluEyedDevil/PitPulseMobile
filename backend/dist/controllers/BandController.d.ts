@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 export declare class BandController {
     private bandService;
+    private musicBrainzService;
     /**
      * Create a new band
      * POST /api/bands
@@ -46,5 +47,11 @@ export declare class BandController {
      * GET /api/bands/genres
      */
     getGenres: (req: Request, res: Response) => Promise<void>;
+    /**
+     * Import band from MusicBrainz
+     * POST /api/bands/import
+     * Body: { musicbrainz_id: string }
+     */
+    importBand: (req: Request, res: Response) => Promise<void>;
 }
 //# sourceMappingURL=BandController.d.ts.map
