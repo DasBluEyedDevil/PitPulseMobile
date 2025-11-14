@@ -22,8 +22,10 @@ class AuthRepository {
         data: request.toJson(),
       );
 
-      final authResponse = AuthResponse.fromJson(response.data);
-      
+      // Extract data from API wrapper: {success, data, message}
+      final data = response.data['data'] as Map<String, dynamic>;
+      final authResponse = AuthResponse.fromJson(data);
+
       // Save token and user data
       await _secureStorage.write(
         key: ApiConfig.tokenKey,
@@ -48,8 +50,10 @@ class AuthRepository {
         data: request.toJson(),
       );
 
-      final authResponse = AuthResponse.fromJson(response.data);
-      
+      // Extract data from API wrapper: {success, data, message}
+      final data = response.data['data'] as Map<String, dynamic>;
+      final authResponse = AuthResponse.fromJson(data);
+
       // Save token and user data
       await _secureStorage.write(
         key: ApiConfig.tokenKey,

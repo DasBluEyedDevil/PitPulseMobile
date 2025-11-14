@@ -50,7 +50,39 @@ All notable changes to this project will be documented in this file.
   - Includes: phase-by-phase action plan, testing checklists, success metrics, support info
 
 ## Most Recent Task
-**Date**: 2025-11-13 (Continued Session)
+**Date**: 2025-11-13 (Latest - Critical Router Fix)
+**Task**: Fixed app crash on launch due to router error handling
+**Status**: Completed ✅ (Router crash resolved)
+**Bug**: App crashed immediately on launch with cascading errors from router redirect
+**Root Cause**: Router was accessing `authState.value` without checking if state had an error first
+**Error Flow**:
+1. App launches → router checks if user is authenticated
+2. AuthState has error (no stored token/user)
+3. Router tries `authState.value` → throws error because AsyncValue.error doesn't have `.value`
+4. Error propagates through widget tree → app crashes
+
+**Fix Applied**:
+- Changed `authState.value != null` to `authState.hasValue && authState.value != null` in app_router.dart line 29
+- Now safely checks if AsyncValue contains data before accessing `.value`
+- Prevents crash when auth state has errors (expected on first launch)
+
+**Previous Fix** (Same Day):
+**Task**: Fixed button rendering issue in login/register screens
+**Status**: Completed ✅
+**Fix**: Removed `const` from conditional button children to fix widget tree rebuilding
+
+**Previous Task** (Same Day):
+**Date**: 2025-11-13
+**Task**: IDE configuration fix - Enable monorepo support in Android Studio
+**Status**: Completed ✅ (Dart facet configured, matching NoBSDating structure)
+**Changes**:
+- Added Dart facet to `.idea/PitPulse.iml` for Flutter recognition
+- Created `.idea/libraries.xml` with Dart SDK and Dart Packages libraries
+- Updated library order entries in module configuration
+- Project now works at monorepo root, just like NoBSDating
+- **User can now edit backend AND mobile files in one IDE window**
+
+**Previous Task** (Same Day):
 **Task**: Legal documentation and beta-readiness verification
 **Status**: Completed ✅ (Legal documents created, builds verified)
 **Changes**: Created PRIVACY_POLICY.md and TERMS_OF_SERVICE.md for Play Store compliance

@@ -26,7 +26,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/splash',
     redirect: (context, state) {
       final isLoading = authState is AsyncLoading;
-      final isAuthenticated = authState.value != null;
+      final isAuthenticated = authState.hasValue && authState.value != null;
       final isOnAuthPage = state.matchedLocation.startsWith('/login') ||
           state.matchedLocation.startsWith('/register');
 
