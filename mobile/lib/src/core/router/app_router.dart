@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
 import '../providers/providers.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
@@ -18,14 +20,28 @@ import '../../features/reviews/presentation/reviews_list_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../shared/widgets/scaffold_with_nav_bar.dart';
 
-/// App Router Provider
-final appRouterProvider = Provider<GoRouter>((ref) {
+part 'app_router.g.dart';
+
+// Custom Listenable for auth state changes
+class _AuthStateNotifier extends ChangeNotifier {
+  _AuthStateNotifier(this._ref) {
+    _ref.listen(authStateProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+
+  final Ref _ref;
+}
+
+@riverpod
+GoRouter goRouter(Ref ref) {
   final authState = ref.watch(authStateProvider);
+  final notifier = _AuthStateNotifier(ref);
 
   return GoRouter(
     initialLocation: '/splash',
     redirect: (context, state) {
-      final isLoading = authState is AsyncLoading;
+      final isLoading = authState.isLoading;
       final isAuthenticated = authState.hasValue && authState.value != null;
       final isOnAuthPage = state.matchedLocation.startsWith('/login') ||
           state.matchedLocation.startsWith('/register');
@@ -48,7 +64,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       return null;
     },
-    refreshListenable: GoRouterRefreshStream(ref, authStateProvider),
+    refreshListenable: notifier,
     routes: [
       // Splash Route (for loading state)
       GoRoute(
@@ -374,16 +390,4 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
-});
-
-/// Custom GoRouter refresh stream that listens to auth state changes
-class GoRouterRefreshStream extends ChangeNotifier {
-  GoRouterRefreshStream(this._ref, this._provider) {
-    _ref.listen(_provider, (_, __) {
-      notifyListeners();
-    });
-  }
-
-  final Ref _ref;
-  final ProviderListenable<AsyncValue> _provider;
 }

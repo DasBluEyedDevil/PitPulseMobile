@@ -1,11 +1,13 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'band_filters_state.dart';
 
-/// StateNotifier for managing band filters
-class BandFiltersNotifier extends StateNotifier<BandFiltersState> {
-  BandFiltersNotifier() : super(const BandFiltersState());
+part 'band_filters_notifier.g.dart';
 
-  /// Toggle genre filter
+@riverpod
+class BandFilters extends _$BandFilters {
+  @override
+  BandFiltersState build() => const BandFiltersState();
+
   void toggleGenre(String genre) {
     final genres = List<String>.from(state.genres);
     if (genres.contains(genre)) {
@@ -16,12 +18,10 @@ class BandFiltersNotifier extends StateNotifier<BandFiltersState> {
     state = state.copyWith(genres: genres);
   }
 
-  /// Set genres
   void setGenres(List<String> genres) {
     state = state.copyWith(genres: genres);
   }
 
-  /// Toggle hometown filter
   void toggleHometown(String hometown) {
     final hometowns = List<String>.from(state.hometowns);
     if (hometowns.contains(hometown)) {
@@ -32,41 +32,25 @@ class BandFiltersNotifier extends StateNotifier<BandFiltersState> {
     state = state.copyWith(hometowns: hometowns);
   }
 
-  /// Set hometowns
   void setHometowns(List<String> hometowns) {
     state = state.copyWith(hometowns: hometowns);
   }
 
-  /// Set minimum rating
   void setMinRating(double? rating) {
     state = state.copyWith(minRating: rating);
   }
 
-  /// Set sort by
   void setSortBy(BandSortBy sortBy) {
     state = state.copyWith(sortBy: sortBy);
   }
 
-  /// Clear all filters
   void clearAll() {
     state = const BandFiltersState();
   }
-
-  /// Apply filters and close sheet (used in UI)
-  void applyFilters() {
-    // Filters are already applied via state
-    // This method can be used for analytics or additional logic
-  }
 }
 
-/// Provider for band filters
-final bandFiltersProvider =
-    StateNotifierProvider<BandFiltersNotifier, BandFiltersState>((ref) {
-  return BandFiltersNotifier();
-});
-
-/// Provider for available genres (fetched from API)
-final availableGenresProvider = FutureProvider<List<String>>((ref) async {
+@riverpod
+Future<List<String>> availableGenres(AvailableGenresRef ref) async {
   // This would fetch from the API in a real scenario
   // For now, return a default list
   return [
@@ -87,4 +71,4 @@ final availableGenresProvider = FutureProvider<List<String>>((ref) async {
     'R&B',
     'Other',
   ];
-});
+}

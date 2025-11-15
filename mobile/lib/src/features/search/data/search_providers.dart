@@ -1,43 +1,58 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/providers/providers.dart';
 import '../../venues/domain/venue.dart';
 import '../../bands/domain/band.dart';
 
-/// Search query state provider
-final searchQueryProvider = StateProvider<String>((ref) => '');
+part 'search_providers.g.dart';
+
+@riverpod
+class SearchQuery extends _$SearchQuery {
+  @override
+  String build() => '';
+
+  void setQuery(String query) {
+    state = query;
+  }
+}
 
 /// Search filter type provider
 enum SearchFilter { all, venues, bands }
 
-final searchFilterProvider = StateProvider<SearchFilter>((ref) => SearchFilter.all);
+@riverpod
+class SearchFilterState extends _$SearchFilterState {
+  @override
+  SearchFilter build() => SearchFilter.all;
 
-/// Search results for venues
-final venueSearchProvider = FutureProvider.autoDispose<List<Venue>>((ref) async {
+  void setFilter(SearchFilter filter) {
+    state = filter;
+  }
+}
+
+@riverpod
+Future<List<Venue>> venueSearch(VenueSearchRef ref) async {
   final query = ref.watch(searchQueryProvider);
-  final filter = ref.watch(searchFilterProvider);
+  final filter = ref.watch(searchFilterStateProvider);
 
-  // Don't search if query is empty or filter is bands only
   if (query.trim().isEmpty || filter == SearchFilter.bands) {
     return [];
   }
 
   final repository = ref.watch(venueRepositoryProvider);
   return repository.getVenues(search: query, limit: 50);
-});
+}
 
-/// Search results for bands
-final bandSearchProvider = FutureProvider.autoDispose<List<Band>>((ref) async {
+@riverpod
+Future<List<Band>> bandSearch(BandSearchRef ref) async {
   final query = ref.watch(searchQueryProvider);
-  final filter = ref.watch(searchFilterProvider);
+  final filter = ref.watch(searchFilterStateProvider);
 
-  // Don't search if query is empty or filter is venues only
   if (query.trim().isEmpty || filter == SearchFilter.venues) {
     return [];
   }
 
   final repository = ref.watch(bandRepositoryProvider);
   return repository.getBands(search: query, limit: 50);
-});
+}
 
 /// Combined search results
 class SearchResults {
@@ -57,7 +72,8 @@ class SearchResults {
   int get totalCount => venues.length + bands.length;
 }
 
-final combinedSearchResultsProvider = Provider.autoDispose<SearchResults>((ref) {
+@riverpod
+SearchResults combinedSearchResults(CombinedSearchResultsRef ref) {
   final venueResults = ref.watch(venueSearchProvider);
   final bandResults = ref.watch(bandSearchProvider);
 
@@ -65,9 +81,9 @@ final combinedSearchResultsProvider = Provider.autoDispose<SearchResults>((ref) 
   final hasError = venueResults.hasError || bandResults.hasError;
 
   return SearchResults(
-    venues: venueResults.valueOrNull ?? [],
-    bands: bandResults.valueOrNull ?? [],
+    venues: venueResults.value ?? [],
+    bands: bandResults.value ?? [],
     isLoading: isLoading,
     error: hasError ? (venueResults.error ?? bandResults.error) : null,
   );
-});
+}

@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
 import '../api/dio_client.dart';
 import '../../features/auth/data/auth_repository.dart';
 import '../../features/auth/domain/user.dart';
@@ -8,86 +10,70 @@ import '../../features/bands/data/band_repository.dart';
 import '../../features/reviews/data/review_repository.dart';
 import '../../features/badges/data/badge_repository.dart';
 
-// Secure Storage Provider
-final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
-  return const FlutterSecureStorage();
-});
+part 'providers.g.dart';
 
-// Dio Client Provider
-final dioClientProvider = Provider<DioClient>((ref) {
+@Riverpod(keepAlive: true)
+FlutterSecureStorage secureStorage(SecureStorageRef ref) {
+  return const FlutterSecureStorage();
+}
+
+@Riverpod(keepAlive: true)
+DioClient dioClient(DioClientRef ref) {
   final secureStorage = ref.watch(secureStorageProvider);
   return DioClient(secureStorage: secureStorage);
-});
+}
 
-// Repository Providers
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
+@Riverpod(keepAlive: true)
+AuthRepository authRepository(AuthRepositoryRef ref) {
   final dioClient = ref.watch(dioClientProvider);
   final secureStorage = ref.watch(secureStorageProvider);
   return AuthRepository(
     dioClient: dioClient,
     secureStorage: secureStorage,
   );
-});
+}
 
-final venueRepositoryProvider = Provider<VenueRepository>((ref) {
+@Riverpod(keepAlive: true)
+VenueRepository venueRepository(VenueRepositoryRef ref) {
   final dioClient = ref.watch(dioClientProvider);
   return VenueRepository(dioClient: dioClient);
-});
+}
 
-final bandRepositoryProvider = Provider<BandRepository>((ref) {
+@Riverpod(keepAlive: true)
+BandRepository bandRepository(BandRepositoryRef ref) {
   final dioClient = ref.watch(dioClientProvider);
   return BandRepository(dioClient: dioClient);
-});
+}
 
-final reviewRepositoryProvider = Provider<ReviewRepository>((ref) {
+@Riverpod(keepAlive: true)
+ReviewRepository reviewRepository(ReviewRepositoryRef ref) {
   final dioClient = ref.watch(dioClientProvider);
   return ReviewRepository(dioClient: dioClient);
-});
+}
 
-final badgeRepositoryProvider = Provider<BadgeRepository>((ref) {
+@Riverpod(keepAlive: true)
+BadgeRepository badgeRepository(BadgeRepositoryRef ref) {
   final dioClient = ref.watch(dioClientProvider);
   return BadgeRepository(dioClient: dioClient);
-});
+}
 
-final profileRepositoryProvider = Provider((ref) {
-  // Dynamically import to avoid circular dependency issues
-  return null; // ProfileRepository will be used directly in providers
-});
-
-// Auth State Provider
-final authStateProvider = StateNotifierProvider<AuthStateNotifier, AsyncValue<User?>>((ref) {
-  final authRepository = ref.watch(authRepositoryProvider);
-  return AuthStateNotifier(authRepository);
-});
-
-/// Auth State Notifier manages authentication state
-class AuthStateNotifier extends StateNotifier<AsyncValue<User?>> {
-  final AuthRepository _authRepository;
-
-  AuthStateNotifier(this._authRepository) : super(const AsyncValue.loading()) {
-    _init();
-  }
-
-  Future<void> _init() async {
-    try {
-      final user = await _authRepository.getCurrentUser();
-      state = AsyncValue.data(user);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+@Riverpod(keepAlive: true)
+class AuthState extends _$AuthState {
+  @override
+  Future<User?> build() async {
+    final authRepository = ref.watch(authRepositoryProvider);
+    return authRepository.getCurrentUser();
   }
 
   Future<void> login(String email, String password) async {
     state = const AsyncValue.loading();
-    try {
-      final authResponse = await _authRepository.login(
+    state = await AsyncValue.guard(() async {
+      final authRepository = ref.read(authRepositoryProvider);
+      final authResponse = await authRepository.login(
         LoginRequest(email: email, password: password),
       );
-      state = AsyncValue.data(authResponse.user);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-      rethrow;
-    }
+      return authResponse.user;
+    });
   }
 
   Future<void> register({
@@ -98,8 +84,9 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<User?>> {
     String? lastName,
   }) async {
     state = const AsyncValue.loading();
-    try {
-      final authResponse = await _authRepository.register(
+    state = await AsyncValue.guard(() async {
+      final authRepository = ref.read(authRepositoryProvider);
+      final authResponse = await authRepository.register(
         RegisterRequest(
           email: email,
           password: password,
@@ -108,24 +95,21 @@ class AuthStateNotifier extends StateNotifier<AsyncValue<User?>> {
           lastName: lastName,
         ),
       );
-      state = AsyncValue.data(authResponse.user);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-      rethrow;
-    }
+      return authResponse.user;
+    });
   }
 
   Future<void> logout() async {
-    await _authRepository.logout();
+    final authRepository = ref.read(authRepositoryProvider);
+    await authRepository.logout();
     state = const AsyncValue.data(null);
   }
 
   Future<void> refreshUser() async {
-    try {
-      final user = await _authRepository.getMe();
-      state = AsyncValue.data(user);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      final authRepository = ref.read(authRepositoryProvider);
+      return authRepository.getMe();
+    });
   }
 }

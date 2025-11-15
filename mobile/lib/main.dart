@@ -17,14 +17,15 @@ class PitPulseApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(appRouterProvider);
+    final router = ref.watch(goRouterProvider);
+    final themeMode = ref.watch(themeSettingProvider.notifier).getThemeMode();
 
     return MaterialApp.router(
       title: 'PitPulse',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ref.read(themeProvider.notifier).getThemeMode(),
+      themeMode: themeMode,
       routerConfig: router,
     );
   }

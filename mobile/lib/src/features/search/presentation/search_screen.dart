@@ -37,14 +37,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     // Create new timer for debouncing (300ms delay)
     _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      ref.read(searchQueryProvider.notifier).state = _searchController.text;
+      ref.read(searchQueryProvider.notifier).setQuery(_searchController.text);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final searchResults = ref.watch(combinedSearchResultsProvider);
-    final currentFilter = ref.watch(searchFilterProvider);
+    final currentFilter = ref.watch(searchFilterStateProvider);
     final query = ref.watch(searchQueryProvider);
 
     return Scaffold(
@@ -65,7 +65,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               icon: const Icon(Icons.clear),
               onPressed: () {
                 _searchController.clear();
-                ref.read(searchQueryProvider.notifier).state = '';
+                ref.read(searchQueryProvider.notifier).setQuery('');
               },
             ),
         ],
@@ -85,8 +85,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   selected: currentFilter == SearchFilter.all,
                   onSelected: (selected) {
                     if (selected) {
-                      ref.read(searchFilterProvider.notifier).state =
-                          SearchFilter.all;
+                      ref.read(searchFilterStateProvider.notifier).setFilter(SearchFilter.all);
                     }
                   },
                 ),
@@ -96,8 +95,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   selected: currentFilter == SearchFilter.venues,
                   onSelected: (selected) {
                     if (selected) {
-                      ref.read(searchFilterProvider.notifier).state =
-                          SearchFilter.venues;
+                      ref.read(searchFilterStateProvider.notifier).setFilter(SearchFilter.venues);
                     }
                   },
                 ),
@@ -107,8 +105,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   selected: currentFilter == SearchFilter.bands,
                   onSelected: (selected) {
                     if (selected) {
-                      ref.read(searchFilterProvider.notifier).state =
-                          SearchFilter.bands;
+                      ref.read(searchFilterStateProvider.notifier).setFilter(SearchFilter.bands);
                     }
                   },
                 ),

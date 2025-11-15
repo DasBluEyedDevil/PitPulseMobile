@@ -93,10 +93,7 @@ class VenueFiltersSheet extends ConsumerWidget {
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        notifier.applyFilters();
-                        Navigator.pop(context);
-                      },
+                      onPressed: () => Navigator.pop(context),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
@@ -115,7 +112,7 @@ class VenueFiltersSheet extends ConsumerWidget {
   Widget _buildSortBySection(
     BuildContext context,
     VenueFiltersState filters,
-    VenueFiltersNotifier notifier,
+    VenueFilters notifier,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,7 +146,7 @@ class VenueFiltersSheet extends ConsumerWidget {
   Widget _buildVenueTypeSection(
     BuildContext context,
     VenueFiltersState filters,
-    VenueFiltersNotifier notifier,
+    VenueFilters notifier,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,7 +180,7 @@ class VenueFiltersSheet extends ConsumerWidget {
   Widget _buildRatingSection(
     BuildContext context,
     VenueFiltersState filters,
-    VenueFiltersNotifier notifier,
+    VenueFilters notifier,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,7 +231,7 @@ class VenueFiltersSheet extends ConsumerWidget {
   Widget _buildCapacitySection(
     BuildContext context,
     VenueFiltersState filters,
-    VenueFiltersNotifier notifier,
+    VenueFilters notifier,
   ) {
     final minController = TextEditingController(
       text: filters.minCapacity?.toString() ?? '',

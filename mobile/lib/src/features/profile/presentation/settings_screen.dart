@@ -1,56 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_provider.dart' as theme_provider;
 import '../../../core/providers/providers.dart';
-
-// Theme Mode Provider
-final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>(
-  (ref) => ThemeModeNotifier(),
-);
-
-class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.system) {
-    _loadThemeMode();
-  }
-
-  Future<void> _loadThemeMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    final themeModeString = prefs.getString('themeMode') ?? 'system';
-    state = _stringToThemeMode(themeModeString);
-  }
-
-  Future<void> setThemeMode(ThemeMode mode) async {
-    state = mode;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('themeMode', _themeModeToString(mode));
-  }
-
-  String _themeModeToString(ThemeMode mode) {
-    switch (mode) {
-      case ThemeMode.light:
-        return 'light';
-      case ThemeMode.dark:
-        return 'dark';
-      case ThemeMode.system:
-        return 'system';
-    }
-  }
-
-  ThemeMode _stringToThemeMode(String mode) {
-    switch (mode) {
-      case 'light':
-        return ThemeMode.light;
-      case 'dark':
-        return ThemeMode.dark;
-      case 'system':
-      default:
-        return ThemeMode.system;
-    }
-  }
-}
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -64,7 +18,7 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
+    final themeMode = ref.watch(theme_provider.themeSettingProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -78,26 +32,36 @@ class SettingsScreen extends ConsumerWidget {
             title: 'Theme',
             subtitle: _getThemeModeLabel(themeMode),
             leading: const Icon(Icons.palette),
-            trailing: DropdownButton<ThemeMode>(
+            trailing: DropdownButton<theme_provider.AppThemeMode>(
               value: themeMode,
               underline: const SizedBox(),
               items: const [
                 DropdownMenuItem(
-                  value: ThemeMode.system,
+                  value: theme_provider.AppThemeMode.system,
                   child: Text('System'),
                 ),
                 DropdownMenuItem(
-                  value: ThemeMode.light,
+                  value: theme_provider.AppThemeMode.light,
                   child: Text('Light'),
                 ),
                 DropdownMenuItem(
-                  value: ThemeMode.dark,
+                  value: theme_provider.AppThemeMode.dark,
                   child: Text('Dark'),
                 ),
               ],
-              onChanged: (ThemeMode? mode) {
+              onChanged: (theme_provider.AppThemeMode? mode) {
                 if (mode != null) {
-                  ref.read(themeModeProvider.notifier).setThemeMode(mode);
+                  switch (mode) {
+                    case theme_provider.AppThemeMode.light:
+                      ref.read(theme_provider.themeSettingProvider.notifier).setLightTheme();
+                      break;
+                    case theme_provider.AppThemeMode.dark:
+                      ref.read(theme_provider.themeSettingProvider.notifier).setDarkTheme();
+                      break;
+                    case theme_provider.AppThemeMode.system:
+                      ref.read(theme_provider.themeSettingProvider.notifier).setSystemTheme();
+                      break;
+                  }
                 }
               },
             ),
@@ -238,13 +202,13 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  String _getThemeModeLabel(ThemeMode mode) {
+  String _getThemeModeLabel(theme_provider.AppThemeMode mode) {
     switch (mode) {
-      case ThemeMode.light:
+      case theme_provider.AppThemeMode.light:
         return 'Light mode';
-      case ThemeMode.dark:
+      case theme_provider.AppThemeMode.dark:
         return 'Dark mode';
-      case ThemeMode.system:
+      case theme_provider.AppThemeMode.system:
         return 'System default';
     }
   }
