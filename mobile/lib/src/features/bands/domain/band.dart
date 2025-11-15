@@ -8,7 +8,7 @@ class Band with _$Band {
   const factory Band({
     required String id,
     required String name,
-    String? description,
+    required double averageRating, required int totalReviews, required bool isActive, required String createdAt, required String updatedAt, String? description,
     String? genre,
     int? formedYear,
     String? websiteUrl,
@@ -17,11 +17,6 @@ class Band with _$Band {
     String? facebookUrl,
     String? imageUrl,
     String? hometown,
-    required double averageRating,
-    required int totalReviews,
-    required bool isActive,
-    required String createdAt,
-    required String updatedAt,
   }) = _Band;
 
   factory Band.fromJson(Map<String, dynamic> json) => _$BandFromJson(json);

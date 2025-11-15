@@ -10,8 +10,6 @@ import '../../../shared/widgets/venue_card.dart';
 import '../../../shared/widgets/band_card.dart';
 import '../../../shared/widgets/venue_card_skeleton.dart';
 import '../../../shared/widgets/band_card_skeleton.dart';
-import '../../../shared/widgets/empty_state_widget.dart';
-import '../../../shared/widgets/error_state_widget.dart';
 
 // Providers for popular content
 final popularVenuesProvider = FutureProvider.autoDispose<List<Venue>>((ref) async {

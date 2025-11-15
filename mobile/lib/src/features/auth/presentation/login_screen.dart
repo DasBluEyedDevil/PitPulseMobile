@@ -77,7 +77,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Semantics(
                   label: 'PitPulse logo',
                   image: true,
-                  child: ExcludeSemantics(
+                  child: const ExcludeSemantics(
                     child: Icon(
                       Icons.music_note,
                       size: 80,
@@ -165,7 +165,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
                     child: _isLoading
-                        ? SizedBox(
+                        ? const SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
@@ -173,7 +173,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
-                        : Text('Login'),
+                        : const Text('Login'),
                   ),
                 ),
                 const SizedBox(height: AppTheme.spacing16),

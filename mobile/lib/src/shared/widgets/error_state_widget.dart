@@ -20,8 +20,7 @@ class ErrorStateWidget extends StatelessWidget {
   final String? customMessage;
 
   const ErrorStateWidget({
-    super.key,
-    required this.error,
+    required this.error, super.key,
     this.stackTrace,
     this.onRetry,
     this.customMessage,

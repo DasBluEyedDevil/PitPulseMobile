@@ -46,11 +46,13 @@ void main() {
         ),
       );
 
-      final emailField = tester.widget<TextFormField>(
-        find.widgetWithText(TextFormField, 'Email'),
-      );
+      final emailFieldFinder = find.widgetWithText(TextFormField, 'Email');
+      final emailTextField = tester.widget<TextField>(find.descendant(
+        of: emailFieldFinder,
+        matching: find.byType(TextField),
+      ));
       
-      expect(emailField.keyboardType, TextInputType.emailAddress);
+      expect(emailTextField.keyboardType, TextInputType.emailAddress);
     });
 
     testWidgets('password field is initially obscured', (WidgetTester tester) async {
@@ -62,11 +64,13 @@ void main() {
         ),
       );
 
-      final passwordField = tester.widget<TextFormField>(
-        find.widgetWithText(TextFormField, 'Password'),
-      );
+      final passwordFieldFinder = find.widgetWithText(TextFormField, 'Password');
+      final passwordTextField = tester.widget<TextField>(find.descendant(
+        of: passwordFieldFinder,
+        matching: find.byType(TextField),
+      ));
       
-      expect(passwordField.obscureText, true);
+      expect(passwordTextField.obscureText, true);
     });
 
     testWidgets('can toggle password visibility', (WidgetTester tester) async {
@@ -82,8 +86,11 @@ void main() {
       final passwordFieldFinder = find.widgetWithText(TextFormField, 'Password');
       
       // Initially obscured
-      var passwordField = tester.widget<TextFormField>(passwordFieldFinder);
-      expect(passwordField.obscureText, true);
+      TextField passwordTextField = tester.widget<TextField>(find.descendant(
+        of: passwordFieldFinder,
+        matching: find.byType(TextField),
+      ));
+      expect(passwordTextField.obscureText, true);
       
       // Find and tap the visibility toggle button
       final visibilityIcon = find.descendant(
@@ -91,11 +98,14 @@ void main() {
         matching: find.byType(IconButton),
       );
       await tester.tap(visibilityIcon);
-      await tester.pumpAndSettle();
+      await tester.pump();
       
       // Now should be visible
-      passwordField = tester.widget<TextFormField>(passwordFieldFinder);
-      expect(passwordField.obscureText, false);
+      passwordTextField = tester.widget<TextField>(find.descendant(
+        of: passwordFieldFinder,
+        matching: find.byType(TextField),
+      ));
+      expect(passwordTextField.obscureText, false);
     });
 
     testWidgets('validates empty email field', (WidgetTester tester) async {

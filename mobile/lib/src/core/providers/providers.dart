@@ -50,7 +50,6 @@ final badgeRepositoryProvider = Provider<BadgeRepository>((ref) {
 });
 
 final profileRepositoryProvider = Provider((ref) {
-  final dioClient = ref.watch(dioClientProvider);
   // Dynamically import to avoid circular dependency issues
   return null; // ProfileRepository will be used directly in providers
 });

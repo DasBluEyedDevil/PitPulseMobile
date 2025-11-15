@@ -5,7 +5,7 @@ import 'package:pitpulse_flutter/src/features/venues/domain/venue.dart';
 
 void main() {
   group('VenueCard Widget', () {
-    final testVenue = Venue(
+    const testVenue = Venue(
       id: '1',
       name: 'Test Venue',
       description: 'A great venue',
@@ -20,7 +20,7 @@ void main() {
 
     testWidgets('displays venue name', (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: VenueCard(venue: testVenue),
           ),
@@ -32,7 +32,7 @@ void main() {
 
     testWidgets('displays city and state', (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: VenueCard(venue: testVenue),
           ),
@@ -44,7 +44,7 @@ void main() {
 
     testWidgets('displays total reviews count', (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: VenueCard(venue: testVenue),
           ),
@@ -56,7 +56,7 @@ void main() {
 
     testWidgets('shows location icon', (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: VenueCard(venue: testVenue),
           ),
@@ -68,7 +68,7 @@ void main() {
 
     testWidgets('displays placeholder when no image URL', (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: VenueCard(venue: testVenue),
           ),
@@ -99,7 +99,7 @@ void main() {
     });
 
     testWidgets('does not show location when city and state are null', (WidgetTester tester) async {
-      final venueNoLocation = Venue(
+      const venueNoLocation = Venue(
         id: '1',
         name: 'Test Venue',
         averageRating: 4.5,
@@ -110,7 +110,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: VenueCard(venue: venueNoLocation),
           ),

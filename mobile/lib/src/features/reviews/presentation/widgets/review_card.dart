@@ -10,8 +10,7 @@ class ReviewCard extends StatelessWidget {
   final Review review;
 
   const ReviewCard({
-    super.key,
-    required this.review,
+    required this.review, super.key,
   });
 
   @override

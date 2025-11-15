@@ -5,7 +5,7 @@ import 'package:pitpulse_flutter/src/features/bands/domain/band.dart';
 
 void main() {
   group('BandCard Widget', () {
-    final testBand = Band(
+    const testBand = Band(
       id: '1',
       name: 'Test Band',
       description: 'A great band',
@@ -19,7 +19,7 @@ void main() {
 
     testWidgets('displays band name', (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: BandCard(band: testBand),
           ),
@@ -31,7 +31,7 @@ void main() {
 
     testWidgets('displays genre', (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: BandCard(band: testBand),
           ),
@@ -43,7 +43,7 @@ void main() {
 
     testWidgets('displays total reviews count', (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: BandCard(band: testBand),
           ),
@@ -55,7 +55,7 @@ void main() {
 
     testWidgets('shows music icon for genre', (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: BandCard(band: testBand),
           ),
@@ -67,7 +67,7 @@ void main() {
 
     testWidgets('displays placeholder when no image URL', (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: BandCard(band: testBand),
           ),
@@ -98,7 +98,7 @@ void main() {
     });
 
     testWidgets('does not show genre when it is null', (WidgetTester tester) async {
-      final bandNoGenre = Band(
+      const bandNoGenre = Band(
         id: '1',
         name: 'Test Band',
         averageRating: 4.5,
@@ -109,7 +109,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        MaterialApp(
+        const MaterialApp(
           home: Scaffold(
             body: BandCard(band: bandNoGenre),
           ),

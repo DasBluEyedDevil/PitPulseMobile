@@ -73,7 +73,7 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         children: [
           // Appearance Section
-          _SectionHeader(title: 'Appearance'),
+          const _SectionHeader(title: 'Appearance'),
           _SettingsTile(
             title: 'Theme',
             subtitle: _getThemeModeLabel(themeMode),
@@ -105,7 +105,7 @@ class SettingsScreen extends ConsumerWidget {
           const Divider(),
 
           // Notifications Section
-          _SectionHeader(title: 'Notifications'),
+          const _SectionHeader(title: 'Notifications'),
           _SettingsTile(
             title: 'Push Notifications',
             subtitle: 'Get notified about new reviews and badges',
@@ -141,7 +141,7 @@ class SettingsScreen extends ConsumerWidget {
           const Divider(),
 
           // Privacy Section
-          _SectionHeader(title: 'Privacy & Legal'),
+          const _SectionHeader(title: 'Privacy & Legal'),
           _SettingsTile(
             title: 'Privacy Policy',
             leading: const Icon(Icons.privacy_tip),
@@ -161,7 +161,7 @@ class SettingsScreen extends ConsumerWidget {
           const Divider(),
 
           // About Section
-          _SectionHeader(title: 'About'),
+          const _SectionHeader(title: 'About'),
           _SettingsTile(
             title: 'About PitPulse',
             subtitle: 'Version 1.0.0',
@@ -197,7 +197,7 @@ class SettingsScreen extends ConsumerWidget {
           const Divider(),
 
           // Account Section
-          _SectionHeader(title: 'Account'),
+          const _SectionHeader(title: 'Account'),
           _SettingsTile(
             title: 'Logout',
             leading: const Icon(Icons.logout, color: Colors.red),
@@ -285,8 +285,7 @@ class _SettingsTile extends StatelessWidget {
 
   const _SettingsTile({
     required this.title,
-    this.subtitle,
-    required this.leading,
+    required this.leading, this.subtitle,
     this.trailing,
     this.onTap,
     this.textColor,

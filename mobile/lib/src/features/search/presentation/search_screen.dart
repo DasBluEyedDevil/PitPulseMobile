@@ -241,7 +241,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   venue: venue,
                   onTap: () => context.push('/venues/${venue.id}'),
                 ),
-              )),
+              ),),
           const SizedBox(height: AppTheme.spacing16),
         ],
 
@@ -260,7 +260,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   band: band,
                   onTap: () => context.push('/bands/${band.id}'),
                 ),
-              )),
+              ),),
         ],
       ],
     );

@@ -11,17 +11,12 @@ class Review with _$Review {
   const factory Review({
     required String id,
     required String userId,
-    String? venueId,
+    required double rating, required bool isVerified, required int helpfulCount, required String createdAt, required String updatedAt, String? venueId,
     String? bandId,
-    required double rating,
     String? title,
     String? content,
     String? eventDate,
     List<String>? imageUrls,
-    required bool isVerified,
-    required int helpfulCount,
-    required String createdAt,
-    required String updatedAt,
     // Populated fields
     User? user,
     Venue? venue,
@@ -35,9 +30,8 @@ class Review with _$Review {
 @freezed
 class CreateReviewRequest with _$CreateReviewRequest {
   const factory CreateReviewRequest({
-    String? venueId,
+    required double rating, String? venueId,
     String? bandId,
-    required double rating,
     String? title,
     String? content,
     String? eventDate,

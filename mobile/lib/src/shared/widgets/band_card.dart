@@ -10,8 +10,7 @@ class BandCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const BandCard({
-    super.key,
-    required this.band,
+    required this.band, super.key,
     this.onTap,
   });
 

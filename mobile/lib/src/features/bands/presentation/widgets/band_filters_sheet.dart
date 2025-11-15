@@ -51,7 +51,7 @@ class BandFiltersSheet extends ConsumerWidget {
                     const Spacer(),
                     if (filters.hasActiveFilters)
                       TextButton(
-                        onPressed: () => notifier.clearAll(),
+                        onPressed: notifier.clearAll,
                         child: const Text('Clear All'),
                       ),
                     IconButton(

@@ -20,8 +20,7 @@ class EmptyStateWidget extends StatelessWidget {
   final VoidCallback? onAction;
 
   const EmptyStateWidget({
-    super.key,
-    required this.type,
+    required this.type, super.key,
     this.customTitle,
     this.customMessage,
     this.actionLabel,

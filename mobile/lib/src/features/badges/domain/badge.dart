@@ -21,12 +21,10 @@ class Badge with _$Badge {
   const factory Badge({
     required String id,
     required String name,
-    String? description,
+    required BadgeType badgeType, required String createdAt, String? description,
     String? iconUrl,
-    required BadgeType badgeType,
     int? requirementValue,
     String? color,
-    required String createdAt,
   }) = _Badge;
 
   factory Badge.fromJson(Map<String, dynamic> json) => _$BadgeFromJson(json);

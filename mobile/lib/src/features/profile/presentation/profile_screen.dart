@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/theme/theme_provider.dart';
 import '../../../core/providers/providers.dart';
 import '../../../shared/utils/haptic_feedback.dart';
 import '../../../shared/widgets/profile_skeleton.dart';
@@ -256,9 +255,9 @@ class ProfileScreen extends ConsumerWidget {
                             child: Center(child: CircularProgressIndicator()),
                           ),
                         ),
-                        error: (error, _) => Card(
+                        error: (error, _) => const Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(AppTheme.spacing16),
+                            padding: EdgeInsets.all(AppTheme.spacing16),
                             child: Center(
                               child: Text('Could not load statistics'),
                             ),
@@ -338,9 +337,9 @@ class ProfileScreen extends ConsumerWidget {
                             child: Center(child: CircularProgressIndicator()),
                           ),
                         ),
-                        error: (error, _) => Card(
+                        error: (error, _) => const Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(AppTheme.spacing16),
+                            padding: EdgeInsets.all(AppTheme.spacing16),
                             child: Center(
                               child: Text('Could not load reviews'),
                             ),

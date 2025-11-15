@@ -9,16 +9,12 @@ class User with _$User {
     required String id,
     required String email,
     required String username,
-    String? firstName,
+    required bool isVerified, required bool isActive, required String createdAt, required String updatedAt, String? firstName,
     String? lastName,
     String? bio,
     String? profileImageUrl,
     String? location,
     String? dateOfBirth,
-    required bool isVerified,
-    required bool isActive,
-    required String createdAt,
-    required String updatedAt,
   }) = _User;
 
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);

@@ -19,8 +19,7 @@ class BandDetailScreen extends ConsumerWidget {
   final String bandId;
 
   const BandDetailScreen({
-    super.key,
-    required this.bandId,
+    required this.bandId, super.key,
   });
 
   @override

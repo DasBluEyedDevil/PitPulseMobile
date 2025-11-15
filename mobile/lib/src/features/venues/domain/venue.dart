@@ -27,7 +27,7 @@ class Venue with _$Venue {
   const factory Venue({
     required String id,
     required String name,
-    String? description,
+    required double averageRating, required int totalReviews, required bool isActive, required String createdAt, required String updatedAt, String? description,
     String? address,
     String? city,
     String? state,
@@ -41,11 +41,6 @@ class Venue with _$Venue {
     int? capacity,
     VenueType? venueType,
     String? imageUrl,
-    required double averageRating,
-    required int totalReviews,
-    required bool isActive,
-    required String createdAt,
-    required String updatedAt,
   }) = _Venue;
 
   factory Venue.fromJson(Map<String, dynamic> json) => _$VenueFromJson(json);

@@ -19,8 +19,7 @@ class VenueDetailScreen extends ConsumerWidget {
   final String venueId;
 
   const VenueDetailScreen({
-    super.key,
-    required this.venueId,
+    required this.venueId, super.key,
   });
 
   @override

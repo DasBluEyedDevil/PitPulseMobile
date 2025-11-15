@@ -20,7 +20,7 @@ final filteredVenuesProvider = FutureProvider.autoDispose<List<Venue>>((ref) asy
   final venues = await repository.getVenues();
 
   // Apply client-side filtering and sorting
-  var filtered = venues.where((venue) {
+  final filtered = venues.where((venue) {
     // Venue type filter
     if (filters.venueTypes.isNotEmpty) {
       if (venue.venueType == null || !filters.venueTypes.contains(venue.venueType)) {
@@ -160,7 +160,7 @@ class VenuesScreen extends ConsumerWidget {
                                 ref.read(venueFiltersProvider.notifier).toggleVenueType(type);
                               },
                             ),
-                          )),
+                          ),),
                     if (filters.minRating != null)
                       Padding(
                         padding: const EdgeInsets.only(right: 8),

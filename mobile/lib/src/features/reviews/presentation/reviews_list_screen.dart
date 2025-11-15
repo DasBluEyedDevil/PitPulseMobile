@@ -12,10 +12,9 @@ class ReviewsListScreen extends ConsumerStatefulWidget {
   final String title;
 
   const ReviewsListScreen({
-    super.key,
+    required this.title, super.key,
     this.venueId,
     this.bandId,
-    required this.title,
   });
 
   @override

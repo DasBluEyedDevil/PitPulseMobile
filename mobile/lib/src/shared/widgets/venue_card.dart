@@ -10,8 +10,7 @@ class VenueCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const VenueCard({
-    super.key,
-    required this.venue,
+    required this.venue, super.key,
     this.onTap,
   });
 

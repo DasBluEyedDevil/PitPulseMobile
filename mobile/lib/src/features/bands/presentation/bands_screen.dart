@@ -20,7 +20,7 @@ final filteredBandsProvider = FutureProvider.autoDispose<List<Band>>((ref) async
   final bands = await repository.getBands();
 
   // Apply client-side filtering and sorting
-  var filtered = bands.where((band) {
+  final filtered = bands.where((band) {
     // Genre filter
     if (filters.genres.isNotEmpty) {
       if (band.genre == null || !filters.genres.contains(band.genre)) {
@@ -159,7 +159,7 @@ class BandsScreen extends ConsumerWidget {
                                 ref.read(bandFiltersProvider.notifier).toggleGenre(genre);
                               },
                             ),
-                          )),
+                          ),),
                     if (filters.minRating != null)
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
@@ -181,7 +181,7 @@ class BandsScreen extends ConsumerWidget {
                                 ref.read(bandFiltersProvider.notifier).toggleHometown(hometown);
                               },
                             ),
-                          )),
+                          ),),
                   ],
                 ),
               ),
