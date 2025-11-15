@@ -50,7 +50,7 @@ void main() {
       final emailTextField = tester.widget<TextField>(find.descendant(
         of: emailFieldFinder,
         matching: find.byType(TextField),
-      ));
+      ),);
       
       expect(emailTextField.keyboardType, TextInputType.emailAddress);
     });
@@ -68,7 +68,7 @@ void main() {
       final passwordTextField = tester.widget<TextField>(find.descendant(
         of: passwordFieldFinder,
         matching: find.byType(TextField),
-      ));
+      ),);
       
       expect(passwordTextField.obscureText, true);
     });
@@ -89,7 +89,7 @@ void main() {
       TextField passwordTextField = tester.widget<TextField>(find.descendant(
         of: passwordFieldFinder,
         matching: find.byType(TextField),
-      ));
+      ),);
       expect(passwordTextField.obscureText, true);
       
       // Find and tap the visibility toggle button
@@ -104,7 +104,7 @@ void main() {
       passwordTextField = tester.widget<TextField>(find.descendant(
         of: passwordFieldFinder,
         matching: find.byType(TextField),
-      ));
+      ),);
       expect(passwordTextField.obscureText, false);
     });
 
