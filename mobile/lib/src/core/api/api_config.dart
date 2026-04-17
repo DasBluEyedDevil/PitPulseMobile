@@ -86,6 +86,20 @@ class ApiConfig {
   // Dynamic endpoints
   static String concertCred(String userId) => '/users/$userId/concert-cred';
 
+  /// Public web origin for share links (no `/api` suffix).
+  static String get webBaseUrl {
+    if (_environment == 'staging') {
+      return 'https://soundcheck-staging.railway.app';
+    }
+    if (_environment == 'dev') {
+      if (Platform.isAndroid) {
+        return 'http://10.0.2.2:3000';
+      }
+      return 'http://localhost:3000';
+    }
+    return 'https://soundcheck-app.up.railway.app';
+  }
+
   // Storage Keys
   static const String tokenKey = 'auth_token';
   static const String userKey = 'user_data';

@@ -32,7 +32,9 @@ import '../../features/verification/presentation/my_claims_screen.dart';
 import '../../features/wrapped/presentation/wrapped_story_screen.dart';
 import '../../features/wrapped/presentation/wrapped_detail_screen.dart';
 import '../../features/subscription/presentation/pro_feature_screen.dart';
+import '../../features/subscription/presentation/subscription_providers.dart';
 import '../../features/search/presentation/discover_users_screen.dart';
+import '../../features/search/presentation/search_screen.dart';
 import '../../shared/widgets/scaffold_with_nav_bar.dart';
 
 part 'app_router.g.dart';
@@ -40,8 +42,18 @@ part 'app_router.g.dart';
 // Custom Listenable for auth state changes
 class _AuthStateNotifier extends ChangeNotifier {
   _AuthStateNotifier(this._ref) {
-    _ref.listen(authStateProvider, (_, __) {
+    _ref.listen(authStateProvider, (prev, next) {
       notifyListeners();
+      final user = next.asData?.value;
+      if (user != null) {
+        Future.microtask(() async {
+          try {
+            await _ref.read(pushNotificationServiceProvider).initialize();
+          } catch (_) {
+            // Firebase may be unconfigured locally; non-fatal
+          }
+        });
+      }
     });
   }
 
@@ -105,6 +117,14 @@ GoRouter goRouter(Ref ref) {
 
       if (state.matchedLocation == '/splash') {
         return isAuthenticated ? '/feed' : '/login';
+      }
+
+      if (isAuthenticated &&
+          state.matchedLocation.startsWith('/wrapped/') &&
+          state.matchedLocation.endsWith('/detail')) {
+        if (!ref.read(isPremiumProvider)) {
+          return '/pro';
+        }
       }
 
       return null;
@@ -608,6 +628,30 @@ GoRouter goRouter(Ref ref) {
         builder: (context, state) {
           final notificationId = state.pathParameters['id'];
           return NotificationDetailScreen(notificationId: notificationId);
+        },
+      ),
+
+      // Global search (bands + venues)
+      GoRoute(
+        path: '/search',
+        name: 'search',
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: const SearchScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              const begin = Offset(0.0, 1.0);
+              const end = Offset.zero;
+              const curve = Curves.easeInOut;
+              final tween = Tween(begin: begin, end: end).chain(
+                CurveTween(curve: curve),
+              );
+              return SlideTransition(
+                position: animation.drive(tween),
+                child: child,
+              );
+            },
+          );
         },
       ),
 

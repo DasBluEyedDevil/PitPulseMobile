@@ -19,10 +19,10 @@ class ProfileRepository {
     return ServerFailure('Unexpected error: $e');
   }
 
-  /// Get user statistics
-  Future<Either<Failure, UserStatistics>> getUserStatistics() async {
+  /// Get user statistics — `GET /api/users/:userId/stats`
+  Future<Either<Failure, UserStatistics>> getUserStatistics(String userId) async {
     try {
-      final response = await _dioClient.get('${ApiConfig.auth}/me/statistics');
+      final response = await _dioClient.get('${ApiConfig.auth}/$userId/stats');
       final statisticsData = response.data['data'] as Map<String, dynamic>;
       return Right(UserStatistics.fromJson(statisticsData));
     } catch (e) {

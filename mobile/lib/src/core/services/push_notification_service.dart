@@ -5,13 +5,14 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../../../firebase_options.dart';
 import '../../features/feed/data/feed_repository.dart';
 import 'log_service.dart';
 
 /// Top-level background handler (must be top-level function, not a method)
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   LogService.i('Background message received: ${message.messageId}');
 }
 

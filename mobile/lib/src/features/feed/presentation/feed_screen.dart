@@ -120,7 +120,7 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
               IconButton(
                 icon: const Icon(Icons.search),
                 tooltip: 'Search',
-                onPressed: () => context.go('/discover'),
+                onPressed: () => context.push('/search'),
               ),
             ],
             bottom: TabBar(

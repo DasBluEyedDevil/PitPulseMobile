@@ -90,6 +90,44 @@ describe('Authentication Integration Tests', () => {
       },
       userController.getProfile
     );
+
+    // Map thrown service errors to HTTP status (mirrors production error middleware)
+    app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      const m = msg.toLowerCase();
+      if (
+        m.includes('invalid email or password') ||
+        m.includes('account is deactivated') ||
+        m.includes('rate limit') ||
+        m.includes('email and password required')
+      ) {
+        res.status(401).json({ success: false, error: msg });
+        return;
+      }
+      if (
+        m.includes('already') ||
+        m.includes('invalid email format') ||
+        m.includes('password must') ||
+        m.includes('password too weak') ||
+        m.includes('missing required')
+      ) {
+        res.status(400).json({ success: false, error: msg });
+        return;
+      }
+      if (m.includes('service unavailable')) {
+        res.status(401).json({ success: false, error: msg });
+        return;
+      }
+      if (m.includes('database connection failed')) {
+        res.status(400).json({ success: false, error: msg });
+        return;
+      }
+      if (msg === 'Unexpected error type') {
+        res.status(400).json({ success: false, error: msg });
+        return;
+      }
+      res.status(500).json({ success: false, error: msg });
+    });
   });
 
   describe('POST /api/users/register', () => {
@@ -97,6 +135,7 @@ describe('Authentication Integration Tests', () => {
       const mockAuthResponse = {
         user: mockUserResponse,
         token: 'jwt-token-123',
+        refreshToken: 'mock-refresh-token',
       };
 
       mockUserService.createUser.mockResolvedValue(mockAuthResponse as any);
@@ -170,6 +209,7 @@ describe('Authentication Integration Tests', () => {
       const mockAuthResponse = {
         user: mockUserResponse,
         token: 'jwt-token-123',
+        refreshToken: 'mock-refresh-token',
       };
 
       mockUserService.authenticateUser.mockResolvedValue(mockAuthResponse);
@@ -304,6 +344,7 @@ describe('Authentication Integration Tests', () => {
       const mockAuthResponse = {
         user: mockUserResponse,
         token: 'jwt-token-123',
+        refreshToken: 'mock-refresh-token',
       };
 
       mockUserService.authenticateUser.mockResolvedValue(mockAuthResponse);

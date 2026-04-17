@@ -6,6 +6,13 @@ import * as authModule from '../../utils/auth';
 // Mock dependencies
 jest.mock('../../config/database');
 jest.mock('../../utils/auth');
+jest.mock('../../utils/redisRateLimiter', () => ({
+  getRedis: jest.fn(() => ({
+    get: jest.fn().mockResolvedValue('valid'),
+    del: jest.fn().mockResolvedValue(1),
+    setex: jest.fn().mockResolvedValue('OK'),
+  })),
+}));
 jest.mock('google-auth-library', () => ({
   OAuth2Client: jest.fn().mockImplementation(() => ({
     verifyIdToken: jest.fn(),
@@ -33,6 +40,9 @@ const mockDb = {
 };
 
 (Database.getInstance as jest.Mock).mockReturnValue(mockDb);
+
+/** 64-char hex state for CSRF validation (matches GET /api/auth/social/state) */
+const OAUTH_STATE = 'a'.repeat(64);
 
 describe('SocialAuthService', () => {
   let socialAuthService: SocialAuthService;
@@ -73,7 +83,7 @@ describe('SocialAuthService', () => {
         getPayload: () => mockPayload,
       });
 
-      const result = await socialAuthService.verifyGoogleToken('valid-id-token');
+      const result = await socialAuthService.verifyGoogleToken('valid-id-token', OAUTH_STATE);
 
       expect(result).toEqual({
         provider: 'google',
@@ -95,23 +105,23 @@ describe('SocialAuthService', () => {
         getPayload: () => mockPayload,
       });
 
-      const result = await socialAuthService.verifyGoogleToken('token-with-unverified-email');
+      const result = await socialAuthService.verifyGoogleToken('token-with-unverified-email', OAUTH_STATE);
 
       expect(result).toBeNull();
     });
 
-    it('should return null for invalid token', async () => {
+    it('should throw when Google verifyIdToken fails', async () => {
       mockGoogleClient.verifyIdToken.mockRejectedValue(new Error('Invalid token'));
 
-      const result = await socialAuthService.verifyGoogleToken('invalid-token');
-
-      expect(result).toBeNull();
+      await expect(socialAuthService.verifyGoogleToken('invalid-token', OAUTH_STATE)).rejects.toThrow(
+        'Invalid token'
+      );
     });
 
     it('should return null if GOOGLE_CLIENT_ID is not set', async () => {
       delete process.env.GOOGLE_CLIENT_ID;
 
-      const result = await socialAuthService.verifyGoogleToken('any-token');
+      const result = await socialAuthService.verifyGoogleToken('any-token', OAUTH_STATE);
 
       expect(result).toBeNull();
     });
@@ -129,10 +139,14 @@ describe('SocialAuthService', () => {
         email: 'test@icloud.com',
       });
 
-      const result = await socialAuthService.verifyAppleToken('valid-apple-token', {
-        givenName: 'Apple',
-        familyName: 'User',
-      });
+      const result = await socialAuthService.verifyAppleToken(
+        'valid-apple-token',
+        {
+          givenName: 'Apple',
+          familyName: 'User',
+        },
+        OAUTH_STATE
+      );
 
       expect(result).toEqual({
         provider: 'apple',
@@ -147,36 +161,36 @@ describe('SocialAuthService', () => {
       });
     });
 
-    it('should return null for expired token', async () => {
+    it('should throw when Apple token is expired', async () => {
       mockAppleVerify.mockRejectedValueOnce(new Error('Token expired'));
 
-      const result = await socialAuthService.verifyAppleToken('expired-token');
-
-      expect(result).toBeNull();
+      await expect(
+        socialAuthService.verifyAppleToken('expired-token', undefined, OAUTH_STATE)
+      ).rejects.toThrow('Token expired');
     });
 
-    it('should return null for invalid issuer', async () => {
+    it('should throw when Apple token has invalid issuer', async () => {
       mockAppleVerify.mockRejectedValueOnce(new Error('Invalid issuer'));
 
-      const result = await socialAuthService.verifyAppleToken('invalid-issuer-token');
-
-      expect(result).toBeNull();
+      await expect(
+        socialAuthService.verifyAppleToken('invalid-issuer-token', undefined, OAUTH_STATE)
+      ).rejects.toThrow('Invalid issuer');
     });
 
-    it('should return null for invalid token format', async () => {
+    it('should throw when Apple token format is invalid', async () => {
       mockAppleVerify.mockRejectedValueOnce(new Error('jwt malformed'));
 
-      const result = await socialAuthService.verifyAppleToken('not-a-valid-jwt');
-
-      expect(result).toBeNull();
+      await expect(
+        socialAuthService.verifyAppleToken('not-a-valid-jwt', undefined, OAUTH_STATE)
+      ).rejects.toThrow('jwt malformed');
     });
 
     it('should return null when APPLE_BUNDLE_ID is not set', async () => {
       delete process.env.APPLE_BUNDLE_ID;
 
-      const result = await socialAuthService.verifyAppleToken('any-token');
-
-      expect(result).toBeNull();
+      await expect(socialAuthService.verifyAppleToken('any-token', undefined, OAUTH_STATE)).rejects.toThrow(
+        'APPLE_BUNDLE_ID'
+      );
       expect(mockAppleVerify).not.toHaveBeenCalled();
     });
 
@@ -186,7 +200,7 @@ describe('SocialAuthService', () => {
         // no sub field
       });
 
-      const result = await socialAuthService.verifyAppleToken('token-no-subject');
+      const result = await socialAuthService.verifyAppleToken('token-no-subject', undefined, OAUTH_STATE);
 
       expect(result).toBeNull();
     });

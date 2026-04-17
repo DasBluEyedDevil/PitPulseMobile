@@ -127,6 +127,7 @@ describe('UserController', () => {
           updatedAt: '2024-01-01T00:00:00Z',
         },
         token: 'jwt-token-123',
+        refreshToken: 'mock-refresh-token',
       };
 
       mockUserService.authenticateUser.mockResolvedValue(mockAuthResponse);

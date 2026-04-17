@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../core/providers/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/services/location_service.dart';
 import '../domain/nearby_event.dart';
@@ -16,6 +18,8 @@ import '../../../shared/utils/a11y_utils.dart';
 import '../../sharing/presentation/share_card_preview.dart';
 import '../../sharing/presentation/share_providers.dart';
 import '../../badges/presentation/badge_providers.dart';
+import '../../venues/domain/venue.dart';
+import '../../sharing/presentation/celebration_screen.dart';
 
 /// Check-in Screen - Event-first quick-tap flow
 ///
@@ -104,12 +108,22 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     if (!mounted) return;
 
     if (checkIn != null) {
-      setState(() {
-        _completedCheckIn = checkIn;
-        _checkedInEvent = event;
-        _screenState = _ScreenState.success;
-        _checkingInEventId = null;
-      });
+      if (!mounted) return;
+      final bandName = event.eventName ??
+          event.band?.name ??
+          event.lineup?.firstOrNull?.band?.name ??
+          'Live show';
+      final venueName = event.venue?.name ?? 'Venue';
+      context.pushReplacement(
+        '/celebration',
+        extra: CelebrationParams(
+          checkinId: checkIn.id,
+          bandName: bandName,
+          venueName: venueName,
+          earnedBadges: checkIn.earnedBadges ?? const [],
+        ),
+      );
+      setState(() => _checkingInEventId = null);
     } else {
       // Check for duplicate check-in (409)
       final error = ref.read(createEventCheckInProvider);
@@ -819,11 +833,17 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     if (!mounted) return;
 
     if (checkIn != null) {
-      setState(() {
-        _completedCheckIn = checkIn;
-        _screenState = _ScreenState.success;
-        _isSubmittingManual = false;
-      });
+      if (!mounted) return;
+      context.pushReplacement(
+        '/celebration',
+        extra: CelebrationParams(
+          checkinId: checkIn.id,
+          bandName: _selectedBandName ?? checkIn.band?.name ?? 'Band',
+          venueName: _selectedVenueName ?? checkIn.venue?.name ?? 'Venue',
+          earnedBadges: checkIn.earnedBadges ?? const [],
+        ),
+      );
+      setState(() => _isSubmittingManual = false);
     } else {
       // Check for duplicate (409)
       final error = ref.read(createManualCheckInProvider);
@@ -2157,14 +2177,78 @@ class _VibeSelectorState extends State<_VibeSelector> {
   }
 }
 
-class _VenueSearchSheet extends StatelessWidget {
+class _VenueSearchSheet extends ConsumerStatefulWidget {
   const _VenueSearchSheet({
     required this.scrollController,
     required this.onSelect,
   });
 
   final ScrollController scrollController;
-  final Function(String, String) onSelect;
+  final void Function(String id, String name) onSelect;
+
+  @override
+  ConsumerState<_VenueSearchSheet> createState() => _VenueSearchSheetState();
+}
+
+class _VenueSearchSheetState extends ConsumerState<_VenueSearchSheet> {
+  final TextEditingController _query = TextEditingController();
+  Timer? _debounce;
+  List<Venue> _venues = [];
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _query.addListener(_onQueryChanged);
+  }
+
+  void _onQueryChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
+      final q = _query.text.trim();
+      if (q.length < 2) {
+        if (mounted) {
+          setState(() {
+            _venues = [];
+            _loading = false;
+          });
+        }
+        return;
+      }
+      if (mounted) {
+        setState(() => _loading = true);
+      }
+      try {
+        final repo = ref.read(venueRepositoryProvider);
+        final page = await repo.searchVenues(
+          query: q,
+          page: 1,
+          limit: 25,
+        );
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _venues = page.venues;
+          _loading = false;
+        });
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _venues = [];
+            _loading = false;
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _query.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2186,13 +2270,13 @@ class _VenueSearchSheet extends StatelessWidget {
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const TextField(
-              style: TextStyle(color: AppTheme.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Search venues nearby...',
+            child: TextField(
+              controller: _query,
+              style: const TextStyle(color: AppTheme.textPrimary),
+              decoration: const InputDecoration(
+                hintText: 'Search venues (type at least 2 characters)...',
                 hintStyle: TextStyle(color: AppTheme.textTertiary),
-                prefixIcon:
-                    Icon(Icons.search, color: AppTheme.textTertiary),
+                prefixIcon: Icon(Icons.search, color: AppTheme.textTertiary),
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: 16,
@@ -2202,38 +2286,23 @@ class _VenueSearchSheet extends StatelessWidget {
             ),
           ),
         ),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.all(8),
+            child: LinearProgressIndicator(minHeight: 2),
+          ),
         Expanded(
           child: ListView.builder(
-            controller: scrollController,
-            itemCount: 10,
+            controller: widget.scrollController,
+            itemCount: _venues.length,
             itemBuilder: (context, index) {
-              final venues = [
-                'The Forum',
-                'Madison Square Garden',
-                'Red Rocks',
-                'Wembley Arena',
-                'The Fillmore',
-                'House of Blues',
-                'The Troubadour',
-                'Irving Plaza',
-                'The Roxy',
-                'Bowery Ballroom',
-              ];
-              final locations = [
-                'Los Angeles, CA',
-                'New York, NY',
-                'Morrison, CO',
-                'London, UK',
-                'San Francisco, CA',
-                'Chicago, IL',
-                'West Hollywood, CA',
-                'New York, NY',
-                'West Hollywood, CA',
-                'New York, NY',
-              ];
-
+              final v = _venues[index];
+              final loc = <String>[
+                if (v.city != null && v.city!.isNotEmpty) v.city!,
+                if (v.state != null && v.state!.isNotEmpty) v.state!,
+              ].join(', ');
               return ListTile(
-                onTap: () => onSelect('venue_$index', venues[index]),
+                onTap: () => widget.onSelect(v.id, v.name),
                 leading: Container(
                   width: 48,
                   height: 48,
@@ -2247,14 +2316,14 @@ class _VenueSearchSheet extends StatelessWidget {
                   ),
                 ),
                 title: Text(
-                  venues[index],
+                  v.name,
                   style: const TextStyle(
                     color: AppTheme.textPrimary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 subtitle: Text(
-                  locations[index],
+                  loc.isEmpty ? 'Venue' : loc,
                   style: const TextStyle(color: AppTheme.textTertiary),
                 ),
                 trailing: const Icon(

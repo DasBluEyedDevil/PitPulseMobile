@@ -4,7 +4,17 @@ import { AuthUtils } from '../../utils/auth';
 
 // Mock dependencies
 jest.mock('../../config/database');
-jest.mock('../../utils/auth');
+jest.mock('../../utils/auth', () => ({
+  AuthUtils: {
+    validateEmail: jest.fn(),
+    validateUsername: jest.fn(),
+    validatePassword: jest.fn(),
+    hashPassword: jest.fn(),
+    comparePassword: jest.fn(),
+    generateToken: jest.fn(),
+  },
+  generateRefreshToken: jest.fn().mockResolvedValue('mock-refresh-token'),
+}));
 
 const mockDb = {
   query: jest.fn(),
@@ -18,6 +28,7 @@ describe('UserService', () => {
   beforeEach(() => {
     userService = new UserService();
     jest.clearAllMocks();
+    mockDb.query.mockReset();
   });
 
   describe('createUser', () => {
@@ -79,6 +90,7 @@ describe('UserService', () => {
           updatedAt: '2024-01-01T00:00:00Z',
         },
         token: 'mock-jwt-token',
+        refreshToken: 'mock-refresh-token',
       });
 
       // Verify isAdmin/isPremium are NOT exposed in auth responses (CFR-001)
@@ -139,6 +151,7 @@ describe('UserService', () => {
           username: 'testuser',
         }),
         token: mockToken,
+        refreshToken: 'mock-refresh-token',
       });
 
       // Verify isAdmin/isPremium are NOT exposed in auth responses (CFR-001)

@@ -16,6 +16,11 @@ class SubscriptionService {
 
     final apiKey = Platform.isIOS ? _appleApiKey : _googleApiKey;
     if (apiKey.isEmpty) {
+      if (kReleaseMode) {
+        throw StateError(
+          'RevenueCat API key missing for ${Platform.operatingSystem}',
+        );
+      }
       LogService.w('SubscriptionService: No RevenueCat API key -- subscriptions disabled');
       return;
     }

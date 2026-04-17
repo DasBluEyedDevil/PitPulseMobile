@@ -288,19 +288,6 @@ export class CheckinCreatorService {
       const venue = venueResult.rows[0];
       const band = bandResult.rows[0];
 
-      // Prevent duplicate: same user + band + venue on the same calendar day
-      const dupCheck = await this.db.query(
-        `SELECT id FROM checkins
-         WHERE user_id = $1 AND band_id = $2 AND venue_id = $3
-           AND created_at::date = CURRENT_DATE`,
-        [userId, bandId, venueId]
-      );
-      if (dupCheck.rows.length > 0) {
-        const dupErr = new Error('You have already checked in to this band at this venue today');
-        (dupErr as any).statusCode = 409;
-        throw dupErr;
-      }
-
       // Non-blocking location verification
       const isVerified = this.verifyLocation(
         locationLat,
@@ -321,17 +308,27 @@ export class CheckinCreatorService {
         RETURNING *
       `;
 
-      const result = await this.db.query(insertQuery, [
-        userId,
-        venueId,
-        bandId,
-        isVerified,
-        comment || null,
-        comment || null,
-        rating || 0,
-        locationLat || null,
-        locationLon || null,
-      ]);
+      let result;
+      try {
+        result = await this.db.query(insertQuery, [
+          userId,
+          venueId,
+          bandId,
+          isVerified,
+          comment || null,
+          comment || null,
+          rating || 0,
+          locationLat || null,
+          locationLon || null,
+        ]);
+      } catch (error: any) {
+        if (error.code === '23505') {
+          const dupErr = new Error('You have already checked in to this band at this venue today');
+          (dupErr as any).statusCode = 409;
+          throw dupErr;
+        }
+        throw error;
+      }
 
       const checkinId = result.rows[0].id;
 
@@ -426,31 +423,38 @@ export class CheckinCreatorService {
    * Delete a check-in
    */
   async deleteCheckin(userId: string, checkinId: string): Promise<void> {
+    const client = await this.db.getClient();
+    let venueId: string | null = null;
+    let bandIds: string[] = [];
     try {
-      // Verify user owns the check-in and get venue/band info for cache invalidation
-      const checkin = await this.db.query('SELECT user_id, venue_id FROM checkins WHERE id = $1', [
-        checkinId,
-      ]);
+      await client.query('BEGIN');
 
-      if (checkin.rows.length === 0) {
-        throw new Error('Check-in not found');
-      }
-
-      if (checkin.rows[0].user_id !== userId) {
-        throw new Error('Unauthorized to delete this check-in');
-      }
-
-      const venueId = checkin.rows[0].venue_id;
-
-      // Get band IDs from band ratings for cache invalidation before deletion
-      const bandRatingsResult = await this.db.query(
+      const bandRatingsResult = await client.query(
         'SELECT DISTINCT band_id FROM checkin_band_ratings WHERE checkin_id = $1',
         [checkinId]
       );
-      const bandIds: string[] = bandRatingsResult.rows.map((r: any) => r.band_id);
+      bandIds = bandRatingsResult.rows.map((r: any) => r.band_id);
 
-      // Delete check-in (cascades to toasts and comments)
-      await this.db.query('DELETE FROM checkins WHERE id = $1', [checkinId]);
+      const del = await client.query(
+        'DELETE FROM checkins WHERE id = $1 AND user_id = $2 RETURNING venue_id',
+        [checkinId, userId]
+      );
+
+      if (del.rowCount === 0) {
+        const exists = await client.query('SELECT user_id FROM checkins WHERE id = $1', [checkinId]);
+        await client.query('ROLLBACK');
+        if (exists.rows.length === 0) {
+          const err = new Error('Check-in not found');
+          (err as any).statusCode = 404;
+          throw err;
+        }
+        const err = new Error('Unauthorized to delete this check-in');
+        (err as any).statusCode = 403;
+        throw err;
+      }
+
+      venueId = del.rows[0].venue_id ?? null;
+      await client.query('COMMIT');
 
       // Fire-and-forget: invalidate concert cred stats cache
       cache.del(`stats:concert-cred:${userId}`).catch((err) =>
@@ -489,6 +493,8 @@ export class CheckinCreatorService {
         stack: error instanceof Error ? error.stack : undefined,
       });
       throw error;
+    } finally {
+      client.release();
     }
   }
 
@@ -509,7 +515,7 @@ export class CheckinCreatorService {
     venueType: string | null
   ): boolean {
     // If user didn't share location, can't verify
-    if (userLat === null || userLon === null) return false;
+    if (userLat == null || userLon == null) return false;
     // If venue has no coordinates, can't verify
     if (venueLat === null || venueLon === null) return false;
 

@@ -2,6 +2,7 @@ import { DataRetentionService } from '../services/DataRetentionService';
 import Database from '../config/database';
 import * as dotenv from 'dotenv';
 import logger from '../utils/logger';
+import { cleanupExpiredTokens } from '../utils/auth';
 
 // Load environment variables
 if (process.env.NODE_ENV !== 'production') {
@@ -60,14 +61,29 @@ async function runRetentionJob(): Promise<void> {
     );
     logger.info(`Cleaned up ${notifResult.rowCount || 0} old notifications`);
 
-    // 4. Clean up expired refresh tokens (7 days past expiration)
+    // 4. Clean up expired / stale refresh tokens (split-token + legacy rows)
     logger.info('Cleaning up expired refresh tokens...');
-    const tokenResult = await db.query(
-      `DELETE FROM refresh_tokens
+    const tokenDeleted = await cleanupExpiredTokens();
+    logger.info(`Removed ${tokenDeleted} stale refresh_tokens rows`);
+
+    const auditPurge = await db.query(
+      `DELETE FROM audit_logs WHERE created_at < NOW() - INTERVAL '90 days' RETURNING id`
+    );
+    logger.info(`Purged ${auditPurge?.rowCount ?? 0} old audit_logs rows`);
+
+    const webhookPurge = await db.query(
+      `DELETE FROM processed_webhook_events
+       WHERE processed_at < NOW() - INTERVAL '90 days'
+       RETURNING event_id`
+    );
+    logger.info(`Purged ${webhookPurge?.rowCount ?? 0} old processed_webhook_events rows`);
+
+    const pwdPurge = await db.query(
+      `DELETE FROM password_reset_tokens
        WHERE expires_at < NOW() - INTERVAL '7 days'
        RETURNING id`
     );
-    logger.info(`Cleaned up ${tokenResult.rowCount || 0} expired refresh tokens`);
+    logger.info(`Purged ${pwdPurge?.rowCount ?? 0} expired password_reset_tokens rows`);
 
     logger.info('Data retention job completed successfully');
   } catch (error) {
@@ -75,7 +91,7 @@ async function runRetentionJob(): Promise<void> {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
-    process.exit(1);
+    throw error;
   }
 }
 

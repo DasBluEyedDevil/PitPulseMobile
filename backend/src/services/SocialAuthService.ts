@@ -101,15 +101,12 @@ export class SocialAuthService {
    * @param state - Optional OAuth state parameter for CSRF protection
    * @returns The verified user profile or null if invalid
    */
-  async verifyGoogleToken(idToken: string, state?: string): Promise<SocialProfile | null> {
+  async verifyGoogleToken(idToken: string, state: string): Promise<SocialProfile | null> {
     try {
-      // Validate state parameter if provided (CSRF protection)
-      if (state) {
-        const isValidState = await this.validateOAuthState(state);
-        if (!isValidState) {
-          logger.error('Invalid OAuth state - possible CSRF attack', { provider: 'google' });
-          throw new OAuthStateError('Invalid OAuth state - possible CSRF attack');
-        }
+      const isValidState = await this.validateOAuthState(state);
+      if (!isValidState) {
+        logger.error('Invalid OAuth state - possible CSRF attack', { provider: 'google' });
+        throw new OAuthStateError('Invalid OAuth state - possible CSRF attack');
       }
 
       const googleClientId = process.env.GOOGLE_CLIENT_ID;
@@ -161,17 +158,14 @@ export class SocialAuthService {
    */
   async verifyAppleToken(
     identityToken: string,
-    fullName?: { givenName?: string; familyName?: string },
-    state?: string
+    fullName: { givenName?: string; familyName?: string } | undefined,
+    state: string
   ): Promise<SocialProfile | null> {
     try {
-      // Validate state parameter if provided (CSRF protection)
-      if (state) {
-        const isValidState = await this.validateOAuthState(state);
-        if (!isValidState) {
-          logger.error('Invalid OAuth state - possible CSRF attack', { provider: 'apple' });
-          throw new OAuthStateError('Invalid OAuth state - possible CSRF attack');
-        }
+      const isValidState = await this.validateOAuthState(state);
+      if (!isValidState) {
+        logger.error('Invalid OAuth state - possible CSRF attack', { provider: 'apple' });
+        throw new OAuthStateError('Invalid OAuth state - possible CSRF attack');
       }
 
       // Require APPLE_BUNDLE_ID for Apple sign-in

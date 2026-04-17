@@ -46,19 +46,19 @@ class MarkNotificationAsRead extends _$MarkNotificationAsRead {
 
     final repository = ref.read(notificationRepositoryProvider);
 
-    try {
-      await repository.markAsRead(notificationId);
-
-      // Invalidate related providers
-      ref.invalidate(notificationFeedProvider);
-      ref.invalidate(unreadNotificationCountProvider);
-
-      state = const AsyncValue.data(null);
-      return true;
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-      return false;
-    }
+    final result = await repository.markAsRead(notificationId);
+    return result.fold(
+      (failure) {
+        state = AsyncValue.error(Exception(failure.message), StackTrace.current);
+        return false;
+      },
+      (_) {
+        ref.invalidate(notificationFeedProvider);
+        ref.invalidate(unreadNotificationCountProvider);
+        state = const AsyncValue.data(null);
+        return true;
+      },
+    );
   }
 }
 
@@ -104,18 +104,18 @@ class DeleteNotification extends _$DeleteNotification {
 
     final repository = ref.read(notificationRepositoryProvider);
 
-    try {
-      await repository.deleteNotification(notificationId);
-
-      // Invalidate related providers
-      ref.invalidate(notificationFeedProvider);
-      ref.invalidate(unreadNotificationCountProvider);
-
-      state = const AsyncValue.data(null);
-      return true;
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-      return false;
-    }
+    final result = await repository.deleteNotification(notificationId);
+    return result.fold(
+      (failure) {
+        state = AsyncValue.error(Exception(failure.message), StackTrace.current);
+        return false;
+      },
+      (_) {
+        ref.invalidate(notificationFeedProvider);
+        ref.invalidate(unreadNotificationCountProvider);
+        state = const AsyncValue.data(null);
+        return true;
+      },
+    );
   }
 }

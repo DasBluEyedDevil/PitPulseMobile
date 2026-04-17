@@ -34,7 +34,10 @@ backend/logs/
 /captures
 .externalNativeBuild
 .cxx
-local.propertiescal.properties
+
+# Windows / accidental artifacts
+nul
+errors.txt
 
 # Backup and temporary files
 *.bak

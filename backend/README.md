@@ -42,9 +42,9 @@ A comprehensive Node.js/Express/TypeScript API for the SoundCheck mobile applica
    createdb soundcheck
    ```
 
-5. **Run database schema:**
+5. **Run migrations** (authoritative schema via `node-pg-migrate`):
    ```bash
-   psql -d soundcheck -f database-schema.sql
+   npm run migrate:up
    ```
 
 6. **Start development server:**

@@ -29,19 +29,25 @@ class _DiscoverUsersScreenState extends ConsumerState<DiscoverUsersScreen> {
 
   Future<void> _fetchExistingFollows() async {
     try {
-      final dioClient = ref.read(dioClientProvider);
-      final response = await dioClient.get('/follow/following');
-      if (response.data['data'] != null) {
-        final following = response.data['data'] as List;
-        setState(() {
-          _followedIds.addAll(
-            following.map((f) =>
-              (f['followedId'] ?? f['id'] ?? '') as String,
-            ).where((id) => id.isNotEmpty),
-          );
+      final user = ref.read(authStateProvider).asData?.value;
+      if (user == null) return;
 
-        });
-      }
+      final dioClient = ref.read(dioClientProvider);
+      final response = await dioClient.get(
+        '/users/${user.id}/following',
+        queryParameters: {'limit': 100},
+      );
+      final data = response.data['data'];
+      if (data is! Map<String, dynamic>) return;
+      final users = data['users'];
+      if (users is! List) return;
+      setState(() {
+        _followedIds.addAll(
+          users
+              .map((f) => (f as Map<String, dynamic>)['id'] as String?)
+              .whereType<String>(),
+        );
+      });
     } catch (_) {
       // Non-critical: local state will still work for new follows
     }

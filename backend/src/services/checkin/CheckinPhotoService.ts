@@ -79,7 +79,12 @@ export class CheckinPhotoService {
 
       // Generate presigned URLs for each content type
       const results = await Promise.all(
-        contentTypes.map((ct) => r2Service.getPresignedUploadUrl(ct, `checkins/${checkinId}`))
+        contentTypes.map((ct) =>
+          r2Service.getPresignedUploadUrl(ct, `checkins/${checkinId}`, {
+            checkinId,
+            userId,
+          })
+        )
       );
 
       return results.map((result) => ({
@@ -124,6 +129,19 @@ export class CheckinPhotoService {
         throw err;
       }
 
+      const pendingResult = await this.db.query(
+        `SELECT object_key FROM pending_photo_uploads
+         WHERE checkin_id = $1 AND user_id = $2 AND object_key = ANY($3::text[])`,
+        [checkinId, userId, photoKeys]
+      );
+      if (pendingResult.rows.length !== photoKeys.length) {
+        const err = new Error(
+          'One or more photo keys are invalid or were not issued for this check-in'
+        );
+        (err as any).statusCode = 400;
+        throw err;
+      }
+
       // Combine existing URLs with new ones, enforce max
       const existingUrls: string[] = checkinResult.rows[0].image_urls || [];
       const publicUrlBase = process.env.R2_PUBLIC_URL || '';
@@ -142,6 +160,11 @@ export class CheckinPhotoService {
       await this.db.query(
         'UPDATE checkins SET image_urls = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
         [combinedUrls, checkinId]
+      );
+
+      await this.db.query(
+        `DELETE FROM pending_photo_uploads WHERE checkin_id = $1 AND object_key = ANY($2::text[])`,
+        [checkinId, photoKeys]
       );
 
       return combinedUrls;

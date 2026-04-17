@@ -422,27 +422,7 @@ describe('Validation Middleware', () => {
       expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it('should reject invalid profile image URL', async () => {
-      mockRequest.body = {
-        profileImageUrl: 'not-a-valid-url',
-      };
-
-      const middleware = validate(updateProfileSchema);
-      await middleware(mockRequest as Request, mockResponse as Response, mockNext);
-
-      expect(mockStatus).toHaveBeenCalledWith(400);
-      const responseData = mockJson.mock.calls[0][0];
-      expect(responseData.success).toBe(false);
-      expect(responseData.error.code).toBe('VALIDATION_ERROR');
-      expect(responseData.error.details).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ message: expect.stringContaining('Invalid URL') }),
-        ])
-      );
-      expect(mockNext).not.toHaveBeenCalled();
-    });
-
-    it('should pass with valid profile image URL', async () => {
+    it('should reject profileImageUrl in body (set only via upload endpoint)', async () => {
       mockRequest.body = {
         profileImageUrl: 'https://example.com/image.jpg',
       };
@@ -450,8 +430,8 @@ describe('Validation Middleware', () => {
       const middleware = validate(updateProfileSchema);
       await middleware(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect(mockNext).toHaveBeenCalled();
-      expect(mockStatus).not.toHaveBeenCalled();
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockNext).not.toHaveBeenCalled();
     });
   });
 

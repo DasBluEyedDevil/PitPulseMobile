@@ -33,7 +33,9 @@ describe('EventService', () => {
   beforeEach(() => {
     eventService = new EventService();
     jest.clearAllMocks();
-    (cache.getOrSet as jest.Mock).mockImplementation(async (key, fn) => fn());
+    mockDb.query.mockReset();
+    mockClient.query.mockReset();
+    (cache.getOrSet as jest.Mock).mockImplementation(async (_key, fn) => fn());
   });
 
   describe('getEventById', () => {

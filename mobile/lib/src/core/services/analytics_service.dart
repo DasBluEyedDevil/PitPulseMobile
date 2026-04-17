@@ -17,6 +17,7 @@ library;
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import '../../../firebase_options.dart';
 import 'log_service.dart';
 
 class AnalyticsService {
@@ -29,7 +30,7 @@ class AnalyticsService {
     if (_initialized) return;
 
     try {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
       _analytics = FirebaseAnalytics.instance;
       _observer = FirebaseAnalyticsObserver(analytics: _analytics!);
       _initialized = true;

@@ -4,27 +4,31 @@ import Database from '../../config/database';
 // Mock dependencies
 jest.mock('../../config/database');
 
-const mockLogger = {
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
-};
-
-jest.mock('../../utils/logger', () => ({
-  __esModule: true,
-  default: mockLogger,
-  logError: jest.fn(),
-  logWarn: jest.fn(),
-  logInfo: jest.fn(),
-  logHttp: jest.fn(),
-  logDebug: jest.fn(),
-}));
+jest.mock('../../utils/logger', () => {
+  const logger = {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  };
+  return {
+    __esModule: true,
+    default: logger,
+    logError: jest.fn(),
+    logWarn: jest.fn(),
+    logInfo: jest.fn(),
+    logHttp: jest.fn(),
+    logDebug: jest.fn(),
+  };
+});
 
 const mockDb = {
   query: jest.fn(),
 };
 
 (Database.getInstance as jest.Mock).mockReturnValue(mockDb);
+
+import logger from '../../utils/logger';
+const mockLogger = logger as unknown as { info: jest.Mock; warn: jest.Mock; error: jest.Mock };
 
 describe('SubscriptionService', () => {
   let subscriptionService: SubscriptionService;

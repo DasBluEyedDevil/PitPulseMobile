@@ -197,20 +197,20 @@ export async function generateRefreshToken(
 ): Promise<string> {
   const executor = client || Database.getInstance();
 
-  // Generate secure random token
-  const token = crypto.randomBytes(32).toString('hex');
-  // SECURITY: Use bcrypt instead of SHA-256 for secure token hashing
-  const tokenHash = await hashRefreshToken(token);
+  // Split-token pattern: O(1) lookup by selector, bcrypt only on verifier
+  const selector = crypto.randomBytes(16).toString('hex');
+  const verifier = crypto.randomBytes(32).toString('hex');
+  const tokenHash = await hashRefreshToken(verifier);
 
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
 
   await executor.query(
-    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
-    [userId, tokenHash, expiresAt]
+    `INSERT INTO refresh_tokens (user_id, selector, token_hash, expires_at) VALUES ($1, $2, $3, $4)`,
+    [userId, selector, tokenHash, expiresAt]
   );
 
-  return token;
+  return `${selector}.${verifier}`;
 }
 
 /**
@@ -227,24 +227,35 @@ export async function verifyRefreshToken(
 ): Promise<{ valid: boolean; userId?: string }> {
   const db = Database.getInstance();
 
-  // Find all non-expired, non-revoked tokens for this user
-  // We need to check bcrypt hashes one by one since bcrypt
-  // requires the original hash for comparison
-  const result = await db.query(
-    `SELECT id, user_id, token_hash FROM refresh_tokens
-     WHERE expires_at > NOW()
-       AND revoked_at IS NULL`
-  );
-
-  // Check each token hash using bcrypt comparison
-  for (const row of result.rows) {
-    const isValid = await verifyRefreshTokenHash(token, row.token_hash);
-    if (isValid) {
-      return { valid: true, userId: row.user_id };
-    }
+  const parts = token.split('.');
+  if (parts.length !== 2) {
+    return { valid: false };
+  }
+  const [selector, verifier] = parts;
+  if (!selector || !verifier || selector.length !== 32) {
+    return { valid: false };
   }
 
-  return { valid: false };
+  const result = await db.query(
+    `SELECT id, user_id, token_hash FROM refresh_tokens
+     WHERE selector = $1
+       AND revoked_at IS NULL
+       AND expires_at > NOW()`,
+    [selector]
+  );
+
+  const row = result.rows[0];
+  if (!row) {
+    return { valid: false };
+  }
+
+  const ok = await verifyRefreshTokenHash(verifier, row.token_hash);
+  if (!ok) {
+    await revokeAllUserTokens(row.user_id);
+    return { valid: false };
+  }
+
+  return { valid: true, userId: row.user_id };
 }
 
 /**
@@ -259,22 +270,35 @@ export async function verifyRefreshToken(
 export async function revokeRefreshToken(token: string, client?: QueryExecutor): Promise<void> {
   const executor = client || Database.getInstance();
 
-  // Find the token by comparing bcrypt hashes
+  const parts = token.split('.');
+  if (parts.length !== 2) {
+    return;
+  }
+  const [selector, verifier] = parts;
+  if (!selector || !verifier) {
+    return;
+  }
+
   const result = await executor.query(
-    `SELECT id, token_hash FROM refresh_tokens
-     WHERE revoked_at IS NULL`
+    `SELECT id, token_hash, user_id FROM refresh_tokens
+     WHERE selector = $1
+       AND revoked_at IS NULL
+       AND expires_at > NOW()`,
+    [selector]
   );
 
-  for (const row of result.rows) {
-    const isValid = await verifyRefreshTokenHash(token, row.token_hash);
-    if (isValid) {
-      await executor.query(
-        `UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1`,
-        [row.id]
-      );
-      return;
-    }
+  const row = result.rows[0];
+  if (!row) {
+    return;
   }
+
+  const ok = await verifyRefreshTokenHash(verifier, row.token_hash);
+  if (!ok) {
+    await revokeAllUserTokens(row.user_id);
+    return;
+  }
+
+  await executor.query(`UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1`, [row.id]);
 }
 
 /**

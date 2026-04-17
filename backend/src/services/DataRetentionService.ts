@@ -197,6 +197,30 @@ export class DataRetentionService {
       // 3f. DB-010: Delete user consents
       await client.query('DELETE FROM user_consents WHERE user_id = $1', [userId]);
 
+      // B-DB-9: Purge remaining user-owned / PII rows before profile anonymization
+      await client.query('DELETE FROM event_rsvps WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM user_genre_preferences WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM device_tokens WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM feed_read_cursors WHERE user_id = $1', [userId]);
+      await client.query(
+        'DELETE FROM user_blocks WHERE blocker_id = $1 OR blocked_id = $1',
+        [userId]
+      );
+      await client.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [userId]);
+      await client.query(
+        'DELETE FROM reports WHERE reporter_id = $1 OR target_user_id = $1',
+        [userId]
+      );
+      await client.query(
+        "UPDATE verification_claims SET evidence_text = '[deleted]', evidence_url = NULL WHERE user_id = $1",
+        [userId]
+      );
+      await client.query('DELETE FROM processed_webhook_events WHERE app_user_id = $1::text', [
+        userId,
+      ]);
+      await client.query('DELETE FROM audit_logs WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM pending_photo_uploads WHERE user_id = $1', [userId]);
+
       // 4. Revoke all refresh tokens
       const tokenResult = await client.query(
         `UPDATE refresh_tokens

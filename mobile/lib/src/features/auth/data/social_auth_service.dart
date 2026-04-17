@@ -49,6 +49,16 @@ class SocialAuthService {
 
   /// Initialize Google Sign-In (required for google_sign_in 7.x)
   /// Uses Completer pattern to avoid race conditions on concurrent calls.
+  Future<String> _fetchOAuthState() async {
+    final response = await _dioClient.get('/auth/social/state');
+    final data = response.data['data'] as Map<String, dynamic>?;
+    final state = data?['state'] as String?;
+    if (state == null || state.length != 64) {
+      throw Exception('Invalid OAuth state from server');
+    }
+    return state;
+  }
+
   Future<void> _ensureGoogleSignInInitialized() async {
     if (_initCompleter != null) {
       return _initCompleter!.future;
@@ -94,10 +104,12 @@ class SocialAuthService {
       throw Exception('Failed to get Google ID token');
     }
 
+    final state = await _fetchOAuthState();
+
     // Step 4: Send token to backend for verification
     final response = await _dioClient.post(
       '/auth/social/google',
-      data: {'idToken': idToken},
+      data: {'idToken': idToken, 'state': state},
     );
 
     // Step 5: Extract data from API wrapper: {success, data, message}
@@ -154,6 +166,9 @@ class SocialAuthService {
         'familyName': credential.familyName,
       };
     }
+
+    final state = await _fetchOAuthState();
+    requestData['state'] = state;
 
     // Step 3: Send token to backend for verification
     final response = await _dioClient.post(

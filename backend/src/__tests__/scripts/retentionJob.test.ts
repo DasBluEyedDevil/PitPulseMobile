@@ -30,6 +30,12 @@ jest.mock('../../utils/logger', () => ({
   },
 }));
 
+const mockCleanupExpiredTokens = jest.fn().mockResolvedValue(0);
+
+jest.mock('../../utils/auth', () => ({
+  cleanupExpiredTokens: (...args: unknown[]) => mockCleanupExpiredTokens(...args),
+}));
+
 // Mock process.exit to prevent test from exiting
 const mockExit = jest.spyOn(process, 'exit').mockImplementation((code) => {
   throw new Error(`process.exit(${code})`);
@@ -38,6 +44,7 @@ const mockExit = jest.spyOn(process, 'exit').mockImplementation((code) => {
 describe('retentionJob', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCleanupExpiredTokens.mockResolvedValue(0);
     // Reset module cache to get fresh imports
     jest.resetModules();
 
@@ -80,12 +87,15 @@ describe('retentionJob', () => {
       mockDbQuery
         .mockResolvedValueOnce({ rowCount: 5 }) // Consent records
         .mockResolvedValueOnce({ rowCount: 10 }) // Notifications
-        .mockResolvedValueOnce({ rowCount: 3 }); // Refresh tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 3 }); // password_reset_tokens
 
       const { runRetentionJob } = await import('../../scripts/retentionJob');
       await runRetentionJob();
 
       expect(mockProcessPendingDeletions).toHaveBeenCalledTimes(1);
+      expect(mockCleanupExpiredTokens).toHaveBeenCalled();
     });
 
     it('should clean up old consent records', async () => {
@@ -99,7 +109,9 @@ describe('retentionJob', () => {
       mockDbQuery
         .mockResolvedValueOnce({ rowCount: 15 }) // Consent records
         .mockResolvedValueOnce({ rowCount: 0 }) // Notifications
-        .mockResolvedValueOnce({ rowCount: 0 }); // Refresh tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }); // password_reset_tokens
 
       const { runRetentionJob } = await import('../../scripts/retentionJob');
       await runRetentionJob();
@@ -121,7 +133,9 @@ describe('retentionJob', () => {
       mockDbQuery
         .mockResolvedValueOnce({ rowCount: 0 }) // Consent records
         .mockResolvedValueOnce({ rowCount: 25 }) // Notifications
-        .mockResolvedValueOnce({ rowCount: 0 }); // Refresh tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }); // password_reset_tokens
 
       const { runRetentionJob } = await import('../../scripts/retentionJob');
       await runRetentionJob();
@@ -132,7 +146,7 @@ describe('retentionJob', () => {
       expect(mockDbQuery).toHaveBeenCalledWith(expect.stringContaining("INTERVAL '90 days'"));
     });
 
-    it('should clean up expired refresh tokens', async () => {
+    it('should clean up expired refresh tokens via cleanupExpiredTokens', async () => {
       mockProcessPendingDeletions.mockResolvedValue({
         processed: 0,
         succeeded: 0,
@@ -140,27 +154,27 @@ describe('retentionJob', () => {
         errors: [],
       });
 
+      mockCleanupExpiredTokens.mockResolvedValue(8);
+
       mockDbQuery
         .mockResolvedValueOnce({ rowCount: 0 }) // Consent records
         .mockResolvedValueOnce({ rowCount: 0 }) // Notifications
-        .mockResolvedValueOnce({ rowCount: 8 }); // Refresh tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }); // password_reset_tokens
 
       const { runRetentionJob } = await import('../../scripts/retentionJob');
       await runRetentionJob();
 
-      expect(mockDbQuery).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM refresh_tokens')
-      );
-      expect(mockDbQuery).toHaveBeenCalledWith(expect.stringContaining("INTERVAL '7 days'"));
+      expect(mockCleanupExpiredTokens).toHaveBeenCalled();
     });
 
-    it('should call process.exit(1) on error', async () => {
+    it('should propagate errors from processPendingDeletions', async () => {
       mockProcessPendingDeletions.mockRejectedValue(new Error('Database connection failed'));
 
       const { runRetentionJob } = await import('../../scripts/retentionJob');
 
-      await expect(runRetentionJob()).rejects.toThrow('process.exit(1)');
-      expect(mockExit).toHaveBeenCalledWith(1);
+      await expect(runRetentionJob()).rejects.toThrow('Database connection failed');
     });
 
     it('should log deletion errors from processPendingDeletions', async () => {
@@ -172,6 +186,8 @@ describe('retentionJob', () => {
       });
 
       mockDbQuery
+        .mockResolvedValueOnce({ rowCount: 0 })
+        .mockResolvedValueOnce({ rowCount: 0 })
         .mockResolvedValueOnce({ rowCount: 0 })
         .mockResolvedValueOnce({ rowCount: 0 })
         .mockResolvedValueOnce({ rowCount: 0 });
@@ -200,8 +216,12 @@ describe('retentionJob', () => {
           callOrder.push('consents');
         } else if (query.includes('notifications')) {
           callOrder.push('notifications');
-        } else if (query.includes('refresh_tokens')) {
-          callOrder.push('tokens');
+        } else if (query.includes('audit_logs')) {
+          callOrder.push('audit_logs');
+        } else if (query.includes('processed_webhook_events')) {
+          callOrder.push('webhooks');
+        } else if (query.includes('password_reset_tokens')) {
+          callOrder.push('password_reset');
         }
         return Promise.resolve({ rowCount: 0 });
       });
@@ -209,8 +229,8 @@ describe('retentionJob', () => {
       const { runRetentionJob } = await import('../../scripts/retentionJob');
       await runRetentionJob();
 
-      // Verify the order of operations
-      expect(callOrder).toEqual(['consents', 'notifications', 'tokens']);
+      expect(callOrder).toEqual(['consents', 'notifications', 'audit_logs', 'webhooks', 'password_reset']);
+      expect(mockCleanupExpiredTokens).toHaveBeenCalled();
     });
   });
 
@@ -257,7 +277,7 @@ describe('retentionJob', () => {
       expect(notificationQuery[0]).toContain("INTERVAL '90 days'");
     });
 
-    it('should keep expired tokens for 7 days before deletion', async () => {
+    it('should invoke cleanupExpiredTokens for refresh token hygiene', async () => {
       mockProcessPendingDeletions.mockResolvedValue({
         processed: 0,
         succeeded: 0,
@@ -270,12 +290,7 @@ describe('retentionJob', () => {
       const { runRetentionJob } = await import('../../scripts/retentionJob');
       await runRetentionJob();
 
-      // Verify the query uses 7 days interval
-      const tokenQuery = mockDbQuery.mock.calls.find((call: any[]) =>
-        call[0].includes('refresh_tokens')
-      );
-      expect(tokenQuery).toBeDefined();
-      expect(tokenQuery[0]).toContain("INTERVAL '7 days'");
+      expect(mockCleanupExpiredTokens).toHaveBeenCalled();
     });
   });
 });

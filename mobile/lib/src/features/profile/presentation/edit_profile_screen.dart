@@ -98,19 +98,46 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         updates['bio'] = _bioController.text.trim();
       }
 
-      // Upload profile image if one was selected
+      final profileRepository = ref.read(profileRepositoryProvider);
+      final authRepository = ref.read(authRepositoryProvider);
+
       if (_selectedImage != null) {
-        final profileRepository = ref.read(profileRepositoryProvider);
-        final newAvatarUrl =
-            await profileRepository.uploadProfileImage(_selectedImage!.path);
-        updates['profileImageUrl'] = newAvatarUrl;
+        final upRes = await profileRepository.uploadProfileImage(_selectedImage!.path);
+        final stop = upRes.fold(
+          (Failure f) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(f.message)),
+              );
+            }
+            return true;
+          },
+          (String url) {
+            updates['profileImageUrl'] = url;
+            return false;
+          },
+        );
+        if (stop) {
+          return;
+        }
       }
 
-      // Update profile
-      final authRepository = ref.read(authRepositoryProvider);
-      await authRepository.updateProfile(updates);
+      final upd = await authRepository.updateProfile(updates);
+      final failed = upd.fold(
+        (Failure f) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(f.message)),
+            );
+          }
+          return true;
+        },
+        (_) => false,
+      );
+      if (failed) {
+        return;
+      }
 
-      // Refresh user state
       await ref.read(authStateProvider.notifier).refreshUser();
 
       if (mounted) {

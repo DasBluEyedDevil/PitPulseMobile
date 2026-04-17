@@ -8,15 +8,16 @@ import type { MigrationBuilder } from 'node-pg-migrate';
  */
 
 export async function up(pgm: MigrationBuilder): Promise<void> {
+  // H-DB-2: CONCURRENTLY cannot run inside node-pg-migrate's transaction; use standard CREATE INDEX.
   // CFR-DB-007: Feed cursor pagination index
   pgm.sql(`
-    CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_checkins_created_id
+    CREATE INDEX IF NOT EXISTS idx_checkins_created_id
     ON checkins (created_at DESC, id DESC);
   `);
 
   // CFR-PERF-003: Feed EXISTS subquery optimization
   pgm.sql(`
-    CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_badges_user_earned
+    CREATE INDEX IF NOT EXISTS idx_user_badges_user_earned
     ON user_badges (user_id, earned_at DESC);
   `);
 }

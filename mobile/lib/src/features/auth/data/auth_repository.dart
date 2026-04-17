@@ -41,6 +41,12 @@ class AuthRepository {
         key: ApiConfig.tokenKey,
         value: authResponse.token,
       );
+      if (authResponse.refreshToken != null && authResponse.refreshToken!.isNotEmpty) {
+        await _secureStorage.write(
+          key: 'refresh_token',
+          value: authResponse.refreshToken,
+        );
+      }
       await _secureStorage.write(
         key: ApiConfig.userKey,
         value: jsonEncode(authResponse.user.toJson()),
@@ -69,6 +75,12 @@ class AuthRepository {
         key: ApiConfig.tokenKey,
         value: authResponse.token,
       );
+      if (authResponse.refreshToken != null && authResponse.refreshToken!.isNotEmpty) {
+        await _secureStorage.write(
+          key: 'refresh_token',
+          value: authResponse.refreshToken,
+        );
+      }
       await _secureStorage.write(
         key: ApiConfig.userKey,
         value: jsonEncode(authResponse.user.toJson()),

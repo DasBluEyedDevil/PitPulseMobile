@@ -1,7 +1,7 @@
-import multer, { File } from 'multer';
+import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
-import { Request } from 'express';
+import { Request, Express } from 'express';
 
 const safeExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
 
@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
   },
 });
 
-const fileFilter = (req: Request, file: File, cb: multer.FileFilterCallback) => {
+const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);

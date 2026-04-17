@@ -93,8 +93,7 @@ Analysis options: `mobile/analysis_options.yaml`
 | `npm run migrate:create` | Create new migration file |
 | `npm run seed` | Seed database with dev data |
 
-Schema: `backend/database-schema.sql`
-Migrations: `backend/migrations/`
+Schema: applied via `npm run migrate:up` in `backend/migrations/` (node-pg-migrate).
 
 ## Environment Variables
 

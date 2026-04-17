@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { SocialAuthService } from '../services/SocialAuthService';
+import { OAuthStateError, SocialAuthService } from '../services/SocialAuthService';
 import { AuditService } from '../services/AuditService';
 import { ApiResponse } from '../types';
 import { logError, logInfo } from '../utils/logger';
@@ -10,19 +10,48 @@ const router = Router();
 const socialAuthService = new SocialAuthService();
 const auditService = new AuditService();
 
-// Validation schemas
+// Validation schemas (32-byte hex state from GET /api/auth/social/state)
+const oauthStateSchema = z.string().length(64, 'OAuth state must be a 64-character hex string');
+
 const googleAuthSchema = z.object({
   idToken: z.string().min(1, 'ID token is required'),
+  state: oauthStateSchema,
 });
 
 const appleAuthSchema = z.object({
   identityToken: z.string().min(1, 'Identity token is required'),
+  state: oauthStateSchema,
   fullName: z
     .object({
       givenName: z.string().optional(),
       familyName: z.string().optional(),
     })
     .optional(),
+});
+
+/**
+ * GET /api/auth/social/state
+ * Returns a one-time CSRF state (stored in Redis, 5 min TTL). Required for Google/Apple sign-in.
+ */
+router.get('/state', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const state = await socialAuthService.generateOAuthState();
+    const response: ApiResponse = {
+      success: true,
+      data: { state },
+    };
+    res.status(200).json(response);
+  } catch (error) {
+    if (error instanceof OAuthStateError) {
+      const response: ApiResponse = {
+        success: false,
+        error: error.message,
+      };
+      res.status(503).json(response);
+      return;
+    }
+    next(error);
+  }
 });
 
 /**
@@ -54,10 +83,10 @@ router.post(
         return;
       }
 
-      const { idToken } = validation.data;
+      const { idToken, state } = validation.data;
 
       // Verify the Google token
-      const profile = await socialAuthService.verifyGoogleToken(idToken);
+      const profile = await socialAuthService.verifyGoogleToken(idToken, state);
       if (!profile) {
         const response: ApiResponse = {
           success: false,
@@ -163,10 +192,10 @@ router.post(
         return;
       }
 
-      const { identityToken, fullName } = validation.data;
+      const { identityToken, fullName, state } = validation.data;
 
       // Verify the Apple token
-      const profile = await socialAuthService.verifyAppleToken(identityToken, fullName);
+      const profile = await socialAuthService.verifyAppleToken(identityToken, fullName, state);
       if (!profile) {
         const response: ApiResponse = {
           success: false,

@@ -127,6 +127,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 3 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 1 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 2 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 2 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 4 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user
@@ -165,6 +176,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 0 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 0 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user
@@ -202,6 +224,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 0 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 0 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user
@@ -232,6 +265,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 0 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 0 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user
@@ -262,6 +306,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 5 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 0 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user
@@ -292,6 +347,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 0 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 0 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user
@@ -322,6 +388,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 0 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 0 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user
@@ -358,6 +435,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 0 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 7 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user
@@ -388,6 +476,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 0 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 0 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user
@@ -559,6 +658,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 1 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 0 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user
@@ -621,6 +731,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 1 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 0 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user
@@ -784,6 +905,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 0 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 0 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user
@@ -824,6 +956,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 0 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 0 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user
@@ -849,6 +992,17 @@ describe('DataRetentionService', () => {
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete comments (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete social accounts (DB-010)
         .mockResolvedValueOnce({ rowCount: 0 }) // Delete consents (DB-010)
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 event_rsvps
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_genre_preferences
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 device_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 feed_read_cursors
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 user_blocks
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 password_reset_tokens
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 reports
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 verification_claims
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 processed_webhook_events
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 audit_logs
+        .mockResolvedValueOnce({ rowCount: 0 }) // B-DB-9 pending_photo_uploads
         .mockResolvedValueOnce({ rowCount: 0 }) // Revoke tokens
         .mockResolvedValueOnce({ rowCount: 0 }) // Anonymize check-in photos
         .mockResolvedValueOnce({ rowCount: 1 }) // Anonymize user

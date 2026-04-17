@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -18,6 +19,17 @@ class ProFeatureScreen extends ConsumerStatefulWidget {
 class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
   bool _isPurchasing = false;
   bool _isRestoring = false;
+  Package? _selectedPackage;
+
+  Package? _pickDefaultPackage(List<Package> packages) {
+    Package? annual;
+    Package? monthly;
+    for (final p in packages) {
+      if (p.packageType == PackageType.annual) annual = p;
+      if (p.packageType == PackageType.monthly) monthly = p;
+    }
+    return annual ?? monthly ?? (packages.isNotEmpty ? packages.first : null);
+  }
 
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
@@ -32,19 +44,19 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
     AnalyticsService.logEvent(name: 'subscription_viewed');
   }
 
-  Future<void> _onSubscribe() async {
+  Future<void> _onSubscribe(List<Package> packages) async {
+    final pkg = _selectedPackage ?? _pickDefaultPackage(packages);
+    if (pkg == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Subscriptions not available')),
+        );
+      }
+      return;
+    }
     setState(() => _isPurchasing = true);
     try {
-      final packages = await ref.read(packagesProvider.future);
-      if (packages.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Subscriptions not available')),
-          );
-        }
-        return;
-      }
-      final customerInfo = await SubscriptionService.purchase(packages.first);
+      final customerInfo = await SubscriptionService.purchase(pkg);
       if (customerInfo != null && mounted) {
         final hasPro =
             customerInfo.entitlements.all['pro']?.isActive ?? false;
@@ -56,7 +68,6 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
           );
         }
       }
-      // null = user cancelled, do nothing silently
     } on PlatformException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -101,6 +112,7 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
   @override
   Widget build(BuildContext context) {
     final isPremium = ref.watch(isPremiumProvider);
+    final packagesAsync = ref.watch(packagesProvider);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -157,34 +169,86 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
             ),
             const SizedBox(height: 32),
             if (!isPremium) ...[
-              const Text(
-                '\$4.99/mo or \$39.99/yr',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
+              packagesAsync.when(
+                data: (packages) {
+                  if (packages.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'Subscriptions are not available on this build.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppTheme.textSecondary),
+                      ),
+                    );
+                  }
+                  final effective =
+                      _selectedPackage ?? _pickDefaultPackage(packages)!;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Choose a plan',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: packages.map((p) {
+                          final selected = effective.identifier == p.identifier;
+                          return FilterChip(
+                            label: Text(
+                              '${p.storeProduct.title} · ${p.storeProduct.priceString}',
+                            ),
+                            selected: selected,
+                            onSelected: _isPurchasing
+                                ? null
+                                : (_) => setState(() => _selectedPackage = p),
+                            selectedColor:
+                                AppTheme.voltLime.withValues(alpha: 0.35),
+                            checkmarkColor: AppTheme.voltLime,
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isPurchasing
+                              ? null
+                              : () => _onSubscribe(packages),
+                          child: _isPurchasing
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Theme.of(context).scaffoldBackgroundColor,
+                                  ),
+                                )
+                              : const Text('Subscribe'),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppTheme.voltLime),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Save ~33% with annual (2 months free)',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isPurchasing ? null : _onSubscribe,
-                  child: _isPurchasing
-                      ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Theme.of(context).scaffoldBackgroundColor,
-                          ),
-                        )
-                      : const Text('Subscribe'),
+                error: (e, _) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'Could not load plans: $e',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppTheme.error),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),

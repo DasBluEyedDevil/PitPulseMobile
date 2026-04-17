@@ -77,22 +77,10 @@ class FeedRepository {
     }
   }
 
-  /// Get event-based feed showing activity from events user has attended
-  /// GET /feed/events?cursor=X&limit=N
+  /// Discovery-style feed for the "Events" tab (backend has no `GET /feed/events`).
+  /// Uses global feed until a dedicated merged-events feed exists (audit H-MOB-1).
   Future<Either<Failure, FeedPage>> getEventsFeed({String? cursor, int limit = 20}) async {
-    try {
-      final queryParams = <String, dynamic>{'limit': limit};
-      if (cursor != null) queryParams['cursor'] = cursor;
-
-      final response = await _dioClient.get(
-        '/feed/events',
-        queryParameters: queryParams,
-      );
-
-      return Right(FeedPage.fromJson(response.data['data'] as Map<String, dynamic>));
-    } catch (e) {
-      return Left(_mapErrorToFailure(e));
-    }
+    return getGlobalFeed(cursor: cursor, limit: limit);
   }
 
   /// Get happening now groups (friends at events today)

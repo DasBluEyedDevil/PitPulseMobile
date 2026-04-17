@@ -176,9 +176,14 @@ export class FeedService {
     const blockFilter = userId ? this.blockService.getBlockFilterSQL(userId, 'c.user_id') : '';
 
     const toastSelect = userId
-      ? `EXISTS(
+      ? cursorData
+        ? `EXISTS(
           SELECT 1 FROM toasts t2
-          WHERE t2.checkin_id = c.id AND t2.user_id = '${userId}'
+          WHERE t2.checkin_id = c.id AND t2.user_id = $5::uuid
+        ) AS has_user_toasted`
+        : `EXISTS(
+          SELECT 1 FROM toasts t2
+          WHERE t2.checkin_id = c.id AND t2.user_id = $3::uuid
         ) AS has_user_toasted`
       : 'false AS has_user_toasted';
 
@@ -214,9 +219,14 @@ export class FeedService {
       LIMIT $2
     `;
 
-    const params: any[] = cursorData
-      ? [eventId, limit + 1, cursorData.createdAt, cursorData.id]
-      : [eventId, limit + 1];
+    const params: any[] = (() => {
+      if (cursorData) {
+        const base = [eventId, limit + 1, cursorData.createdAt, cursorData.id];
+        return userId ? [...base, userId] : base;
+      }
+      const base = [eventId, limit + 1];
+      return userId ? [...base, userId] : base;
+    })();
 
     const result = await this.db.query(query, params);
     const rows = result.rows;

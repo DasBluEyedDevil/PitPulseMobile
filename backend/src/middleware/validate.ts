@@ -36,11 +36,17 @@ export function buildErrorResponse(code: string, message: string, details?: any)
 export const validate = (schema: AnyZodObject) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      await schema.parseAsync({
+      const parsed = await schema.parseAsync({
         body: req.body,
         query: req.query,
         params: req.params,
       });
+      if (parsed && typeof parsed === 'object') {
+        const p = parsed as { body?: unknown; query?: unknown; params?: unknown };
+        if ('body' in p) req.body = p.body as Request['body'];
+        if ('query' in p) req.query = p.query as Request['query'];
+        if ('params' in p) req.params = p.params as Request['params'];
+      }
       next();
     } catch (error) {
       if (error instanceof ZodError) {

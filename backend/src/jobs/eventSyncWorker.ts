@@ -16,6 +16,7 @@
 import { Worker, Job } from 'bullmq';
 import { createBullMQConnection, getRedisUrl } from '../config/redis';
 import { EventSyncService } from '../services/EventSyncService';
+import { runRetentionJob } from '../scripts/retentionJob';
 import { captureException } from '../utils/sentry';
 import logger from '../utils/logger';
 
@@ -50,6 +51,8 @@ export function startEventSyncWorker(): Worker | null {
       } else if (job.name === 'region-sync') {
         const regionId = job.data?.regionId;
         await syncService.runSync(regionId);
+      } else if (job.name === 'retention-cleanup') {
+        await runRetentionJob();
       } else {
         logger.warn(`Unknown job name: ${job.name}`, { jobId: job.id });
       }

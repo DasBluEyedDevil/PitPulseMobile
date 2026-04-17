@@ -76,6 +76,81 @@ export interface ExportedNotification {
   createdAt: string;
 }
 
+export interface ExportedRsvp {
+  id: string;
+  eventId: string;
+  eventName: string | null;
+  createdAt: string;
+}
+
+export interface ExportedGenrePreference {
+  id: string;
+  genre: string;
+  createdAt: string;
+}
+
+export interface ExportedConsent {
+  id: string;
+  purpose: string;
+  granted: boolean;
+  recordedAt: string;
+}
+
+export interface ExportedBlock {
+  id: string;
+  otherUserId: string;
+  direction: 'blocked' | 'blocked_by';
+  createdAt: string;
+}
+
+export interface ExportedBandRating {
+  id: string;
+  checkinId: string;
+  bandId: string;
+  bandName: string | null;
+  rating: number;
+  createdAt: string;
+}
+
+export interface ExportedVerificationClaim {
+  id: string;
+  entityType: string;
+  entityId: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface ExportedReport {
+  id: string;
+  contentType: string;
+  contentId: string;
+  reason: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface ExportedSocialAccount {
+  id: string;
+  provider: string;
+  providerId: string;
+  createdAt: string;
+}
+
+export interface ExportedDeviceToken {
+  id: string;
+  platform: string | null;
+  createdAt: string;
+}
+
+export interface ExportedAuditLog {
+  id: string;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
 export interface GDPRExport {
   format: 'GDPR_EXPORT_V1';
   exportedAt: string;
@@ -88,6 +163,16 @@ export interface GDPRExport {
   toasts: ExportedToast[];
   comments: ExportedComment[];
   notifications: ExportedNotification[];
+  rsvps: ExportedRsvp[];
+  genrePreferences: ExportedGenrePreference[];
+  consents: ExportedConsent[];
+  blocks: ExportedBlock[];
+  bandRatings: ExportedBandRating[];
+  verificationClaims: ExportedVerificationClaim[];
+  reportsFiled: ExportedReport[];
+  socialAccounts: ExportedSocialAccount[];
+  deviceTokens: ExportedDeviceToken[];
+  auditLog: ExportedAuditLog[];
 }
 
 export class DataExportService {
@@ -116,17 +201,45 @@ export class DataExportService {
     }
 
     // Collect all data in parallel for efficiency
-    const [checkins, followers, following, wishlist, badges, toasts, comments, notifications] =
-      await Promise.all([
-        this.getCheckins(userId),
-        this.getFollowers(userId),
-        this.getFollowing(userId),
-        this.getWishlist(userId),
-        this.getBadges(userId),
-        this.getToasts(userId),
-        this.getComments(userId),
-        this.getNotifications(userId),
-      ]);
+    const [
+      checkins,
+      followers,
+      following,
+      wishlist,
+      badges,
+      toasts,
+      comments,
+      notifications,
+      rsvps,
+      genrePreferences,
+      consents,
+      blocks,
+      bandRatings,
+      verificationClaims,
+      reportsFiled,
+      socialAccounts,
+      deviceTokens,
+      auditLog,
+    ] = await Promise.all([
+      this.getCheckins(userId),
+      this.getFollowers(userId),
+      this.getFollowing(userId),
+      this.getWishlist(userId),
+      this.getBadges(userId),
+      this.getToasts(userId),
+      this.getComments(userId),
+      this.getNotifications(userId),
+      this.getRsvps(userId),
+      this.getGenrePreferences(userId),
+      this.getConsents(userId),
+      this.getBlocks(userId),
+      this.getBandRatings(userId),
+      this.getVerificationClaims(userId),
+      this.getReportsFiled(userId),
+      this.getSocialAccounts(userId),
+      this.getDeviceTokens(userId),
+      this.getAuditLog(userId),
+    ]);
 
     return {
       format: 'GDPR_EXPORT_V1',
@@ -140,6 +253,16 @@ export class DataExportService {
       toasts,
       comments,
       notifications,
+      rsvps,
+      genrePreferences,
+      consents,
+      blocks,
+      bandRatings,
+      verificationClaims,
+      reportsFiled,
+      socialAccounts,
+      deviceTokens,
+      auditLog,
     };
   }
 
@@ -377,6 +500,184 @@ export class DataExportService {
       type: row.type,
       message: row.message,
       isRead: row.is_read,
+      createdAt: row.created_at.toISOString(),
+    }));
+  }
+
+  private async getRsvps(userId: string): Promise<ExportedRsvp[]> {
+    const query = `
+      SELECT er.id, er.event_id, er.created_at, e.event_name
+      FROM event_rsvps er
+      LEFT JOIN events e ON e.id = er.event_id
+      WHERE er.user_id = $1
+      ORDER BY er.created_at DESC
+      LIMIT ${DataExportService.EXPORT_ROW_LIMIT}
+    `;
+    const result = await this.db.query(query, [userId]);
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      eventId: row.event_id,
+      eventName: row.event_name ?? null,
+      createdAt: row.created_at.toISOString(),
+    }));
+  }
+
+  private async getGenrePreferences(userId: string): Promise<ExportedGenrePreference[]> {
+    const query = `
+      SELECT id, genre, created_at FROM user_genre_preferences
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT ${DataExportService.EXPORT_ROW_LIMIT}
+    `;
+    const result = await this.db.query(query, [userId]);
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      genre: row.genre,
+      createdAt: row.created_at.toISOString(),
+    }));
+  }
+
+  private async getConsents(userId: string): Promise<ExportedConsent[]> {
+    const query = `
+      SELECT id, purpose, granted, recorded_at FROM user_consents
+      WHERE user_id = $1
+      ORDER BY recorded_at DESC
+      LIMIT ${DataExportService.EXPORT_ROW_LIMIT}
+    `;
+    const result = await this.db.query(query, [userId]);
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      purpose: row.purpose,
+      granted: row.granted,
+      recordedAt: row.recorded_at.toISOString(),
+    }));
+  }
+
+  private async getBlocks(userId: string): Promise<ExportedBlock[]> {
+    const query = `
+      SELECT id, blocker_id, blocked_id, created_at FROM user_blocks
+      WHERE blocker_id = $1 OR blocked_id = $1
+      ORDER BY created_at DESC
+      LIMIT ${DataExportService.EXPORT_ROW_LIMIT}
+    `;
+    const result = await this.db.query(query, [userId]);
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      otherUserId: row.blocker_id === userId ? row.blocked_id : row.blocker_id,
+      direction: row.blocker_id === userId ? 'blocked' : 'blocked_by',
+      createdAt: row.created_at.toISOString(),
+    }));
+  }
+
+  private async getBandRatings(userId: string): Promise<ExportedBandRating[]> {
+    const query = `
+      SELECT cbr.id, cbr.checkin_id, cbr.band_id, cbr.rating, cbr.created_at, b.name AS band_name
+      FROM checkin_band_ratings cbr
+      JOIN checkins c ON c.id = cbr.checkin_id
+      LEFT JOIN bands b ON b.id = cbr.band_id
+      WHERE c.user_id = $1
+      ORDER BY cbr.created_at DESC
+      LIMIT ${DataExportService.EXPORT_ROW_LIMIT}
+    `;
+    const result = await this.db.query(query, [userId]);
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      checkinId: row.checkin_id,
+      bandId: row.band_id,
+      bandName: row.band_name ?? null,
+      rating: parseFloat(row.rating) || 0,
+      createdAt: row.created_at.toISOString(),
+    }));
+  }
+
+  private async getVerificationClaims(userId: string): Promise<ExportedVerificationClaim[]> {
+    const query = `
+      SELECT id, entity_type, entity_id, status, created_at
+      FROM verification_claims
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT ${DataExportService.EXPORT_ROW_LIMIT}
+    `;
+    const result = await this.db.query(query, [userId]);
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      status: row.status,
+      createdAt: row.created_at.toISOString(),
+    }));
+  }
+
+  private async getReportsFiled(userId: string): Promise<ExportedReport[]> {
+    const query = `
+      SELECT id, content_type::text AS content_type, content_id, reason::text AS reason,
+             status::text AS status, created_at
+      FROM reports
+      WHERE reporter_id = $1
+      ORDER BY created_at DESC
+      LIMIT ${DataExportService.EXPORT_ROW_LIMIT}
+    `;
+    const result = await this.db.query(query, [userId]);
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      contentType: row.content_type,
+      contentId: row.content_id,
+      reason: row.reason,
+      status: row.status,
+      createdAt: row.created_at.toISOString(),
+    }));
+  }
+
+  private async getSocialAccounts(userId: string): Promise<ExportedSocialAccount[]> {
+    const query = `
+      SELECT id, provider, provider_id, created_at
+      FROM user_social_accounts
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT ${DataExportService.EXPORT_ROW_LIMIT}
+    `;
+    const result = await this.db.query(query, [userId]);
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      provider: row.provider,
+      providerId: row.provider_id,
+      createdAt: row.created_at.toISOString(),
+    }));
+  }
+
+  private async getDeviceTokens(userId: string): Promise<ExportedDeviceToken[]> {
+    const query = `
+      SELECT id, platform, created_at FROM device_tokens
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT ${DataExportService.EXPORT_ROW_LIMIT}
+    `;
+    const result = await this.db.query(query, [userId]);
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      platform: row.platform ?? null,
+      createdAt: row.created_at.toISOString(),
+    }));
+  }
+
+  private async getAuditLog(userId: string): Promise<ExportedAuditLog[]> {
+    const query = `
+      SELECT id, action, resource_type, resource_id, metadata, created_at
+      FROM audit_logs
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT ${DataExportService.EXPORT_ROW_LIMIT}
+    `;
+    const result = await this.db.query(query, [userId]);
+    return result.rows.map((row: any) => ({
+      id: row.id,
+      action: row.action,
+      resourceType: row.resource_type,
+      resourceId: row.resource_id ?? null,
+      metadata: (row.metadata && typeof row.metadata === 'object' ? row.metadata : {}) as Record<
+        string,
+        unknown
+      >,
       createdAt: row.created_at.toISOString(),
     }));
   }

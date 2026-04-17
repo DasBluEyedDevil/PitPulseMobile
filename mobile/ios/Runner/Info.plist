@@ -80,6 +80,11 @@
 	     features (background geofencing, activity detection) and will trigger
 	     App Store review scrutiny. Re-add only when the features are built
 	     and the usage descriptions accurately reflect functionality. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+
 	<key>FlutterDeepLinkingEnabled</key>
 	<true/>
 	<!-- Custom URL scheme for deep links (e.g., password reset) -->

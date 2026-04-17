@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../../core/api/api_config.dart';
 import '../../../core/services/log_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
@@ -11,6 +13,7 @@ import '../../../shared/utils/date_formatter.dart';
 import '../../badges/domain/badge.dart';
 import '../../checkins/domain/checkin.dart';
 import '../domain/concert_cred.dart';
+import '../../auth/domain/user.dart';
 import '../../subscription/presentation/subscription_providers.dart';
 import '../../subscription/presentation/widgets/pro_badge.dart';
 import 'providers/profile_providers.dart';
@@ -276,12 +279,14 @@ class _ProfileHeader extends ConsumerWidget {
               IconButton(
                 icon: const Icon(Icons.share, color: Colors.white),
                 tooltip: 'Share Profile',
-                onPressed: () {
+                onPressed: () async {
                   HapticFeedbackUtil.selectionClick();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Share profile coming soon'),
-                      backgroundColor: AppTheme.voltLime,
+                  final u = user as User;
+                  final handle = u.username;
+                  await SharePlus.instance.share(
+                    ShareParams(
+                      text:
+                          'Check out @$handle on SoundCheck — ${ApiConfig.webBaseUrl}/u/$handle',
                     ),
                   );
                 },

@@ -42,6 +42,16 @@ class _BandDetailScreenState extends ConsumerState<BandDetailScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadWishlistStatus());
+  }
+
+  Future<void> _loadWishlistStatus() async {
+    final repo = ref.read(wishlistRepositoryProvider);
+    final result = await repo.isWishlisted(widget.bandId);
+    if (!mounted) return;
+    result.fold((_) {}, (on) {
+      if (mounted) setState(() => _isOnWishlist = on);
+    });
   }
 
   @override
@@ -122,25 +132,33 @@ class _BandDetailScreenState extends ConsumerState<BandDetailScreen>
               bandId: widget.bandId,
               isOnWishlist: _isOnWishlist,
               onCheckIn: () => context.push('/checkin'),
-              onWishlistToggle: () {
-                setState(() => _isOnWishlist = !_isOnWishlist);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      _isOnWishlist
-                          ? 'Added to wishlist'
-                          : 'Removed from wishlist',
-                    ),
-                    backgroundColor: AppTheme.voltLime,
-                  ),
-                );
-              },
-              onFindShows: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Find shows coming soon!'),
-                    backgroundColor: AppTheme.voltLime,
-                  ),
+              onWishlistToggle: () async {
+                final repo = ref.read(wishlistRepositoryProvider);
+                final next = !_isOnWishlist;
+                final result = next
+                    ? await repo.add(widget.bandId)
+                    : await repo.removeByBandId(widget.bandId);
+                if (!mounted) return;
+                result.fold(
+                  (failure) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(failure.message),
+                        backgroundColor: AppTheme.error,
+                      ),
+                    );
+                  },
+                  (_) {
+                    setState(() => _isOnWishlist = next);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          next ? 'Added to wishlist' : 'Removed from wishlist',
+                        ),
+                        backgroundColor: AppTheme.voltLime,
+                      ),
+                    );
+                  },
                 );
               },
             ),
@@ -685,15 +703,13 @@ class _ActionBar extends StatelessWidget {
   final String bandId;
   final bool isOnWishlist;
   final VoidCallback onCheckIn;
-  final VoidCallback onWishlistToggle;
-  final VoidCallback onFindShows;
+  final Future<void> Function() onWishlistToggle;
 
   const _ActionBar({
     required this.bandId,
     required this.isOnWishlist,
     required this.onCheckIn,
     required this.onWishlistToggle,
-    required this.onFindShows,
   });
 
   @override
@@ -723,7 +739,8 @@ class _ActionBar extends StatelessWidget {
           // Wishlist Button
           Expanded(
             child: OutlinedButton.icon(
-              onPressed: onWishlistToggle,
+              // ignore: unnecessary_lambdas — Future<void> handler vs VoidCallback
+              onPressed: () => onWishlistToggle(),
               icon: Icon(
                 isOnWishlist ? Icons.bookmark : Icons.bookmark_border,
                 size: 20,
@@ -741,26 +758,6 @@ class _ActionBar extends StatelessWidget {
                       ? AppTheme.voltLime
                       : AppTheme.textTertiary,
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Find Shows Button
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: onFindShows,
-              icon: const Icon(Icons.event, size: 20),
-              label: const Text(
-                'Shows',
-                style: TextStyle(fontSize: 12),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.textSecondary,
-                side: const BorderSide(color: AppTheme.textTertiary),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),

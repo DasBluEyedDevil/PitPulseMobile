@@ -11,7 +11,7 @@
 
 import Database from '../../config/database';
 import { User, CreateUserRequest, LoginRequest, AuthResponse } from '../../types';
-import { AuthUtils } from '../../utils/auth';
+import { AuthUtils, generateRefreshToken } from '../../utils/auth';
 import { mapDbUserToUser, sanitizeUserForClient } from '../../utils/dbMappers';
 
 export class AuthService {
@@ -60,9 +60,12 @@ export class AuthService {
       username: user.username,
     });
 
+    const refreshToken = await generateRefreshToken(user.id);
+
     return {
       user: sanitizeUserForClient(user) as User,
       token,
+      refreshToken,
     };
   }
 
@@ -96,6 +99,8 @@ export class AuthService {
       username: user.username,
     });
 
+    const refreshToken = await generateRefreshToken(user.id);
+
     // Remove password hash and server-only fields from user object
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, ...userWithoutPassword } = user;
@@ -103,6 +108,7 @@ export class AuthService {
     return {
       user: sanitizeUserForClient(userWithoutPassword) as User,
       token,
+      refreshToken,
     };
   }
 

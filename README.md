@@ -18,8 +18,8 @@ This is a monorepo containing both the backend API and the Flutter mobile applic
 ```
 SoundCheckMobile/
 ├── backend/          # Node.js/Express/TypeScript API server
+│   ├── migrations/  # node-pg-migrate SQL migrations
 │   ├── src/         # Source code
-│   ├── database-schema.sql
 │   └── README.md    # Backend-specific documentation
 │
 ├── mobile/          # Flutter mobile application
@@ -37,7 +37,7 @@ SoundCheckMobile/
 - **Database:** PostgreSQL
 - **Authentication:** JWT
 - **Security:** Helmet, CORS, rate limiting
-- **Deployment:** Railway / Vercel
+- **Deployment:** Railway
 
 ### Mobile Application
 - **Framework:** Flutter (Material 3)
@@ -76,7 +76,7 @@ SoundCheckMobile/
    cp .env.example .env
    # Edit .env with your configuration
    createdb soundcheck
-   psql -d soundcheck -f database-schema.sql
+   npm run migrate:up
    npm run dev
    ```
    

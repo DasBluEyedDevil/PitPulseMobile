@@ -52,6 +52,7 @@ import shareRoutes from './routes/shareRoutes';
 import claimRoutes from './routes/claimRoutes';
 import wrappedRoutes from './routes/wrappedRoutes';
 import subscriptionRoutes from './routes/subscriptionRoutes';
+import adminRoutes from './routes/adminRoutes';
 import Database from './config/database';
 import { ApiResponse } from './types';
 import logger, { logHttp, logInfo, logError, logWarn } from './utils/logger';
@@ -93,7 +94,13 @@ if (!process.env.DATABASE_URL && !process.env.DB_PASSWORD) {
 const app = express();
 // Trust first proxy hop (Railway reverse proxy) so req.ip returns real client IP
 app.set('trust proxy', 1);
-const PORT = process.env.PORT || 3000;
+const rawPort = process.env.PORT || '3000';
+const parsedPort = parseInt(rawPort, 10);
+if (Number.isNaN(parsedPort) || parsedPort < 1 || parsedPort > 65535) {
+  logError(`FATAL: Invalid PORT "${rawPort}" — must be 1–65535`);
+  process.exit(1);
+}
+const PORT = parsedPort;
 
 // Security middleware
 app.use(
@@ -215,14 +222,17 @@ app.get('/health', async (req, res) => {
       firebaseConfigured: !!process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
     };
 
-    // Determine overall health (degraded if any critical service is unhealthy)
+    // B-INF-4: 503 only when Postgres is down; Redis down → 200 with degraded status
     const isPoolExhausted = poolMetrics.waitingCount > 10;
-    const isDegraded = !dbHealth.healthy || !redisHealth.healthy || isPoolExhausted;
-    const status = isDegraded ? (!dbHealth.healthy ? 'unhealthy' : 'degraded') : 'healthy';
-    const statusCode = dbHealth.healthy && redisHealth.healthy ? (isDegraded ? 503 : 200) : 503;
+    const status = !dbHealth.healthy
+      ? 'unhealthy'
+      : !redisHealth.healthy || isPoolExhausted
+        ? 'degraded'
+        : 'healthy';
+    const statusCode = dbHealth.healthy ? 200 : 503;
 
     const response: ApiResponse = {
-      success: dbHealth.healthy && redisHealth.healthy,
+      success: dbHealth.healthy,
       data: {
         status,
         timestamp: new Date().toISOString(),
@@ -319,6 +329,7 @@ app.use('/api/claims', claimRoutes.public);
 app.use('/api/admin/claims', claimRoutes.admin);
 app.use('/api/wrapped', wrappedRoutes.api);
 app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Public share landing pages (no auth, not under /api/)
 app.use('/share', shareRoutes.public);

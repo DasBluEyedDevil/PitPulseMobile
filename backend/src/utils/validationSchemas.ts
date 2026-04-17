@@ -87,14 +87,15 @@ export const loginUserSchema = z.object({
 });
 
 export const updateProfileSchema = z.object({
-  body: z.object({
-    firstName: z.string().optional(),
-    lastName: z.string().optional(),
-    bio: z.string().max(500, 'Bio must be less than 500 characters').optional(),
-    location: z.string().optional(),
-    profileImageUrl: z.string().url('Invalid URL').optional(),
-    dateOfBirth: z.string().datetime().optional(), // Assuming ISO string
-  }),
+  body: z
+    .object({
+      firstName: z.string().optional(),
+      lastName: z.string().optional(),
+      bio: z.string().max(500, 'Bio must be less than 500 characters').optional(),
+      location: z.string().optional(),
+      dateOfBirth: z.string().datetime().optional(), // Assuming ISO string
+    })
+    .strict(),
 });
 
 export const checkEmailSchema = z.object({

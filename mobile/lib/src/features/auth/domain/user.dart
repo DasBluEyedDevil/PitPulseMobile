@@ -38,6 +38,8 @@ sealed class AuthResponse with _$AuthResponse {
   const factory AuthResponse({
     required User user,
     required String token,
+    /// Present for password and social login — persisted for silent refresh.
+    String? refreshToken,
   }) = _AuthResponse;
 
   factory AuthResponse.fromJson(Map<String, dynamic> json) =>

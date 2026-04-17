@@ -66,13 +66,17 @@ const requestPhotoUploadSchema = z.object({
   }),
 });
 
+/** Must match keys issued by R2Service: checkins/<checkin-uuid>/<32hex>.<ext> */
+const PHOTO_OBJECT_KEY_REGEX =
+  /^checkins\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[a-f0-9]{32}\.(jpg|png|webp|heic)$/i;
+
 const confirmPhotoUploadSchema = z.object({
   params: z.object({
     id: z.string().uuid('Check-in ID must be a valid UUID'),
   }),
   body: z.object({
     photoKeys: z
-      .array(z.string().min(1))
+      .array(z.string().regex(PHOTO_OBJECT_KEY_REGEX, 'Invalid photo object key'))
       .min(1, 'photoKeys must be a non-empty array')
       .max(4, 'Maximum 4 photos per request'),
   }),

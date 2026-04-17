@@ -26,6 +26,7 @@ class GlobalFeedNotifier extends _$GlobalFeedNotifier {
   String? _nextCursor;
   bool _hasMore = true;
   List<FeedItem> _items = [];
+  bool _isLoadingMore = false;
 
   @override
   Future<List<FeedItem>> build() async {
@@ -50,8 +51,13 @@ class GlobalFeedNotifier extends _$GlobalFeedNotifier {
   }
 
   Future<void> loadMore() async {
-    if (!_hasMore) return;
-    state = AsyncValue.data(await _fetchPage());
+    if (!_hasMore || _isLoadingMore) return;
+    _isLoadingMore = true;
+    try {
+      state = await AsyncValue.guard(() async => await _fetchPage());
+    } finally {
+      _isLoadingMore = false;
+    }
   }
 }
 
@@ -61,6 +67,7 @@ class FriendsFeedNotifier extends _$FriendsFeedNotifier {
   String? _nextCursor;
   bool _hasMore = true;
   List<FeedItem> _items = [];
+  bool _isLoadingMore = false;
 
   @override
   Future<List<FeedItem>> build() async {
@@ -85,8 +92,13 @@ class FriendsFeedNotifier extends _$FriendsFeedNotifier {
   }
 
   Future<void> loadMore() async {
-    if (!_hasMore) return;
-    state = AsyncValue.data(await _fetchPage());
+    if (!_hasMore || _isLoadingMore) return;
+    _isLoadingMore = true;
+    try {
+      state = await AsyncValue.guard(() async => await _fetchPage());
+    } finally {
+      _isLoadingMore = false;
+    }
   }
 
   void prependItems(List<FeedItem> newItems) {
@@ -101,6 +113,7 @@ class EventFeedNotifier extends _$EventFeedNotifier {
   String? _nextCursor;
   bool _hasMore = true;
   List<FeedItem> _items = [];
+  bool _isLoadingMore = false;
 
   @override
   Future<List<FeedItem>> build(String eventId) async {
@@ -125,9 +138,14 @@ class EventFeedNotifier extends _$EventFeedNotifier {
   }
 
   Future<void> loadMore() async {
-    if (!_hasMore) return;
+    if (!_hasMore || _isLoadingMore) return;
     final eventId = this.eventId;
-    state = AsyncValue.data(await _fetchPage(eventId));
+    _isLoadingMore = true;
+    try {
+      state = await AsyncValue.guard(() async => await _fetchPage(eventId));
+    } finally {
+      _isLoadingMore = false;
+    }
   }
 }
 
@@ -137,6 +155,7 @@ class EventsFeedNotifier extends _$EventsFeedNotifier {
   String? _nextCursor;
   bool _hasMore = true;
   List<FeedItem> _items = [];
+  bool _isLoadingMore = false;
 
   @override
   Future<List<FeedItem>> build() async {
@@ -161,8 +180,13 @@ class EventsFeedNotifier extends _$EventsFeedNotifier {
   }
 
   Future<void> loadMore() async {
-    if (!_hasMore) return;
-    state = AsyncValue.data(await _fetchPage());
+    if (!_hasMore || _isLoadingMore) return;
+    _isLoadingMore = true;
+    try {
+      state = await AsyncValue.guard(() async => await _fetchPage());
+    } finally {
+      _isLoadingMore = false;
+    }
   }
 }
 

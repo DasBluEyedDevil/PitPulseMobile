@@ -274,16 +274,6 @@ async function seedAllDemoAccounts() {
     }
     console.log('Database connection successful\n');
 
-    // DI-017: is_demo column is added here outside migrations. This is
-    // intentional for demo-only infrastructure that should not affect the
-    // production migration chain. The column is used solely by seed-demo.ts
-    // to identify and manage demo accounts, and IF NOT EXISTS ensures
-    // idempotency. If this column is needed in production code, it should
-    // be moved to a proper migration.
-    console.log('Ensuring is_demo column exists...');
-    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN DEFAULT false`);
-    console.log('  is_demo column ready\n');
-
     // Hash password once (shared across all accounts)
     const passwordHash = await bcrypt.hash(DEMO_PASSWORD, SALT_ROUNDS);
 

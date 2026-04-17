@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/dio_client.dart';
 import '../services/analytics_service.dart';
+import '../services/push_notification_service.dart';
 import '../services/websocket_service.dart';
 import '../../shared/services/location_service.dart';
 import '../../features/auth/data/auth_repository.dart';
@@ -17,6 +18,7 @@ import '../../features/subscription/presentation/subscription_service.dart';
 import '../../features/subscription/presentation/subscription_providers.dart';
 import '../../features/venues/data/venue_repository.dart';
 import '../../features/bands/data/band_repository.dart';
+import '../../features/bands/data/wishlist_repository.dart';
 import '../../features/badges/data/badge_repository.dart';
 import '../../features/checkins/data/checkin_repository.dart';
 import '../../features/feed/data/feed_repository.dart';
@@ -75,6 +77,12 @@ BandRepository bandRepository(Ref ref) {
 }
 
 @Riverpod(keepAlive: true)
+WishlistRepository wishlistRepository(Ref ref) {
+  final dioClient = ref.watch(dioClientProvider);
+  return WishlistRepository(dioClient: dioClient);
+}
+
+@Riverpod(keepAlive: true)
 BadgeRepository badgeRepository(Ref ref) {
   final dioClient = ref.watch(dioClientProvider);
   return BadgeRepository(dioClient: dioClient);
@@ -96,6 +104,12 @@ NotificationRepository notificationRepository(Ref ref) {
 FeedRepository feedRepository(Ref ref) {
   final dioClient = ref.watch(dioClientProvider);
   return FeedRepository(dioClient: dioClient);
+}
+
+@Riverpod(keepAlive: true)
+PushNotificationService pushNotificationService(Ref ref) {
+  final feed = ref.watch(feedRepositoryProvider);
+  return PushNotificationService(feedRepository: feed);
 }
 
 @Riverpod(keepAlive: true)

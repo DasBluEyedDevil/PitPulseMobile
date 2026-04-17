@@ -52,8 +52,19 @@ export async function registerSyncJobs(): Promise<void> {
       }
     );
 
+    await eventSyncQueue.add(
+      'retention-cleanup',
+      {},
+      {
+        repeat: {
+          pattern: '0 3 * * *', // 03:00 UTC daily — GDPR retention + token cleanup
+        },
+        jobId: 'daily-retention-cleanup',
+      }
+    );
+
     logger.info(
-      'Registered sync jobs: scheduled-sync (every 4h), check-cancellations (daily 6AM UTC)'
+      'Registered sync jobs: scheduled-sync (every 4h), check-cancellations (daily 6AM UTC), retention-cleanup (daily 3AM UTC)'
     );
   } catch (err) {
     logger.error('Failed to register sync jobs', {
