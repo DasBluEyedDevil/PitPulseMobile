@@ -44,7 +44,7 @@ try {
   });
 
   logger.info('Event sync queue initialized');
-} catch (err) {
+} catch (_err) {
   logger.warn(
     'REDIS_URL not configured. Event sync queue is disabled. ' +
       'The app will run normally without background event sync.'

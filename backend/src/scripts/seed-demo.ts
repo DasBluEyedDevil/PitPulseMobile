@@ -2,7 +2,6 @@ import Database from '../config/database';
 import * as dotenv from 'dotenv';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import logger from '../utils/logger';
 
 // Load environment variables
 dotenv.config();

@@ -87,15 +87,19 @@ export const loginUserSchema = z.object({
 });
 
 export const updateProfileSchema = z.object({
-  body: z
-    .object({
-      firstName: z.string().optional(),
-      lastName: z.string().optional(),
-      bio: z.string().max(500, 'Bio must be less than 500 characters').optional(),
-      location: z.string().optional(),
-      dateOfBirth: z.string().datetime().optional(), // Assuming ISO string
-    })
-    .strict(),
+  // NOTE: this schema must stay permissive for backwards compatibility. Older
+  // clients send fields like `profileImageUrl` and potentially future fields;
+  // rejecting unknown keys (`.strict()`) would break them. Zod strips unknown
+  // keys by default, which is safe for us because the controllers only read
+  // the specific columns they update.
+  body: z.object({
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    bio: z.string().max(500, 'Bio must be less than 500 characters').optional(),
+    location: z.string().optional(),
+    dateOfBirth: z.string().datetime().optional(), // Assuming ISO string
+    profileImageUrl: z.string().url().optional(),
+  }),
 });
 
 export const checkEmailSchema = z.object({

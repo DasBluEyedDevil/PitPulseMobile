@@ -70,7 +70,7 @@ router.get('/state', async (req: Request, res: Response, next: NextFunction): Pr
 router.post(
   '/google',
   rateLimit(15 * 60 * 1000, 5), // 5 attempts per 15 minutes
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
       // Validate request body
       const validation = googleAuthSchema.safeParse(req.body);
@@ -179,7 +179,7 @@ router.post(
 router.post(
   '/apple',
   rateLimit(15 * 60 * 1000, 5), // 5 attempts per 15 minutes
-  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     try {
       // Validate request body
       const validation = appleAuthSchema.safeParse(req.body);

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { BadgeController } from '../controllers/BadgeController';
-import { authenticateToken, optionalAuth, rateLimit } from '../middleware/auth';
+import { authenticateToken, rateLimit } from '../middleware/auth';
 
 const router = Router();
 const badgeController = new BadgeController();

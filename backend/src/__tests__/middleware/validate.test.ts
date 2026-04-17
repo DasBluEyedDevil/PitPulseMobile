@@ -422,9 +422,21 @@ describe('Validation Middleware', () => {
       expect(mockNext).not.toHaveBeenCalled();
     });
 
-    it('should reject profileImageUrl in body (set only via upload endpoint)', async () => {
+    it('should accept profileImageUrl in body (legacy clients may send it alongside profile edits)', async () => {
       mockRequest.body = {
         profileImageUrl: 'https://example.com/image.jpg',
+      };
+
+      const middleware = validate(updateProfileSchema);
+      await middleware(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockStatus).not.toHaveBeenCalled();
+    });
+
+    it('should reject non-URL profileImageUrl', async () => {
+      mockRequest.body = {
+        profileImageUrl: 'not-a-url',
       };
 
       const middleware = validate(updateProfileSchema);

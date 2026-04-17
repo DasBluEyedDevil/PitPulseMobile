@@ -118,11 +118,6 @@ export async function deleteCache(key: string): Promise<void> {
   memoryCache.delete(key);
 }
 
-interface CacheEntry<T> {
-  value: T;
-  expiresAt: number;
-}
-
 /**
  * Cache service class with extended functionality
  */

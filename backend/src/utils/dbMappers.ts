@@ -5,7 +5,7 @@ import { User, Report, ModerationItem, UserBlock } from '../types';
  * isAdmin and isPremium must NEVER be exposed in API responses.
  */
 export function sanitizeUserForClient(user: User): Omit<User, 'isAdmin' | 'isPremium'> {
-  const { isAdmin, isPremium, ...clientUser } = user;
+  const { isAdmin: _isAdmin, isPremium: _isPremium, ...clientUser } = user;
   return clientUser;
 }
 

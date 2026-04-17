@@ -42,6 +42,13 @@ export const validate = (schema: AnyZodObject) => {
         params: req.params,
       });
       if (parsed && typeof parsed === 'object') {
+        // Write the Zod-parsed (and potentially coerced/stripped) values back
+        // onto the request so downstream handlers see the validated shape.
+        //
+        // NOTE: on Express 5+, `req.query` is implemented as a getter-only
+        // accessor and direct assignment throws. When we upgrade, this block
+        // must switch to `Object.defineProperty(req, 'query', { value: ... })`
+        // or to a dedicated `req.validated = { body, query, params }` slot.
         const p = parsed as { body?: unknown; query?: unknown; params?: unknown };
         if ('body' in p) req.body = p.body as Request['body'];
         if ('query' in p) req.query = p.query as Request['query'];

@@ -55,7 +55,7 @@ import subscriptionRoutes from './routes/subscriptionRoutes';
 import adminRoutes from './routes/adminRoutes';
 import Database from './config/database';
 import { ApiResponse } from './types';
-import logger, { logHttp, logInfo, logError, logWarn } from './utils/logger';
+import { logHttp, logInfo, logError, logWarn } from './utils/logger';
 import { initWebSocket, websocket, getWebSocketStats } from './utils/websocket';
 import { startEventSyncWorker, stopEventSyncWorker } from './jobs/eventSyncWorker';
 import { startBadgeEvalWorker, stopBadgeEvalWorker } from './jobs/badgeWorker';
@@ -255,7 +255,7 @@ app.get('/health', async (req, res) => {
     };
 
     res.status(statusCode).json(response);
-  } catch (error) {
+  } catch (_error) {
     const response: ApiResponse = {
       success: false,
       error: 'Health check failed',
@@ -291,7 +291,7 @@ app.get('/health/queues', async (req, res) => {
     };
 
     res.status(200).json(response);
-  } catch (error) {
+  } catch (_error) {
     const response: ApiResponse = {
       success: false,
       error: 'Queue health check failed',
@@ -353,7 +353,7 @@ app.get(
   '/api/debug/sentry-test',
   authenticateToken,
   requireAdmin(),
-  (req: express.Request, res: express.Response) => {
+  (_req: express.Request, _res: express.Response) => {
     throw new Error('Sentry test error — this is intentional');
   }
 );
@@ -372,7 +372,7 @@ app.use('*', (req, res) => {
 setupSentryForExpress(app);
 
 // Global error handler - catches ALL errors including async
-app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((error: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   // Determine status code
   const statusCode = error.statusCode || error.status || 500;
 

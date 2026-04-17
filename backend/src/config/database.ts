@@ -121,11 +121,11 @@ class Database {
     }
 
     // Pool event listeners for monitoring and debugging
-    this.pool.on('connect', (client) => {
+    this.pool.on('connect', (_client) => {
       logger.debug('New client connected to PostgreSQL pool');
     });
 
-    this.pool.on('acquire', (client) => {
+    this.pool.on('acquire', (_client) => {
       logger.debug('Client acquired from pool', {
         total: this.pool.totalCount,
         idle: this.pool.idleCount,
@@ -133,12 +133,12 @@ class Database {
       });
     });
 
-    this.pool.on('remove', (client) => {
+    this.pool.on('remove', (_client) => {
       logger.debug('Client removed from pool');
     });
 
     // Handle pool errors - critical for preventing crashes on idle client errors
-    this.pool.on('error', (err, client) => {
+    this.pool.on('error', (err, _client) => {
       logger.error('Unexpected error on idle PostgreSQL client', {
         error: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : undefined,

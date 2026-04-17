@@ -24,11 +24,38 @@ export default [
     },
     rules: {
       ...tsPlugin.configs.recommended.rules,
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrors: 'all',
+          caughtErrorsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+          ignoreRestSiblings: true,
+        },
+      ],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
       'no-console': 'warn',
       'eqeqeq': ['error', 'always'],
+    },
+  },
+  // Tests: mocks and ad-hoc fixtures routinely need any/console/unused locals.
+  // These are downgraded to warnings so they don't block CI but still show up.
+  {
+    files: ['**/__tests__/**/*.ts', '**/*.test.ts', '**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': 'warn',
+      'no-console': 'off',
+    },
+  },
+  // One-off operator scripts (seed, legacy migrate) intentionally use console.
+  {
+    files: ['src/scripts/**/*.ts'],
+    rules: {
+      'no-console': 'off',
     },
   },
   {

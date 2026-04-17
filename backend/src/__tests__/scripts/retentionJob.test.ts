@@ -169,12 +169,18 @@ describe('retentionJob', () => {
       expect(mockCleanupExpiredTokens).toHaveBeenCalled();
     });
 
-    it('should propagate errors from processPendingDeletions', async () => {
+    it('should continue remaining steps when one step fails and surface a summary error', async () => {
       mockProcessPendingDeletions.mockRejectedValue(new Error('Database connection failed'));
+      mockDbQuery.mockResolvedValue({ rowCount: 0 });
 
       const { runRetentionJob } = await import('../../scripts/retentionJob');
 
-      await expect(runRetentionJob()).rejects.toThrow('Database connection failed');
+      await expect(runRetentionJob()).rejects.toThrow(/pending-account-deletions/);
+      // Remaining steps should still have run.
+      expect(mockDbQuery).toHaveBeenCalledWith(
+        expect.stringContaining('DELETE FROM user_consents')
+      );
+      expect(mockCleanupExpiredTokens).toHaveBeenCalled();
     });
 
     it('should log deletion errors from processPendingDeletions', async () => {

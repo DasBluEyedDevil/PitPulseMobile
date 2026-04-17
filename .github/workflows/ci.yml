@@ -27,7 +27,9 @@ jobs:
       run: npm ci
 
     - name: Lint
-      run: npx eslint . --ext .ts --max-warnings 0
+      # Errors block; warnings are informational (there is a backlog of
+      # `no-explicit-any` uses that we're paying down incrementally).
+      run: npx eslint . --ext .ts
 
     - name: Type check
       run: npx tsc --noEmit

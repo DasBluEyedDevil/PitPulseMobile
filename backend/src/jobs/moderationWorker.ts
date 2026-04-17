@@ -47,7 +47,7 @@ export function startModerationWorker(): Worker | null {
     'image-moderation',
     async (job: Job<ModerationJobData>) => {
       const startTime = Date.now();
-      const { contentType, contentId, imageUrl, userId } = job.data;
+      const { contentType, contentId, imageUrl, userId: _userId } = job.data;
       logger.info(`Processing image moderation`, {
         jobId: job.id,
         contentType,

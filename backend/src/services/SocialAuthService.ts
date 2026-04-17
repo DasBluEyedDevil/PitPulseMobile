@@ -441,47 +441,6 @@ export class SocialAuthService {
   }
 
   /**
-   * Generate a unique username by appending numbers if needed
-   */
-  private async generateUniqueUsername(baseUsername: string): Promise<string> {
-    // Ensure base username is at least 3 characters
-    if (baseUsername.length < 3) {
-      baseUsername = baseUsername + 'user';
-    }
-
-    // Truncate to leave room for suffix
-    if (baseUsername.length > 25) {
-      baseUsername = baseUsername.substring(0, 25);
-    }
-
-    let username = baseUsername;
-    let suffix = 1;
-
-    while (await this.usernameExists(username)) {
-      username = `${baseUsername}${suffix}`;
-      suffix++;
-
-      // Safety limit to prevent infinite loop
-      if (suffix > 9999) {
-        username = `${baseUsername}${Date.now()}`;
-        break;
-      }
-    }
-
-    return username;
-  }
-
-  /**
-   * Check if a username already exists
-   */
-  private async usernameExists(username: string): Promise<boolean> {
-    const result = await this.db.query(`SELECT 1 FROM users WHERE username = $1 LIMIT 1`, [
-      username,
-    ]);
-    return result.rows.length > 0;
-  }
-
-  /**
    * Generate a unique username using a specific database client (for transactions)
    */
   private async generateUniqueUsernameWithClient(

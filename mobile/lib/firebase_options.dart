@@ -2,38 +2,68 @@
 // Placeholders allow local builds until Firebase project files are added.
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+    show defaultTargetPlatform, kDebugMode, kIsWeb, TargetPlatform;
+
+/// Returned by [DefaultFirebaseOptions.currentPlatform] when no real Firebase
+/// configuration has been provided for the platform. Callers must treat this
+/// as "Firebase is unavailable" and skip [Firebase.initializeApp].
+class FirebaseNotConfigured implements Exception {
+  const FirebaseNotConfigured(this.reason);
+  final String reason;
+
+  @override
+  String toString() => 'FirebaseNotConfigured: $reason';
+}
 
 class DefaultFirebaseOptions {
+  /// Returns platform-specific [FirebaseOptions]. Throws
+  /// [FirebaseNotConfigured] when the generated file still contains
+  /// placeholder values, so production builds fail loudly instead of silently
+  /// initialising a broken Firebase app. In debug mode this check is
+  /// softened to allow local dev without a real Firebase project.
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError('Firebase has not been configured for web.');
+      throw const FirebaseNotConfigured('Firebase is not configured for web.');
     }
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return android;
-      case TargetPlatform.iOS:
-        return ios;
-      default:
-        throw UnsupportedError(
+    final options = switch (defaultTargetPlatform) {
+      TargetPlatform.android => android,
+      TargetPlatform.iOS => ios,
+      _ => throw const FirebaseNotConfigured(
           'DefaultFirebaseOptions are not supported for this platform.',
-        );
+        ),
+    };
+
+    if (_isPlaceholder(options) && !kDebugMode) {
+      throw const FirebaseNotConfigured(
+        'firebase_options.dart still contains placeholder values. Run '
+        '`flutterfire configure` and commit the generated file before '
+        'building a release.',
+      );
     }
+    return options;
   }
 
+  static bool _isPlaceholder(FirebaseOptions options) {
+    return options.apiKey == _placeholderApiKey ||
+        options.projectId == _placeholderProjectId;
+  }
+
+  static const String _placeholderApiKey = 'REPLACE_ME';
+  static const String _placeholderProjectId = 'soundcheck-placeholder';
+
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'REPLACE_ME',
+    apiKey: _placeholderApiKey,
     appId: '1:000000000000:android:0000000000000000000000',
     messagingSenderId: '000000000000',
-    projectId: 'soundcheck-placeholder',
+    projectId: _placeholderProjectId,
     storageBucket: 'soundcheck-placeholder.appspot.com',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'REPLACE_ME',
+    apiKey: _placeholderApiKey,
     appId: '1:000000000000:ios:0000000000000000000000',
     messagingSenderId: '000000000000',
-    projectId: 'soundcheck-placeholder',
+    projectId: _placeholderProjectId,
     storageBucket: 'soundcheck-placeholder.appspot.com',
     iosBundleId: 'com.soundcheck.app',
   );

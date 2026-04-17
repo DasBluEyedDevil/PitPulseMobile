@@ -1,7 +1,6 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { PoolClient } from 'pg';
 import { JWTPayload } from '../types';
 import Database from '../config/database';
 import logger from './logger';

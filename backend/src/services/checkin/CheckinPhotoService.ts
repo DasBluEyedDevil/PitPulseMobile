@@ -80,12 +80,23 @@ export class CheckinPhotoService {
       // Generate presigned URLs for each content type
       const results = await Promise.all(
         contentTypes.map((ct) =>
-          r2Service.getPresignedUploadUrl(ct, `checkins/${checkinId}`, {
-            checkinId,
-            userId,
-          })
+          r2Service.getPresignedUploadUrl(ct, `checkins/${checkinId}`)
         )
       );
+
+      // Track each issued object key in `pending_photo_uploads` so
+      // `addPhotos` can verify the keys it's asked to attach are ones we
+      // actually handed out. Keeping the DB write here (rather than inside
+      // R2Service) keeps storage and domain concerns separate.
+      const objectKeys = results.map((r) => r.objectKey);
+      if (objectKeys.length > 0) {
+        await this.db.query(
+          `INSERT INTO pending_photo_uploads (checkin_id, user_id, object_key)
+           SELECT $1, $2, UNNEST($3::text[])
+           ON CONFLICT (object_key) DO NOTHING`,
+          [checkinId, userId, objectKeys]
+        );
+      }
 
       return results.map((result) => ({
         uploadUrl: result.uploadUrl,

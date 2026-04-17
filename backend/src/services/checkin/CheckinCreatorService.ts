@@ -424,8 +424,8 @@ export class CheckinCreatorService {
    */
   async deleteCheckin(userId: string, checkinId: string): Promise<void> {
     const client = await this.db.getClient();
-    let venueId: string | null = null;
-    let bandIds: string[] = [];
+    let venueId: string | null;
+    let bandIds: string[];
     try {
       await client.query('BEGIN');
 
@@ -515,7 +515,8 @@ export class CheckinCreatorService {
     venueType: string | null
   ): boolean {
     // If user didn't share location, can't verify
-    if (userLat == null || userLon == null) return false;
+    if (userLat === null || userLat === undefined || userLon === null || userLon === undefined)
+      return false;
     // If venue has no coordinates, can't verify
     if (venueLat === null || venueLon === null) return false;
 

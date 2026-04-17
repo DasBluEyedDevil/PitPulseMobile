@@ -1,7 +1,6 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
-import Database from '../config/database';
 import logger from '../utils/logger';
 
 // ============================================
@@ -70,8 +69,7 @@ export class R2Service {
    */
   async getPresignedUploadUrl(
     contentType: string,
-    prefix: string = 'checkins',
-    pendingMeta?: { checkinId: string; userId: string }
+    prefix: string = 'checkins'
   ): Promise<PresignedUploadResult> {
     if (!this.isConfigured || !this.s3) {
       throw new Error('Photo uploads not configured');
@@ -103,16 +101,6 @@ export class R2Service {
       }),
       { expiresIn: 600 }
     );
-
-    if (pendingMeta) {
-      const db = Database.getInstance();
-      await db.query(
-        `INSERT INTO pending_photo_uploads (checkin_id, user_id, object_key)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (object_key) DO NOTHING`,
-        [pendingMeta.checkinId, pendingMeta.userId, objectKey]
-      );
-    }
 
     return {
       uploadUrl,
