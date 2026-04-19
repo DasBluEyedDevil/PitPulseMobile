@@ -52,19 +52,20 @@ class DefaultFirebaseOptions {
   static const String _placeholderProjectId = 'soundcheck-placeholder';
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: _placeholderApiKey,
-    appId: '1:000000000000:android:0000000000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: _placeholderProjectId,
-    storageBucket: 'soundcheck-placeholder.appspot.com',
+    apiKey: 'AIzaSyB1kCQmzyZUsvG-xHPlZdGBtbKleAS013o',
+    appId: '1:843136025510:android:7ee8b1c4f09d78a3a74567',
+    messagingSenderId: '843136025510',
+    projectId: 'soundcheck-prod-e973c',
+    storageBucket: 'soundcheck-prod-e973c.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: _placeholderApiKey,
-    appId: '1:000000000000:ios:0000000000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: _placeholderProjectId,
-    storageBucket: 'soundcheck-placeholder.appspot.com',
+    apiKey: 'AIzaSyDUEL96r-EgunzFVPAo1O8TcunvmEUvNbU',
+    appId: '1:843136025510:ios:2b1e3e37c22b410ca74567',
+    messagingSenderId: '843136025510',
+    projectId: 'soundcheck-prod-e973c',
+    storageBucket: 'soundcheck-prod-e973c.firebasestorage.app',
     iosBundleId: 'com.soundcheck.app',
   );
+
 }
