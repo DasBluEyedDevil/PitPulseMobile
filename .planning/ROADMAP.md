@@ -7,89 +7,40 @@
 - ✅ **v2.0 Beta Launch** — Phases 13-17 (shipped 2026-03-01)
 - ✅ **v3.0 UI/UX Design Audit** — Phases 18-21 (shipped 2026-03-01)
 - ✅ **v4.0 Technical Consolidation & Launch Hardening** — Phases 22-27 (shipped 2026-03-13, archived 2026-03-14)
+- 🚧 **v5.0 Feature Completion & E2E Polish** — Phases 28-? (opened 2026-04-19)
 
 ## Phases
 
-### v4.0 Technical Consolidation & Launch Hardening (Phases 22-27)
+### v5.0 Feature Completion & E2E Polish (Phases 28-?)
 
-**Goal**: Harden SoundCheck for production launch while eliminating the three largest sources of technical debt: failing tests, the legacy `reviews` system, and CheckinCreatorService legacy paths. Sequential safety-first execution — each phase validates before the next begins.
+**Goal**: Audit and close all gaps in the core check-in flow and social sharing pipeline following the v1.1 gap-closure pattern (audit → identify → close). Every feature in the PROJECT.md Validated list must work end-to-end on a real device from app open → backend → database → external integration → UI render. No partial features, no "backend exists, mobile broken" gaps, no shipped-but-untested flows.
 
-**Exploration**: `.planning/exploration-technical-consolidation.md`
+**Scope**: 10 E2E flows across 2 domains — Core Check-in (B1-B5) and Social/Sharing (D1-D5).
 
-### Phase 22: Launch Ops Foundation
-**Goal**: Production environment is correctly configured with rotated secrets and pending migrations applied
-**Depends on**: v3.0 complete
-**Requirements**: OPS-01, OPS-02, OPS-03
+**Execution Model**: Phase 28 produces the audit. Phases 29+ are gap-closure phases seeded by audit findings (estimated ~6-8 phases, ~25-30 plans per v1.1 pattern).
+
+**Exploration**: `.planning/exploration-v5.0-feature-completion.md`
+
+### Phase 28: v5.0 AUDIT
+**Goal**: Produce `.planning/milestones/v5.0-AUDIT.md` enumerating concrete E2E gaps per flow (B1-B5, D1-D5), seeding Phases 29+
+**Depends on**: v4.0 complete (OPS-02 carry-forward non-blocking)
+**Requirements**: AUDIT-01
 **Success Criteria** (what must be TRUE):
-  1. All exposed secrets (DB password, JWT_SECRET, SetlistFM key) are rotated in Railway
-  2. NODE_ENV=production is set, all third-party env vars configured
-  3. Migration 039 applied and demo seed data populated in production DB
+  1. `.planning/milestones/v5.0-AUDIT.md` exists and contains a per-flow gap inventory for all 10 flows
+  2. Each gap entry documents: as-is state, missing behavior, affected files/endpoints, severity, and proposed fix
+  3. Audit references real code (not speculation) — every claim backed by file path + line or API endpoint
+  4. Gap inventory grouped into candidate phases (proposed Phase 29+ breakdown)
 Plans:
-- [ ] 22-01-PLAN.md — Secret rotation, Railway env parity, migration 039, demo seed, launch verification
-
-### Phase 23: Test Suite Green
-**Goal**: CI passes with zero test failures, gating all subsequent refactoring
-**Depends on**: Phase 22 (production environment stable)
-**Requirements**: TEST-01
-**Success Criteria** (what must be TRUE):
-  1. All 10 pre-existing test failures fixed (CheckinService + UserService UUID validation)
-  2. Full test suite passes: `npm test` exits 0
-Plans:
-- [ ] 23-01-PLAN.md — Fix 10 failing tests (CheckinService + UserService UUID validation)
-
-### Phase 24: Dark Color Cleanup
-**Goal**: Zero `AppTheme.*Dark` references remain in mobile code, unblocking light mode
-**Depends on**: Phase 23 (tests green to validate no regressions)
-**Requirements**: THEME-01
-**Success Criteria** (what must be TRUE):
-  1. All remaining `AppTheme.*Dark` references replaced with theme-aware equivalents
-  2. `flutter analyze` passes with no errors
-Plans:
-- [ ] 24-01-PLAN.md — Remove AppTheme.*Dark references, replace with Theme.of(context).colorScheme
-
-### Phase 25: CheckinCreator Legacy Removal
-**Goal**: CheckinCreatorService contains only the event-first check-in flow
-**Depends on**: Phase 24 (mobile audit confirms event-first usage)
-**Requirements**: DEBT-01
-**Success Criteria** (what must be TRUE):
-  1. Legacy `createCheckin(bandId + venueId)` path removed from CheckinCreatorService
-  2. Dual-write logic removed
-  3. CheckinService facade updated, related tests pass
-Plans:
-- [ ] 25-01-PLAN.md — Audit mobile check-in flow, remove legacy path, update facade and tests
-
-### Phase 26: Reviews System Consolidation
-**Goal**: The `reviews` table and all associated code eliminated; aggregates use `checkin_band_ratings`
-**Depends on**: Phase 25 (core check-in path clean before touching aggregates)
-**Requirements**: DEBT-02, DEBT-03, DEBT-04
-**Success Criteria** (what must be TRUE):
-  1. VenueService and BandService aggregate ratings computed from `checkin_band_ratings`
-  2. Owner response migrated to checkin-level or removed
-  3. ReviewService, ReviewController, `/api/reviews` endpoint deleted
-  4. `reviews` and `review_helpfulness` tables dropped via migration
-  5. Mobile Review domain model removed
-Plans:
-- [ ] 26-01-PLAN.md — Repoint aggregate rating queries from reviews to checkin_band_ratings
-- [ ] 26-02-PLAN.md — Migrate owner responses, delete review stack (service, controller, routes, tests)
-- [ ] 26-03-PLAN.md — Drop tables migration, update AdminController, DataExportService, seed.ts, mobile cleanup
-
-### Phase 27: Validation Sweep
-**Goal**: Full confidence that all changes are correct and nothing is broken
-**Depends on**: Phase 26 (all changes complete)
-**Requirements**: VAL-01
-**Success Criteria** (what must be TRUE):
-  1. Full backend test suite passes
-  2. Smoke tests pass
-  3. Venue and band aggregate ratings verified correct from new data source
-  4. Admin dashboard, data export, and claim features work without reviews table
-  5. `flutter analyze` passes on mobile
-Plans:
-- [ ] 27-01-PLAN.md — Full test suite, smoke tests, aggregate verification, flutter analyze
+- [ ] 28-01-PLAN.md — Audit scope TBD (planned via `/legion:plan 28`)
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 22 -> 23 -> 24 -> 25 -> 26 -> 27
+Phases execute in numeric order: 28 -> 29 -> ... (to be defined post-audit)
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 28. v5.0 AUDIT | v5.0 | 0/? | Pending | — |
 
 <details>
 <summary>✅ v4.0 Technical Consolidation & Launch Hardening (Phases 22-27) — SHIPPED 2026-03-13</summary>
@@ -324,4 +275,4 @@ Phases execute in numeric order: 9 -> 9.1 -> 10 -> 10.1 -> 10.2 -> 11 -> 11.1 ->
 
 ---
 *Roadmap created: 2026-02-02*
-*Last updated: 2026-03-09 — v4.0 milestone defined: 6 phases, 8 plans, 8 success criteria*
+*Last updated: 2026-04-19 — v5.0 milestone opened: Phase 28 AUDIT scaffolded, Phases 29+ seeded from audit*
