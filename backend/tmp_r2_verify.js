@@ -1,5 +1,5 @@
 const { S3Client, HeadBucketCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
-const accountId = process.env.R2_ACCOUNT_ID;
+const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 const s3 = new S3Client({
   region: 'auto',
   endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
