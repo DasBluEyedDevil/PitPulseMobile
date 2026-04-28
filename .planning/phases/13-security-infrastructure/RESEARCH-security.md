@@ -22,10 +22,10 @@ All findings are based on direct source code inspection with HIGH confidence. No
 
 | Secret | Value in .env | File:Line | Severity |
 |--------|---------------|-----------|----------|
-| `DATABASE_URL` | `postgresql://postgres:obXQlhJpwsWINXtuoCurAFxWVBDNSXjN@ballast.proxy.rlwy.net:19529/railway` | `backend/.env:3` | CRITICAL |
-| `DB_PASSWORD` | `obXQlhJpwsWINXtuoCurAFxWVBDNSXjN` | `backend/.env:8` | CRITICAL |
-| `JWT_SECRET` | `2390beb081844...` (128-char hex) | `backend/.env:12` | CRITICAL |
-| `SETLISTFM_API_KEY` | `Oshv7jIuK1HJQFaYApwqmVNGvA52MiSyh-K-` | `backend/.env:27` | HIGH |
+| `DATABASE_URL` | `[REDACTED]` | `backend/.env:3` | CRITICAL |
+| `DB_PASSWORD` | `[REDACTED]` | `backend/.env:8` | CRITICAL |
+| `JWT_SECRET` | `[REDACTED]` (128-char hex) | `backend/.env:12` | CRITICAL |
+| `SETLISTFM_API_KEY` | `[REDACTED]` | `backend/.env:27` | HIGH |
 | `CORS_ORIGIN` | `*` (wildcard) | `backend/.env:21` | MEDIUM |
 
 ### Git History Analysis
