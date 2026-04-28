@@ -11,6 +11,7 @@ Phase 22 execution is substantially complete. OPS-01 and OPS-03 are done. OPS-02
 ## What Changed
 
 ### Session 1 (2026-03-12) — Initial execution
+
 - Fixed `backend/src/scripts/seed-demo.ts` to write `checkins.is_verified` instead of non-existent `location_verified`
 - Fixed `backend/.railwayignore` so Railway backend-root builds include `src/`
 - Added corrective schema-drift migrations:
@@ -19,6 +20,7 @@ Phase 22 execution is substantially complete. OPS-01 and OPS-03 are done. OPS-02
   - `042_add-earned-checkin-id-to-user-badges.ts`
 
 ### Session 2 (2026-03-13) — Secret rotation + env cleanup
+
 - **OPS-01 completed**: DB password rotated (Railway dashboard), JWT_SECRET rotated (crypto.randomBytes 64-byte hex), SetlistFM API key regenerated (provider)
 - Quick-win vars set via Railway CLI:
   - `BASE_URL` = `https://soundcheck-app.up.railway.app`
@@ -39,6 +41,7 @@ Phase 22 execution is substantially complete. OPS-01 and OPS-03 are done. OPS-02
 ## Remaining Blockers
 
 OPS-02 has 13 variables requiring external provider accounts:
+
 1. `REDIS_URL` — add Railway Redis plugin (in progress)
 2. `FIREBASE_SERVICE_ACCOUNT_JSON` — Firebase Console
 3. `CLOUDFLARE_ACCOUNT_ID` + 4 R2 vars — Cloudflare Dashboard

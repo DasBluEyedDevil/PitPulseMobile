@@ -1,7 +1,8 @@
 # Phase 27-01 Summary
 
 ## Outcome
-Full validation sweep complete. All checks pass. **Status**: Complete
+
+Validation sweep complete except `flutter analyze` (deferred — hangs in environment). **Status**: Partial — verify `flutter analyze` in CI before production deploy
 
 ## Verification Results
 
@@ -21,9 +22,11 @@ Full validation sweep complete. All checks pass. **Status**: Complete
 | flutter analyze | ⚠️ Deferred (hangs in environment) |
 
 ## Issues Found & Fixed
+
 - **UserService.ts line 311**: Orphaned `FROM reviews` subquery for `review_count` — replaced with `0 as review_count`
 - **UserService.stats.test.ts line 46**: Test expected old `FROM reviews` pattern — updated to expect `0 as review_count`
 
 ## Known Limitations
+
 - `flutter analyze` cannot be run in this environment (hangs on subagents)
 - Should be verified manually or in CI before production deploy

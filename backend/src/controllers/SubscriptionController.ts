@@ -38,7 +38,8 @@ export class SubscriptionController {
       !crypto.timingSafeEqual(tokenBuf, expectedBuf)
     ) {
       logger.warn('SubscriptionController: Invalid webhook authorization');
-      res.status(401).json({ error: 'Unauthorized' });
+      // Return 200 to prevent RevenueCat retry storms on auth failures
+      res.status(200).json({ message: 'Unauthorized' });
       return;
     }
 
