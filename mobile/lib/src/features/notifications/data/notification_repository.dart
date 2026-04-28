@@ -10,7 +10,8 @@ import '../domain/notification.dart';
 class NotificationRepository {
   final DioClient _dioClient;
 
-  NotificationRepository({required DioClient dioClient}) : _dioClient = dioClient;
+  NotificationRepository({required DioClient dioClient})
+      : _dioClient = dioClient;
 
   /// Helper method to map errors to Failures
   Failure _mapErrorToFailure(Object e) {
@@ -81,7 +82,9 @@ class NotificationRepository {
   }
 
   /// Delete a notification
-  Future<Either<Failure, void>> deleteNotification(String notificationId) async {
+  Future<Either<Failure, void>> deleteNotification(
+    String notificationId,
+  ) async {
     try {
       await _dioClient.delete(
         '${ApiConfig.notifications}/$notificationId',

@@ -464,7 +464,11 @@ class _UserSearchTile extends StatelessWidget {
             ),
             if (user.isVerified) ...[
               const SizedBox(width: 4),
-              const Icon(Icons.verified, color: AppTheme.electricBlue, size: 16),
+              const Icon(
+                Icons.verified,
+                color: AppTheme.electricBlue,
+                size: 16,
+              ),
             ],
           ],
         ),

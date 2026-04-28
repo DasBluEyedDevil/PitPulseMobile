@@ -154,7 +154,8 @@ sealed class LoyalPatron with _$LoyalPatron {
   const factory LoyalPatron({
     required String id,
     required String username,
-    required int checkinCount, String? profileImageUrl,
+    required int checkinCount,
+    String? profileImageUrl,
   }) = _LoyalPatron;
 
   factory LoyalPatron.fromJson(Map<String, dynamic> json) =>
@@ -167,7 +168,8 @@ sealed class TrendingBand with _$TrendingBand {
   const factory TrendingBand({
     required String id,
     required String name,
-    required int checkinCount, String? imageUrl,
+    required int checkinCount,
+    String? imageUrl,
   }) = _TrendingBand;
 
   factory TrendingBand.fromJson(Map<String, dynamic> json) =>

@@ -56,8 +56,10 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'Theme',
                 subtitle: 'Dark',
                 leading: Icon(Icons.palette_outlined),
-                trailing: Text('Dark',
-                    style: TextStyle(color: AppTheme.textSecondary),),
+                trailing: Text(
+                  'Dark',
+                  style: TextStyle(color: AppTheme.textSecondary),
+                ),
               ),
               const Divider(),
 
@@ -70,7 +72,9 @@ class SettingsScreen extends ConsumerWidget {
                 trailing: Switch(
                   value: pushEnabled,
                   onChanged: (value) {
-                    ref.read(notificationSettingsProvider.notifier).setPushNotifications(value);
+                    ref
+                        .read(notificationSettingsProvider.notifier)
+                        .setPushNotifications(value);
                   },
                 ),
               ),
@@ -81,7 +85,9 @@ class SettingsScreen extends ConsumerWidget {
                 trailing: Switch(
                   value: emailEnabled,
                   onChanged: (value) {
-                    ref.read(notificationSettingsProvider.notifier).setEmailNotifications(value);
+                    ref
+                        .read(notificationSettingsProvider.notifier)
+                        .setEmailNotifications(value);
                   },
                 ),
               ),
@@ -147,7 +153,7 @@ class SettingsScreen extends ConsumerWidget {
                   );
                 },
               ),
-               _SettingsTile(
+              _SettingsTile(
                 title: 'Contact Support',
                 leading: const Icon(Icons.support_agent_outlined),
                 trailing: const Icon(Icons.chevron_right),
@@ -162,7 +168,8 @@ class SettingsScreen extends ConsumerWidget {
               _SettingsTile(
                 title: 'Delete Account',
                 subtitle: 'Permanently remove your account and data',
-                leading: const Icon(Icons.delete_forever, color: AppTheme.error),
+                leading:
+                    const Icon(Icons.delete_forever, color: AppTheme.error),
                 textColor: AppTheme.error,
                 onTap: () => _showDeleteAccountDialog(context, ref),
               ),
@@ -208,7 +215,10 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showDeleteAccountDialog(BuildContext context, WidgetRef ref) async {
+  Future<void> _showDeleteAccountDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -259,7 +269,6 @@ class SettingsScreen extends ConsumerWidget {
       }
     }
   }
-
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -313,7 +322,9 @@ class _SettingsTile extends StatelessWidget {
         title,
         style: TextStyle(color: textColor, fontWeight: FontWeight.w500),
       ),
-      subtitle: subtitle != null ? Text(subtitle!, style: Theme.of(context).textTheme.bodySmall) : null,
+      subtitle: subtitle != null
+          ? Text(subtitle!, style: Theme.of(context).textTheme.bodySmall)
+          : null,
       trailing: trailing,
       onTap: onTap,
     );

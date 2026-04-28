@@ -22,7 +22,9 @@ class OnboardingRepository {
 
   /// Save user's genre preferences (3-8 genres).
   /// POST /api/onboarding/genres
-  Future<Either<Failure, void>> saveGenrePreferences(List<String> genres) async {
+  Future<Either<Failure, void>> saveGenrePreferences(
+    List<String> genres,
+  ) async {
     try {
       await _dioClient.post(
         '/onboarding/genres',

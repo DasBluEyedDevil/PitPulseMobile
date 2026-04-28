@@ -21,7 +21,8 @@ class CheckInDetailScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<CheckInDetailScreen> createState() => _CheckInDetailScreenState();
+  ConsumerState<CheckInDetailScreen> createState() =>
+      _CheckInDetailScreenState();
 }
 
 class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
@@ -62,8 +63,18 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
     try {
       final date = DateTime.parse(eventDate);
       final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
       return '${months[date.month - 1]} ${date.day}, ${date.year}';
     } catch (e) {
@@ -75,7 +86,8 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
     final lowerName = vibeName.toLowerCase();
     if (lowerName.contains('sound') || lowerName.contains('audio')) {
       return Icons.volume_up;
-    } else if (lowerName.contains('mosh') || lowerName.contains('pit') ||
+    } else if (lowerName.contains('mosh') ||
+        lowerName.contains('pit') ||
         lowerName.contains('energy')) {
       return Icons.local_fire_department;
     } else if (lowerName.contains('light') || lowerName.contains('visual')) {
@@ -91,9 +103,9 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
 
   Future<void> _handleToast(CheckIn checkIn) async {
     await ref.read(toastCheckInProvider.notifier).toggle(
-      checkIn.id,
-      checkIn.hasUserToasted,
-    );
+          checkIn.id,
+          checkIn.hasUserToasted,
+        );
   }
 
   Future<void> _handleSubmitComment() async {
@@ -101,9 +113,9 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
     if (comment.isEmpty) return;
 
     final result = await ref.read(addCommentProvider.notifier).submit(
-      widget.checkinId,
-      comment,
-    );
+          widget.checkinId,
+          comment,
+        );
 
     if (result != null && mounted) {
       _commentController.clear();
@@ -118,7 +130,8 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
 
     SharePlus.instance.share(
       ShareParams(
-        text: '$userName checked in to $bandName at $venueName! Check it out on SoundCheck.',
+        text:
+            '$userName checked in to $bandName at $venueName! Check it out on SoundCheck.',
         subject: 'Check-in on SoundCheck',
       ),
     );
@@ -138,8 +151,8 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
           checkinAsync.maybeWhen(
             data: (checkIn) {
               final currentUserId = ref.watch(authStateProvider).value?.id;
-              final isOwnContent = currentUserId != null &&
-                  checkIn.userId == currentUserId;
+              final isOwnContent =
+                  currentUserId != null && checkIn.userId == currentUserId;
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -224,22 +237,26 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
                     ),
 
                     // Ratings Section
-                    if (checkIn.bandRating != null || checkIn.venueRating != null)
+                    if (checkIn.bandRating != null ||
+                        checkIn.venueRating != null)
                       _RatingsSection(checkIn: checkIn),
 
                     // Notes
-                    if (checkIn.noteText != null && checkIn.noteText!.isNotEmpty)
+                    if (checkIn.noteText != null &&
+                        checkIn.noteText!.isNotEmpty)
                       _NotesSection(noteText: checkIn.noteText!),
 
                     // Vibe Tags
-                    if (checkIn.vibeTags != null && checkIn.vibeTags!.isNotEmpty)
+                    if (checkIn.vibeTags != null &&
+                        checkIn.vibeTags!.isNotEmpty)
                       _VibeTagsSection(
                         vibeTags: checkIn.vibeTags!,
                         getVibeIcon: _getVibeIcon,
                       ),
 
                     // Photos Carousel
-                    if (checkIn.imageUrls != null && checkIn.imageUrls!.isNotEmpty)
+                    if (checkIn.imageUrls != null &&
+                        checkIn.imageUrls!.isNotEmpty)
                       _PhotosCarousel(
                         imageUrls: checkIn.imageUrls!,
                         checkinId: widget.checkinId,
@@ -256,7 +273,8 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
 
                     // Divider
                     Divider(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
                       height: 1,
                     ),
 
@@ -315,7 +333,8 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => ref.invalidate(checkInDetailProvider(widget.checkinId)),
+              onPressed: () =>
+                  ref.invalidate(checkInDetailProvider(widget.checkinId)),
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
             ),
@@ -356,7 +375,8 @@ class _UserHeader extends StatelessWidget {
               height: 48,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: profileImageUrl == null ? AppTheme.primaryGradient : null,
+                gradient:
+                    profileImageUrl == null ? AppTheme.primaryGradient : null,
               ),
               child: ClipOval(
                 child: profileImageUrl != null
@@ -411,7 +431,8 @@ class _UserHeader extends StatelessWidget {
               ),
             ),
             // Badge indicator
-            if (checkIn.earnedBadges != null && checkIn.earnedBadges!.isNotEmpty)
+            if (checkIn.earnedBadges != null &&
+                checkIn.earnedBadges!.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -483,7 +504,8 @@ class _EventInfoSection extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: ClipRRect(
@@ -536,7 +558,10 @@ class _EventInfoSection extends StatelessWidget {
           ),
 
           const SizedBox(height: 12),
-          Divider(color: Theme.of(context).colorScheme.surfaceContainerHighest, height: 1),
+          Divider(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            height: 1,
+          ),
           const SizedBox(height: 12),
 
           // Venue Row
@@ -548,7 +573,8 @@ class _EventInfoSection extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: ClipRRect(
@@ -786,7 +812,8 @@ class _VibeTagsSection extends StatelessWidget {
             runSpacing: 8,
             children: vibeTags.map((vibe) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(20),
@@ -856,8 +883,8 @@ class _PhotosCarousel extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: imageUrls.length,
             itemBuilder: (context, index) {
-              final isOwnPhoto = currentUserId != null &&
-                  checkinUserId == currentUserId;
+              final isOwnPhoto =
+                  currentUserId != null && checkinUserId == currentUserId;
               return GestureDetector(
                 onLongPress: isOwnPhoto
                     ? null
@@ -880,7 +907,9 @@ class _PhotosCarousel extends StatelessWidget {
                       placeholder: (_, __) => Container(
                         width: 200,
                         height: 200,
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                         child: const Center(
                           child: CircularProgressIndicator(
                             color: AppTheme.voltLime,
@@ -891,7 +920,9 @@ class _PhotosCarousel extends StatelessWidget {
                       errorWidget: (_, __, ___) => Container(
                         width: 200,
                         height: 200,
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                         child: const Icon(
                           Icons.broken_image,
                           color: AppTheme.textTertiary,
@@ -985,9 +1016,8 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive
-        ? (activeColor ?? AppTheme.voltLime)
-        : AppTheme.textTertiary;
+    final color =
+        isActive ? (activeColor ?? AppTheme.voltLime) : AppTheme.textTertiary;
 
     return GestureDetector(
       onTap: onTap,
@@ -1150,30 +1180,42 @@ class _CommentItem extends StatelessWidget {
                 contentId: comment.id,
               ),
       child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Avatar
-          GestureDetector(
-            onTap: onUserTap,
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: profileImageUrl == null ? AppTheme.primaryGradient : null,
-              ),
-              child: ClipOval(
-                child: profileImageUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: profileImageUrl,
-                        fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Center(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Avatar
+            GestureDetector(
+              onTap: onUserTap,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient:
+                      profileImageUrl == null ? AppTheme.primaryGradient : null,
+                ),
+                child: ClipOval(
+                  child: profileImageUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: profileImageUrl,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => Center(
+                            child: Text(
+                              userName[0].toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        )
+                      : Center(
                           child: Text(
                             userName[0].toUpperCase(),
                             style: const TextStyle(
@@ -1183,63 +1225,52 @@ class _CommentItem extends StatelessWidget {
                             ),
                           ),
                         ),
-                      )
-                    : Center(
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: onUserTap,
                         child: Text(
-                          userName[0].toUpperCase(),
+                          userName,
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
                             fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
                           ),
                         ),
                       ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          // Content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: onUserTap,
-                      child: Text(
-                        userName,
+                      const SizedBox(width: 8),
+                      Text(
+                        timeAgo,
                         style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
+                          fontSize: 12,
+                          color: AppTheme.textTertiary,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      timeAgo,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  comment.content,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textSecondary,
-                    height: 1.4,
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    comment.content,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textSecondary,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
@@ -1269,7 +1300,10 @@ class _CommentInput extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border(
-          top: BorderSide(color: Theme.of(context).colorScheme.surfaceContainerHighest, width: 1),
+          top: BorderSide(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            width: 1,
+          ),
         ),
       ),
       child: Row(

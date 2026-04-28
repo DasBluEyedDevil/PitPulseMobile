@@ -16,8 +16,7 @@ sealed class Toast with _$Toast {
     User? user,
   }) = _Toast;
 
-  factory Toast.fromJson(Map<String, dynamic> json) =>
-      _$ToastFromJson(json);
+  factory Toast.fromJson(Map<String, dynamic> json) => _$ToastFromJson(json);
 }
 
 /// Response after toasting a check-in

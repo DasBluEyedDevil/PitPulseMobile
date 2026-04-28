@@ -53,8 +53,11 @@ class _WrappedDetailScreenState extends ConsumerState<WrappedDetailScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.lock_outline,
-                        size: 48, color: AppTheme.voltLime,),
+                    const Icon(
+                      Icons.lock_outline,
+                      size: 48,
+                      color: AppTheme.voltLime,
+                    ),
                     const SizedBox(height: 16),
                     const Text(
                       'Detailed analytics require SoundCheck Pro',
@@ -67,8 +70,7 @@ class _WrappedDetailScreenState extends ConsumerState<WrappedDetailScreen> {
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: () =>
-                          context.push('/pro'),
+                      onPressed: () => context.push('/pro'),
                       child: const Text('Learn about Pro'),
                     ),
                   ],
@@ -81,13 +83,15 @@ class _WrappedDetailScreenState extends ConsumerState<WrappedDetailScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline,
-                    color: AppTheme.error, size: 48,),
+                const Icon(
+                  Icons.error_outline,
+                  color: AppTheme.error,
+                  size: 48,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Failed to load details',
-                  style:
-                      TextStyle(color: AppTheme.textSecondary, fontSize: 16),
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
@@ -106,22 +110,24 @@ class _WrappedDetailScreenState extends ConsumerState<WrappedDetailScreen> {
             if (stats.monthlyBreakdown != null &&
                 stats.monthlyBreakdown!.isNotEmpty)
               SliverToBoxAdapter(
-                  child: _buildMonthlyBreakdown(stats.monthlyBreakdown!),),
+                child: _buildMonthlyBreakdown(stats.monthlyBreakdown!),
+              ),
             // Genre evolution
             if (stats.genreEvolution != null &&
                 stats.genreEvolution!.isNotEmpty)
               SliverToBoxAdapter(
-                  child: _buildGenreEvolution(stats.genreEvolution!),),
+                child: _buildGenreEvolution(stats.genreEvolution!),
+              ),
             // Friend overlap
-            if (stats.friendOverlap != null &&
-                stats.friendOverlap!.isNotEmpty)
+            if (stats.friendOverlap != null && stats.friendOverlap!.isNotEmpty)
               SliverToBoxAdapter(
-                  child: _buildFriendOverlap(stats.friendOverlap!),),
+                child: _buildFriendOverlap(stats.friendOverlap!),
+              ),
             // Top rated sets
-            if (stats.topRatedSets != null &&
-                stats.topRatedSets!.isNotEmpty)
+            if (stats.topRatedSets != null && stats.topRatedSets!.isNotEmpty)
               SliverToBoxAdapter(
-                  child: _buildTopRatedSets(stats.topRatedSets!),),
+                child: _buildTopRatedSets(stats.topRatedSets!),
+              ),
             // Bottom padding
             const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
           ],
@@ -156,7 +162,18 @@ class _WrappedDetailScreenState extends ConsumerState<WrappedDetailScreen> {
     final maxCount =
         monthly.fold<int>(0, (max, m) => m.showCount > max ? m.showCount : max);
     const months = [
-      'J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D',
+      'J',
+      'F',
+      'M',
+      'A',
+      'M',
+      'J',
+      'J',
+      'A',
+      'S',
+      'O',
+      'N',
+      'D',
     ];
 
     // Fill in missing months with 0
@@ -173,8 +190,7 @@ class _WrappedDetailScreenState extends ConsumerState<WrappedDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: List.generate(12, (i) {
             final count = allMonths[i];
-            final height =
-                maxCount > 0 ? (count / maxCount) * 100.0 : 0.0;
+            final height = maxCount > 0 ? (count / maxCount) * 100.0 : 0.0;
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -219,8 +235,19 @@ class _WrappedDetailScreenState extends ConsumerState<WrappedDetailScreen> {
 
   Widget _buildGenreEvolution(List<GenreMonth> genres) {
     const monthNames = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
 
     // Group by month, show top genre per month
@@ -298,7 +325,8 @@ class _WrappedDetailScreenState extends ConsumerState<WrappedDetailScreen> {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
                   backgroundImage: f.friendProfileImageUrl != null
                       ? NetworkImage(f.friendProfileImageUrl!)
                       : null,

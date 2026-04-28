@@ -460,10 +460,9 @@ class _RelatedUserCard extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundImage:
-                user.profileImageUrl != null
-                    ? NetworkImage(user.profileImageUrl)
-                    : null,
+            backgroundImage: user.profileImageUrl != null
+                ? NetworkImage(user.profileImageUrl)
+                : null,
             child: user.profileImageUrl == null
                 ? Text(user.username[0].toUpperCase())
                 : null,

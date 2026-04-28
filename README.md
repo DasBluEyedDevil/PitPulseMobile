@@ -94,11 +94,12 @@ SoundCheckMobile/
 
 ## 📚 Documentation
 
-- **[PROJECT_SUMMARY.md](docs/PROJECT_SUMMARY.md)** - Complete project overview, features, and API documentation
+- **[AGENTS.md](AGENTS.md)** - Short agent entrypoint and repository map
+- **[docs/agent/README.md](docs/agent/README.md)** - Agent-first knowledge base index
 - **[backend/README.md](backend/README.md)** - Backend API setup and documentation
 - **[mobile/README.md](mobile/README.md)** - Mobile app setup and documentation
-- **[DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)** - Deployment instructions
-- **[PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md)** - Privacy policy
+- **[backend/DEPLOYMENT.md](backend/DEPLOYMENT.md)** - Backend deployment notes
+- **[PRIVACY_POLICY.md](PRIVACY_POLICY.md)** - Privacy policy
 
 ## 🔑 Key Features
 

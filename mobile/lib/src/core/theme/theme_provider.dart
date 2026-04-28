@@ -64,7 +64,7 @@ class ThemeSetting extends _$ThemeSetting {
       await setLightTheme();
     }
   }
-  
+
   ThemeMode getThemeMode() {
     switch (state) {
       case AppThemeMode.light:
@@ -81,8 +81,9 @@ class ThemeSetting extends _$ThemeSetting {
 @riverpod
 bool isDarkMode(Ref ref) {
   final themeMode = ref.watch(themeSettingProvider);
-  final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
-  
+  final brightness =
+      WidgetsBinding.instance.platformDispatcher.platformBrightness;
+
   switch (themeMode) {
     case AppThemeMode.light:
       return false;

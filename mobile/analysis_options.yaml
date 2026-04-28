@@ -3,6 +3,8 @@ include: package:flutter_lints/flutter.yaml
 analyzer:
   exclude:
     - ../backend/coverage/**
+    - lib/**/*.freezed.dart
+    - lib/**/*.g.dart
 
 linter:
   rules:

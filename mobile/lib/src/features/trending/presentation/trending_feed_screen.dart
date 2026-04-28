@@ -170,9 +170,8 @@ class _TrendingCard extends StatelessWidget {
     } catch (_) {}
 
     // Format distance
-    final distanceText = event.distanceKm < 1
-        ? '< 1 km'
-        : '${event.distanceKm.round()} km away';
+    final distanceText =
+        event.distanceKm < 1 ? '< 1 km' : '${event.distanceKm.round()} km away';
 
     return GestureDetector(
       onTap: onTap,
@@ -279,7 +278,8 @@ class _TrendingCard extends StatelessWidget {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(

@@ -8,7 +8,8 @@ void main() {
   // Mock the haptic feedback platform channel
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, (MethodCall methodCall) async {
+        .setMockMethodCallHandler(SystemChannels.platform,
+            (MethodCall methodCall) async {
       return null;
     });
   });
@@ -79,7 +80,8 @@ void main() {
       expect(find.byIcon(Icons.music_note), findsOneWidget);
     });
 
-    testWidgets('displays placeholder when no image URL', (WidgetTester tester) async {
+    testWidgets('displays placeholder when no image URL',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -93,7 +95,7 @@ void main() {
 
     testWidgets('calls onTap when card is tapped', (WidgetTester tester) async {
       var tapped = false;
-      
+
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -114,7 +116,8 @@ void main() {
       expect(tapped, true);
     });
 
-    testWidgets('does not show genre when it is null', (WidgetTester tester) async {
+    testWidgets('does not show genre when it is null',
+        (WidgetTester tester) async {
       const bandNoGenre = Band(
         id: '1',
         name: 'Test Band',

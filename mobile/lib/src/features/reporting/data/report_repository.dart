@@ -37,13 +37,16 @@ class ReportRepository {
     String? description,
   }) async {
     try {
-      await _dioClient.post('/reports', data: {
-        'contentType': contentType,
-        'contentId': contentId,
-        'reason': reason,
-        if (description != null && description.isNotEmpty)
-          'description': description,
-      },);
+      await _dioClient.post(
+        '/reports',
+        data: {
+          'contentType': contentType,
+          'contentId': contentId,
+          'reason': reason,
+          if (description != null && description.isNotEmpty)
+            'description': description,
+        },
+      );
       return const Right(null);
     } catch (e) {
       return Left(_mapErrorToFailure(e));

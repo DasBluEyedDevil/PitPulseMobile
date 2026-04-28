@@ -129,9 +129,11 @@ class CheckInRepository {
       );
 
       final List<dynamic> data = response.data['data'] as List<dynamic>;
-      return Right(data
-          .map((json) => NearbyEvent.fromJson(json as Map<String, dynamic>))
-          .toList());
+      return Right(
+        data
+            .map((json) => NearbyEvent.fromJson(json as Map<String, dynamic>))
+            .toList(),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -246,7 +248,9 @@ class CheckInRepository {
   }
 
   /// Get toasts for a check-in
-  Future<Either<Failure, List<Toast>>> getCheckInToasts(String checkInId) async {
+  Future<Either<Failure, List<Toast>>> getCheckInToasts(
+    String checkInId,
+  ) async {
     try {
       final response = await _dioClient.get(
         '${ApiConfig.checkins}/$checkInId/toasts',
@@ -261,7 +265,10 @@ class CheckInRepository {
   // ======== COMMENT OPERATIONS ========
 
   /// Add a comment to a check-in
-  Future<Either<Failure, CheckInComment>> addComment(String checkInId, String comment) async {
+  Future<Either<Failure, CheckInComment>> addComment(
+    String checkInId,
+    String comment,
+  ) async {
     try {
       final response = await _dioClient.post(
         '${ApiConfig.checkins}/$checkInId/comments',
@@ -296,7 +303,10 @@ class CheckInRepository {
   }
 
   /// Delete a comment
-  Future<Either<Failure, void>> deleteComment(String checkInId, String commentId) async {
+  Future<Either<Failure, void>> deleteComment(
+    String checkInId,
+    String commentId,
+  ) async {
     try {
       await _dioClient.delete(
         '${ApiConfig.checkins}/$checkInId/comments/$commentId',
@@ -310,7 +320,9 @@ class CheckInRepository {
   // ======== USER STATS ========
 
   /// Get user's check-in statistics
-  Future<Either<Failure, Map<String, dynamic>>> getUserStats(String userId) async {
+  Future<Either<Failure, Map<String, dynamic>>> getUserStats(
+    String userId,
+  ) async {
     try {
       final response = await _dioClient.get(
         '${ApiConfig.auth}/$userId/stats',

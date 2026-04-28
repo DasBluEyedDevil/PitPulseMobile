@@ -160,7 +160,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       },
@@ -203,14 +204,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: AppTheme.spacing16),
-                
+
                 Text(
                   'Join SoundCheck',
                   style: Theme.of(context).textTheme.displayMedium,
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppTheme.spacing8),
-                
+
                 Text(
                   'Start checking in to live shows',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -219,7 +220,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppTheme.spacing32),
-                
+
                 // Email Field
                 TextFormField(
                   controller: _emailController,
@@ -255,15 +256,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             ),
                           )
                         : _usernameAvailabilityMessage != null
-                            ? const Icon(Icons.error_outline, color: AppTheme.error)
+                            ? const Icon(
+                                Icons.error_outline,
+                                color: AppTheme.error,
+                              )
                             : _usernameController.text.trim().length >= 3
-                                ? const Icon(Icons.check_circle_outline, color: AppTheme.success)
+                                ? const Icon(
+                                    Icons.check_circle_outline,
+                                    color: AppTheme.success,
+                                  )
                                 : null,
                   ),
                   validator: (value) {
                     final formatError = Validators.username(value);
                     if (formatError != null) return formatError;
-                    if (_usernameAvailabilityMessage != null) return _usernameAvailabilityMessage;
+                    if (_usernameAvailabilityMessage != null) {
+                      return _usernameAvailabilityMessage;
+                    }
                     return null;
                   },
                 ),
@@ -332,8 +341,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(
                             value: _passwordStrength,
-                            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-                            valueColor: AlwaysStoppedAnimation<Color>(_passwordStrengthColor),
+                            backgroundColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHigh,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              _passwordStrengthColor,
+                            ),
                             minHeight: 4,
                           ),
                         ),
@@ -372,7 +385,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       tooltip: 'Toggle password visibility',
                       onPressed: () {
                         setState(
-                          () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                          () => _obscureConfirmPassword =
+                              !_obscureConfirmPassword,
                         );
                       },
                     ),
@@ -388,7 +402,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   },
                 ),
                 const SizedBox(height: AppTheme.spacing32),
-                
+
                 // Register Button
                 ElevatedButton(
                   onPressed: _isLoading ? null : _handleRegister,
@@ -398,13 +412,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
                       : const Text('Create Account'),
                 ),
                 const SizedBox(height: AppTheme.spacing16),
-                
+
                 // Login Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

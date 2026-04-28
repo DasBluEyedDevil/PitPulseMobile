@@ -55,7 +55,8 @@ sealed class DiscoverEvent with _$DiscoverEvent {
 
     return DiscoverEvent(
       id: json['id'] as String,
-      eventDate: json['eventDate']?.toString() ?? json['event_date']?.toString() ?? '',
+      eventDate:
+          json['eventDate']?.toString() ?? json['event_date']?.toString() ?? '',
       eventName: json['eventName'] as String? ?? json['event_name'] as String?,
       venueName: venue?['name'] as String?,
       venueCity: venue?['city'] as String?,

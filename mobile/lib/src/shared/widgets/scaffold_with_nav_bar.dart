@@ -72,7 +72,7 @@ class _CustomBottomNavBar extends StatelessWidget {
         color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -115,7 +115,8 @@ class _CustomBottomNavBar extends StatelessWidget {
                   // Notifications
                   Consumer(
                     builder: (context, ref, child) {
-                      final unreadCount = ref.watch(unreadNotificationCountProvider);
+                      final unreadCount =
+                          ref.watch(unreadNotificationCountProvider);
                       return _NavItem(
                         icon: Icons.notifications,
                         label: 'Notifications',
@@ -205,9 +206,8 @@ class _NavItem extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected
-                        ? AppTheme.voltLime
-                        : AppTheme.textTertiary,
+                    color:
+                        isSelected ? AppTheme.voltLime : AppTheme.textTertiary,
                   ),
                 ),
               ],
@@ -243,7 +243,7 @@ class _CheckInButton extends StatelessWidget {
               gradient: AppTheme.primaryGradient,
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.voltLime.withValues(alpha:0.4),
+                  color: AppTheme.voltLime.withValues(alpha: 0.4),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),

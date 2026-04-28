@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../../core/providers/providers.dart';
@@ -56,8 +55,8 @@ class PaginatedVenuesNotifier extends _$PaginatedVenuesNotifier {
   @override
   VenuePaginationState build() {
     // Load initial page when provider is first accessed
-    Future.microtask(() => loadMore());
-    
+    Future.microtask(loadMore);
+
     return const VenuePaginationState(
       venues: [],
       currentPage: 0,
@@ -76,9 +75,13 @@ class PaginatedVenuesNotifier extends _$PaginatedVenuesNotifier {
     try {
       final repository = ref.read(venueRepositoryProvider);
       final result = await repository.getVenues(
-        search: null, // Search is handled separately via a different provider if needed
-        city: state.filters.cities.isNotEmpty ? state.filters.cities.first : null,
-        venueType: state.filters.venueTypes.isNotEmpty ? state.filters.venueTypes.first.name : null,
+        search:
+            null, // Search is handled separately via a different provider if needed
+        city:
+            state.filters.cities.isNotEmpty ? state.filters.cities.first : null,
+        venueType: state.filters.venueTypes.isNotEmpty
+            ? state.filters.venueTypes.first.name
+            : null,
         minRating: state.filters.minRating,
         minCapacity: state.filters.minCapacity,
         maxCapacity: state.filters.maxCapacity,
@@ -90,7 +93,8 @@ class PaginatedVenuesNotifier extends _$PaginatedVenuesNotifier {
       state = state.copyWith(
         venues: [...state.venues, ...result.venues],
         currentPage: state.currentPage + 1,
-        hasMore: result.venues.length == _pageSize && state.currentPage + 1 < result.totalPages,
+        hasMore: result.venues.length == _pageSize &&
+            state.currentPage + 1 < result.totalPages,
         isLoading: false,
         error: null,
       );

@@ -11,8 +11,8 @@ import 'friends_going_widget.dart';
 
 /// Provider to fetch event detail data.
 /// Reuses the DiscoveryRepository's existing event data via the discover endpoint.
-final eventDetailProvider =
-    FutureProvider.autoDispose.family<DiscoverEvent, String>((ref, eventId) async {
+final eventDetailProvider = FutureProvider.autoDispose
+    .family<DiscoverEvent, String>((ref, eventId) async {
   final dioClient = ref.watch(dioClientProvider);
   final response = await dioClient.get('/events/$eventId');
   final data = response.data['data'] as Map<String, dynamic>;
@@ -111,7 +111,9 @@ class _EventContent extends StatelessWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.95),
+                        Theme.of(context)
+                            .scaffoldBackgroundColor
+                            .withValues(alpha: 0.95),
                       ],
                     ),
                   ),
@@ -193,8 +195,7 @@ class _EventContent extends StatelessWidget {
                   const SizedBox(height: 8),
                   Chip(
                     label: Text(event.bandGenre!),
-                    backgroundColor:
-                        AppTheme.voltLime.withValues(alpha: 0.15),
+                    backgroundColor: AppTheme.voltLime.withValues(alpha: 0.15),
                     labelStyle: const TextStyle(
                       color: AppTheme.voltLime,
                       fontWeight: FontWeight.w600,

@@ -102,7 +102,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       final authRepository = ref.read(authRepositoryProvider);
 
       if (_selectedImage != null) {
-        final upRes = await profileRepository.uploadProfileImage(_selectedImage!.path);
+        final upRes =
+            await profileRepository.uploadProfileImage(_selectedImage!.path);
         final stop = upRes.fold(
           (Failure f) {
             if (mounted) {
@@ -152,7 +153,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         if (e is ValidationFailure) {
           message = e.message;
         } else if (e is NetworkFailure) {
-          message = 'Network error. Please check your connection and try again.';
+          message =
+              'Network error. Please check your connection and try again.';
         } else if (e is AuthFailure) {
           message = 'Session expired. Please log in again.';
         } else if (e is ServerFailure) {
@@ -218,7 +220,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           : (user?.profileImageUrl != null
                               ? NetworkImage(user!.profileImageUrl!)
                               : null) as ImageProvider?,
-                      child: _selectedImage == null && user?.profileImageUrl == null
+                      child: _selectedImage == null &&
+                              user?.profileImageUrl == null
                           ? Text(
                               user?.username[0].toUpperCase() ?? 'U',
                               style: const TextStyle(
@@ -305,7 +308,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   if (value == null || value.isEmpty) {
                     return 'Please enter an email';
                   }
-                  final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                  final emailRegex =
+                      RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
                   if (!emailRegex.hasMatch(value)) {
                     return 'Please enter a valid email';
                   }

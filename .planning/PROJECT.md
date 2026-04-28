@@ -105,7 +105,8 @@ The live check-in moment: a user at a show can check in fast, rate what they're 
 - ~~10 pre-existing test failures~~ → RESOLVED (v4.0 Phase 23)
 - ~~Legacy createCheckin(bandId+venueId) path~~ → RESOLVED (v4.0 Phase 25)
 - CheckinService still ~600 LOC after legacy removal (facade pattern, extraction deferred)
-- 13 production env vars missing (OPS-02 carry-forward — external provider accounts)
+- 3 production env vars still open (OPS-02 — Resend [deferred on DNS], Google OAuth, Apple Developer). 10/13 configured 2026-04-19.
+- ~~Mobile Firebase configs still placeholder~~ → RESOLVED 2026-04-19 (flutterfire configure against `soundcheck-prod-e973c`, commit dfab264)
 - No mobile screen for claimed owner stats or band profile edit
 - No load testing or horizontal scaling
 - `checkin_providers.dart` + `checkin_screen.dart` reference removed `createCheckIn()` method

@@ -99,7 +99,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       },
@@ -121,7 +122,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       return 'Sign-in was cancelled';
     } else if (errorString.contains('network')) {
       return 'Network error. Please check your connection.';
-    } else if (errorString.contains('popup_closed') || errorString.contains('user_cancelled')) {
+    } else if (errorString.contains('popup_closed') ||
+        errorString.contains('user_cancelled')) {
       return 'Sign-in was cancelled';
     }
     return 'Sign-in failed. Please try again.';
@@ -148,7 +150,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       }
@@ -191,7 +194,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
       }
@@ -241,17 +245,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: AppTheme.spacing16),
-                      
+
                       Text(
                         'SoundCheck',
-                        style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                              color: AppTheme.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.displayLarge?.copyWith(
+                                  color: AppTheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppTheme.spacing8),
-                      
+
                       Text(
                         'Check In, Share, Connect',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -260,7 +265,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppTheme.spacing48),
-                      
+
                       // Email Field
                       TextFormField(
                         controller: _emailController,
@@ -303,14 +308,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             tooltip: 'Toggle password visibility',
                             onPressed: () async {
                               await HapticFeedbackUtil.selectionClick();
-                              setState(() => _obscurePassword = !_obscurePassword);
+                              setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              );
                             },
                           ),
                         ),
                         validator: Validators.password,
                         enabled: !_isLoading,
                       ),
-                      
+
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
@@ -329,7 +336,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
 
                       const SizedBox(height: AppTheme.spacing24),
-                      
+
                       // Login Button
                       ElevatedButton(
                         onPressed: _isLoading ? null : _handleLogin,
@@ -339,15 +346,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           backgroundColor: AppTheme.primary,
-                          foregroundColor: Theme.of(context).scaffoldBackgroundColor, // Dark text on volt lime
+                          foregroundColor: Theme.of(context)
+                              .scaffoldBackgroundColor, // Dark text on volt lime
                           elevation: 0,
                         ),
                         child: const Text(
                           'Login',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: AppTheme.spacing32),
 
                       // Divider
@@ -358,17 +369,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Text(
                               'OR',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.textSecondary,
-                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: AppTheme.textSecondary,
+                                  ),
                             ),
                           ),
                           const Expanded(child: Divider()),
                         ],
                       ),
-                      
+
                       const SizedBox(height: AppTheme.spacing24),
-                      
+
                       // Social Login Buttons
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -403,7 +417,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               await HapticFeedbackUtil.lightImpact();
                               if (context.mounted) {
                                 // Clear stack prevents back button to login
-                                context.push('/register'); 
+                                context.push('/register');
                               }
                             },
                             child: const Text(
@@ -419,11 +433,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
           ),
-          
+
           // Loading Overlay
           if (_isLoading)
             Container(
-              color: Colors.black.withValues(alpha:0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: const Center(
                 child: CircularProgressIndicator(),
               ),
@@ -451,24 +465,26 @@ class _SocialLoginButton extends StatelessWidget {
       button: true,
       enabled: isEnabled,
       child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(50),
-      child: Opacity(
-        opacity: isEnabled ? 1.0 : 0.5,
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border.all(color: Theme.of(context).colorScheme.surfaceContainerHighest),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            icon,
-            size: 28,
-            color: AppTheme.textPrimary,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(50),
+        child: Opacity(
+          opacity: isEnabled ? 1.0 : 0.5,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              size: 28,
+              color: AppTheme.textPrimary,
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 }

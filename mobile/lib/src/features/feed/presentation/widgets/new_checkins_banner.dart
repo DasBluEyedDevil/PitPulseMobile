@@ -7,7 +7,9 @@ import '../../../../core/theme/app_theme.dart';
 /// Animates in from top with SlideTransition (300ms duration).
 class NewCheckinsBanner extends StatefulWidget {
   const NewCheckinsBanner({
-    required this.count, required this.onTap, super.key,
+    required this.count,
+    required this.onTap,
+    super.key,
   });
 
   final int count;
@@ -32,10 +34,12 @@ class _NewCheckinsBannerState extends State<NewCheckinsBanner>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -1),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ),);
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
   }
 
   @override

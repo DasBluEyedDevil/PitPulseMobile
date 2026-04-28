@@ -129,6 +129,7 @@ class CacheService {
     this.cleanupInterval = setInterval(() => {
       this.cleanupExpired();
     }, 60000); // Every minute
+    this.cleanupInterval.unref();
   }
 
   /**
@@ -305,6 +306,7 @@ class CacheService {
   async close(): Promise<void> {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
+      this.cleanupInterval = undefined;
     }
   }
 }

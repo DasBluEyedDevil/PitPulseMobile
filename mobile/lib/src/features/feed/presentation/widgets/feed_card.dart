@@ -13,7 +13,8 @@ import '../../domain/feed_item.dart';
 /// Ratings and badges are behind a tap (detail view), not on the card surface
 class FeedCard extends ConsumerWidget {
   const FeedCard({
-    required this.item, super.key,
+    required this.item,
+    super.key,
     this.onToast,
   });
 
@@ -57,175 +58,183 @@ class FeedCard extends ConsumerWidget {
       child: GestureDetector(
         onTap: () => context.push('/checkins/${item.checkinId}'),
         child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header: User avatar + action text
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  _UserAvatar(
-                    username: item.username,
-                    avatarUrl: item.userAvatarUrl,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.textPrimary,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: item.username,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              const TextSpan(text: ' checked in at '),
-                              TextSpan(
-                                text: item.eventName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.voltLime,
-                                ),
-                              ),
-                              const TextSpan(text: ' @ '),
-                              TextSpan(
-                                text: item.venueName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.voltLime,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (item.eventDate != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              item.eventDate!,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header: User avatar + action text
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    _UserAvatar(
+                      username: item.username,
+                      avatarUrl: item.userAvatarUrl,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RichText(
+                            text: TextSpan(
                               style: const TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 13,
+                                fontSize: 14,
+                                color: AppTheme.textPrimary,
                               ),
+                              children: [
+                                TextSpan(
+                                  text: item.username,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const TextSpan(text: ' checked in at '),
+                                TextSpan(
+                                  text: item.eventName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.voltLime,
+                                  ),
+                                ),
+                                const TextSpan(text: ' @ '),
+                                TextSpan(
+                                  text: item.venueName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.voltLime,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                      ],
-                    ),
-                  ),
-                  // Report overflow menu (hidden on own content)
-                  if (!isOwnContent)
-                    PopupMenuButton<String>(
-                      icon: const Icon(
-                        Icons.more_vert,
-                        color: AppTheme.textTertiary,
-                        size: 20,
+                          if (item.eventDate != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                item.eventDate!,
+                                style: const TextStyle(
+                                  color: AppTheme.textSecondary,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
-                      onSelected: (value) {
-                        if (value == 'report') {
-                          showReportBottomSheet(
-                            context,
-                            contentType: 'checkin',
-                            contentId: item.checkinId,
-                          );
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'report',
-                          child: Row(
-                            children: [
-                              Icon(Icons.flag_outlined, size: 18),
-                              SizedBox(width: 8),
-                              Text('Report'),
-                            ],
-                          ),
-                        ),
-                      ],
                     ),
-                ],
-              ),
-            ),
-
-            // Photo area or gradient placeholder
-            _PhotoArea(
-              photoUrl: item.photoUrl,
-              hasBadgeEarned: item.hasBadgeEarned,
-            ),
-
-            // Footer: Comment preview + Toast + Comment + Timestamp
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    width: 1,
-                  ),
+                    // Report overflow menu (hidden on own content)
+                    if (!isOwnContent)
+                      PopupMenuButton<String>(
+                        icon: const Icon(
+                          Icons.more_vert,
+                          color: AppTheme.textTertiary,
+                          size: 20,
+                        ),
+                        onSelected: (value) {
+                          if (value == 'report') {
+                            showReportBottomSheet(
+                              context,
+                              contentType: 'checkin',
+                              contentId: item.checkinId,
+                            );
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'report',
+                            child: Row(
+                              children: [
+                                Icon(Icons.flag_outlined, size: 18),
+                                SizedBox(width: 8),
+                                Text('Report'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (item.commentPreview != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        item.commentPreview!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  Row(
-                    children: [
-                      // Toast button
-                      _ActionButton(
-                        icon: Icons.sports_bar,
-                        label: '${item.toastCount}',
-                        isActive: item.hasUserToasted,
-                        activeColor: AppTheme.toastGold,
-                        onTap: onToast ?? () {},
-                        semanticLabel: toastButtonSemantics(hasToasted: item.hasUserToasted),
-                      ),
-                      const SizedBox(width: 24),
-                      // Comment button
-                      _ActionButton(
-                        icon: Icons.chat_bubble_outline,
-                        label: '${item.commentCount}',
-                        isActive: false,
-                        onTap: () => context.push('/checkins/${item.checkinId}'),
-                        semanticLabel: commentsButtonSemantics(commentCount: item.commentCount),
-                      ),
-                      const Spacer(),
-                      // Timestamp
-                      Text(
-                        timeAgo,
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+
+              // Photo area or gradient placeholder
+              _PhotoArea(
+                photoUrl: item.photoUrl,
+                hasBadgeEarned: item.hasBadgeEarned,
               ),
-            ),
-          ],
-        ),
+
+              // Footer: Comment preview + Toast + Comment + Timestamp
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      width: 1,
+                    ),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (item.commentPreview != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          item.commentPreview!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    Row(
+                      children: [
+                        // Toast button
+                        _ActionButton(
+                          icon: Icons.sports_bar,
+                          label: '${item.toastCount}',
+                          isActive: item.hasUserToasted,
+                          activeColor: AppTheme.toastGold,
+                          onTap: onToast ?? () {},
+                          semanticLabel: toastButtonSemantics(
+                            hasToasted: item.hasUserToasted,
+                          ),
+                        ),
+                        const SizedBox(width: 24),
+                        // Comment button
+                        _ActionButton(
+                          icon: Icons.chat_bubble_outline,
+                          label: '${item.commentCount}',
+                          isActive: false,
+                          onTap: () =>
+                              context.push('/checkins/${item.checkinId}'),
+                          semanticLabel: commentsButtonSemantics(
+                            commentCount: item.commentCount,
+                          ),
+                        ),
+                        const Spacer(),
+                        // Timestamp
+                        Text(
+                          timeAgo,
+                          style: const TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -303,7 +312,8 @@ class _InitialAvatar extends StatelessWidget {
 /// Photo area with optional badge earned indicator
 class _PhotoArea extends StatelessWidget {
   const _PhotoArea({
-    required this.hasBadgeEarned, this.photoUrl,
+    required this.hasBadgeEarned,
+    this.photoUrl,
   });
 
   final String? photoUrl;
@@ -436,9 +446,8 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive
-        ? (activeColor ?? AppTheme.voltLime)
-        : AppTheme.textTertiary;
+    final color =
+        isActive ? (activeColor ?? AppTheme.voltLime) : AppTheme.textTertiary;
 
     return Semantics(
       label: semanticLabel,

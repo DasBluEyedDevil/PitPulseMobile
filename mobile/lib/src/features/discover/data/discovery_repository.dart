@@ -40,10 +40,14 @@ class DiscoveryRepository {
       );
 
       final List<dynamic> data = response.data['data'] as List<dynamic>;
-      return Right(data
-          .map((json) =>
-              DiscoverEvent.fromEventJson(json as Map<String, dynamic>),)
-          .toList());
+      return Right(
+        data
+            .map(
+              (json) =>
+                  DiscoverEvent.fromEventJson(json as Map<String, dynamic>),
+            )
+            .toList(),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -69,10 +73,14 @@ class DiscoveryRepository {
       );
 
       final List<dynamic> data = response.data['data'] as List<dynamic>;
-      return Right(data
-          .map((json) =>
-              DiscoverEvent.fromEventJson(json as Map<String, dynamic>),)
-          .toList());
+      return Right(
+        data
+            .map(
+              (json) =>
+                  DiscoverEvent.fromEventJson(json as Map<String, dynamic>),
+            )
+            .toList(),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -95,10 +103,14 @@ class DiscoveryRepository {
       );
 
       final List<dynamic> data = response.data['data'] as List<dynamic>;
-      return Right(data
-          .map((json) =>
-              DiscoverEvent.fromEventJson(json as Map<String, dynamic>),)
-          .toList());
+      return Right(
+        data
+            .map(
+              (json) =>
+                  DiscoverEvent.fromEventJson(json as Map<String, dynamic>),
+            )
+            .toList(),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -126,10 +138,14 @@ class DiscoveryRepository {
       );
 
       final List<dynamic> data = response.data['data'] as List<dynamic>;
-      return Right(data
-          .map((json) =>
-              DiscoverEvent.fromEventJson(json as Map<String, dynamic>),)
-          .toList());
+      return Right(
+        data
+            .map(
+              (json) =>
+                  DiscoverEvent.fromEventJson(json as Map<String, dynamic>),
+            )
+            .toList(),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -151,10 +167,14 @@ class DiscoveryRepository {
       );
 
       final List<dynamic> data = response.data['data'] as List<dynamic>;
-      return Right(data
-          .map((json) =>
-              DiscoverEvent.fromEventJson(json as Map<String, dynamic>),)
-          .toList());
+      return Right(
+        data
+            .map(
+              (json) =>
+                  DiscoverEvent.fromEventJson(json as Map<String, dynamic>),
+            )
+            .toList(),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }

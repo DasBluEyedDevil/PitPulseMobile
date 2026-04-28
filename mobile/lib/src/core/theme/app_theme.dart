@@ -9,29 +9,35 @@ class AppTheme {
 
   // SoundCheck Brand Colors - "High Voltage" Style
   // 2025 Trend: Acid/Volt Greens are dominating dark mode interfaces for energetic brands
-  static const Color voltLime = Color(0xFFD2FF00); // Primary Accent (High visibility)
+  static const Color voltLime =
+      Color(0xFFD2FF00); // Primary Accent (High visibility)
   static const Color voltLimeLight = Color(0xFFE4FF5F);
   static const Color voltLimeDark = Color(0xFF9FB300);
 
   // Secondary Accents
   // "Electric Blue" pairs well for cool contrast without blending into purple
   static const Color electricBlue = Color(0xFF00F0FF);
-  static const Color hotOrange = Color(0xFFFF3D00); // "Live Now" / Urgent indicator
+  static const Color hotOrange =
+      Color(0xFFFF3D00); // "Live Now" / Urgent indicator
 
   // Semantic Colors
   static const Color liveIndicator = hotOrange;
-  static const Color toastGold = Color(0xFFFFD700); // Kept for legacy "Toast" feature
+  static const Color toastGold =
+      Color(0xFFFFD700); // Kept for legacy "Toast" feature
 
   // Accent color aliases
   static const Color accentCyan = electricBlue;
   static const Color accentAlert = hotOrange;
-  static const Color accentTeal = electricBlue; // Alias for backward compatibility
+  static const Color accentTeal =
+      electricBlue; // Alias for backward compatibility
   static const Color accentOrange = hotOrange;
 
   // Background Colors - "Moonlit Grey" Palette (inline values for internal theme use)
   // Avoids pure black (#000000) for better eye comfort and depth
-  static const Color _backgroundDark = Color(0xFF0D0F11); // Very deep slate/almost black
-  static const Color _surfaceDark = Color(0xFF161B22); // Slightly lighter gunmetal
+  static const Color _backgroundDark =
+      Color(0xFF0D0F11); // Very deep slate/almost black
+  static const Color _surfaceDark =
+      Color(0xFF161B22); // Slightly lighter gunmetal
   static const Color _surfaceVariantDark = Color(0xFF21262D); // Borders/Inputs
   static const Color _cardDark = Color(0xFF1C2128);
 

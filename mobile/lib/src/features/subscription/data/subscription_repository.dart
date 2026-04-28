@@ -19,9 +19,11 @@ class SubscriptionRepository {
   Future<Either<Failure, SubscriptionStatus>> getStatus() async {
     try {
       final response = await _dioClient.get('/subscription/status');
-      return Right(SubscriptionStatus.fromJson(
-        response.data['data'] as Map<String, dynamic>,
-      ));
+      return Right(
+        SubscriptionStatus.fromJson(
+          response.data['data'] as Map<String, dynamic>,
+        ),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }

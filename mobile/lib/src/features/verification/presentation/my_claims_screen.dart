@@ -35,7 +35,11 @@ class MyClaimsScreen extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, size: 48, color: AppTheme.error),
+                const Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: AppTheme.error,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'Failed to load claims',
@@ -109,8 +113,7 @@ class _ClaimCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final entityTypeLabel =
-        claim.entityType == 'venue' ? 'Venue' : 'Band';
+    final entityTypeLabel = claim.entityType == 'venue' ? 'Venue' : 'Band';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -197,8 +200,18 @@ class _ClaimCard extends StatelessWidget {
     try {
       final date = DateTime.parse(dateStr);
       const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
       return '${months[date.month - 1]} ${date.day}, ${date.year}';
     } catch (_) {

@@ -287,8 +287,7 @@ class _GlobalFeedTabState extends ConsumerState<_GlobalFeedTab> {
                 EmptyStateWidget(
                   type: EmptyStateType.general,
                   customTitle: 'No activity yet',
-                  customMessage:
-                      'Check in to a show and it\'ll appear here!',
+                  customMessage: 'Check in to a show and it\'ll appear here!',
                 ),
               ],
             );
@@ -432,9 +431,11 @@ class _MergedEventsTabState extends ConsumerState<_MergedEventsTab> {
               ChoiceChip(
                 label: const Text('Events'),
                 selected: _filter == _EventsFilter.events,
-                onSelected: (_) => setState(() => _filter = _EventsFilter.events),
+                onSelected: (_) =>
+                    setState(() => _filter = _EventsFilter.events),
                 selectedColor: AppTheme.voltLime,
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
                 labelStyle: TextStyle(
                   color: _filter == _EventsFilter.events
                       ? Theme.of(context).scaffoldBackgroundColor
@@ -469,7 +470,8 @@ class _MergedEventsTabState extends ConsumerState<_MergedEventsTab> {
                 onSelected: (_) =>
                     setState(() => _filter = _EventsFilter.happeningNow),
                 selectedColor: AppTheme.voltLime,
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHighest,
                 labelStyle: TextStyle(
                   color: _filter == _EventsFilter.happeningNow
                       ? Theme.of(context).scaffoldBackgroundColor
@@ -636,4 +638,3 @@ class _FeedErrorState extends StatelessWidget {
     );
   }
 }
-

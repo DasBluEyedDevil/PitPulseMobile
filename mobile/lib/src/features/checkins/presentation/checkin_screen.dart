@@ -96,7 +96,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     setState(() => _checkingInEventId = event.id);
 
     // Use cached position or fetch fresh
-    final position = _cachedPosition ?? await LocationService.getCurrentPosition();
+    final position =
+        _cachedPosition ?? await LocationService.getCurrentPosition();
 
     final notifier = ref.read(createEventCheckInProvider.notifier);
     final checkIn = await notifier.submit(
@@ -210,9 +211,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       body: switch (_screenState) {
         _ScreenState.events => _buildEventList(),
         _ScreenState.success => _buildSuccessState(),
-        _ScreenState.manual => _isSearchingBand
-            ? _buildBandSearch()
-            : _buildCheckInForm(),
+        _ScreenState.manual =>
+          _isSearchingBand ? _buildBandSearch() : _buildCheckInForm(),
       },
     );
   }
@@ -348,12 +348,15 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               onPressed: () async {
                 try {
                   // First check if location services are enabled at all
-                  final serviceEnabled = await LocationService.isLocationServiceEnabled();
+                  final serviceEnabled =
+                      await LocationService.isLocationServiceEnabled();
                   if (!serviceEnabled) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Location services are disabled. Please enable GPS in your device settings.'),
+                          content: Text(
+                            'Location services are disabled. Please enable GPS in your device settings.',
+                          ),
                         ),
                       );
                       await LocationService.openLocationSettings();
@@ -368,7 +371,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Opening app settings — please enable Location permission.'),
+                          content: Text(
+                            'Opening app settings — please enable Location permission.',
+                          ),
                         ),
                       );
                     }
@@ -386,10 +391,13 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   final perm = await LocationService.requestPermission();
                   if (LocationService.hasPermission(perm) && mounted) {
                     ref.invalidate(nearbyEventsProvider);
-                  } else if (perm == LocationPermission.deniedForever && mounted) {
+                  } else if (perm == LocationPermission.deniedForever &&
+                      mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Location permission denied. Please enable it in app settings.'),
+                        content: Text(
+                          'Location permission denied. Please enable it in app settings.',
+                        ),
                       ),
                     );
                   }
@@ -525,7 +533,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             ),
             const SizedBox(height: 8),
             ...nearCompletion.take(3).map((bp) {
-              final pct = (bp.currentValue / bp.requirementValue).clamp(0.0, 1.0);
+              final pct =
+                  (bp.currentValue / bp.requirementValue).clamp(0.0, 1.0);
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
@@ -553,7 +562,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                             child: LinearProgressIndicator(
                               value: pct,
                               minHeight: 6,
-                              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
                               valueColor: const AlwaysStoppedAnimation<Color>(
                                 AppTheme.voltLime,
                               ),
@@ -815,16 +826,16 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
 
     setState(() => _isSubmittingManual = true);
 
-    final position = _cachedPosition ?? await LocationService.getCurrentPosition();
+    final position =
+        _cachedPosition ?? await LocationService.getCurrentPosition();
 
     final notifier = ref.read(createManualCheckInProvider.notifier);
     final checkIn = await notifier.submit(
       bandId: _selectedBandId!,
       venueId: _selectedVenueId!,
       rating: _rating > 0 ? _rating : null,
-      comment: _commentController.text.isNotEmpty
-          ? _commentController.text
-          : null,
+      comment:
+          _commentController.text.isNotEmpty ? _commentController.text : null,
       vibeTagIds: _selectedVibes.isNotEmpty ? _selectedVibes.toList() : null,
       locationLat: position?.latitude,
       locationLon: position?.longitude,
@@ -1362,7 +1373,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle, color: Theme.of(context).scaffoldBackgroundColor),
+                  Icon(
+                    Icons.check_circle,
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Check In',
@@ -1458,8 +1472,11 @@ class _EventCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.location_on,
-                              color: AppTheme.textTertiary, size: 14,),
+                          const Icon(
+                            Icons.location_on,
+                            color: AppTheme.textTertiary,
+                            size: 14,
+                          ),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
@@ -1507,8 +1524,11 @@ class _EventCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.schedule,
-                    color: AppTheme.textTertiary, size: 14,),
+                const Icon(
+                  Icons.schedule,
+                  color: AppTheme.textTertiary,
+                  size: 14,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   [
@@ -1536,12 +1556,13 @@ class _EventCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                     border: entry.isHeadliner
                         ? Border.all(
-                            color:
-                                AppTheme.voltLime.withValues(alpha: 0.5),)
+                            color: AppTheme.voltLime.withValues(alpha: 0.5),
+                          )
                         : null,
                   ),
                   child: Text(
@@ -1565,7 +1586,11 @@ class _EventCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.people, color: AppTheme.textTertiary, size: 14),
+                const Icon(
+                  Icons.people,
+                  color: AppTheme.textTertiary,
+                  size: 14,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   '${event.checkinCount} checked in',
@@ -1686,7 +1711,11 @@ class _EnrichmentCard extends StatelessWidget {
                 ),
               ),
               if (completed)
-                const Icon(Icons.check_circle, color: AppTheme.voltLime, size: 24)
+                const Icon(
+                  Icons.check_circle,
+                  color: AppTheme.voltLime,
+                  size: 24,
+                )
               else
                 const Icon(Icons.chevron_right, color: AppTheme.textTertiary),
             ],
@@ -1731,7 +1760,11 @@ class _BandSearchResult extends StatelessWidget {
               : null,
         ),
         child: imageUrl == null
-            ? Icon(Icons.music_note, color: Theme.of(context).scaffoldBackgroundColor, size: 28)
+            ? Icon(
+                Icons.music_note,
+                color: Theme.of(context).scaffoldBackgroundColor,
+                size: 28,
+              )
             : null,
       ),
       title: Text(
@@ -1777,8 +1810,11 @@ class _SelectedBandCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child:
-                Icon(Icons.music_note, color: Theme.of(context).scaffoldBackgroundColor, size: 32),
+            child: Icon(
+              Icons.music_note,
+              color: Theme.of(context).scaffoldBackgroundColor,
+              size: 32,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -1788,7 +1824,9 @@ class _SelectedBandCard extends StatelessWidget {
                 Text(
                   'Checking in to',
                   style: TextStyle(
-                    color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.7),
+                    color: Theme.of(context)
+                        .scaffoldBackgroundColor
+                        .withValues(alpha: 0.7),
                     fontSize: 12,
                   ),
                 ),
@@ -1806,8 +1844,12 @@ class _SelectedBandCard extends StatelessWidget {
           ),
           IconButton(
             onPressed: onClear,
-            icon: Icon(Icons.close,
-                color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.7),),
+            icon: Icon(
+              Icons.close,
+              color: Theme.of(context)
+                  .scaffoldBackgroundColor
+                  .withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),
@@ -2103,8 +2145,7 @@ class _VibeSelectorState extends State<_VibeSelector> {
           return GestureDetector(
             onTap: () => widget.onToggle(vibe['id']!),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: isSelected
                     ? AppTheme.voltLime
@@ -2113,8 +2154,7 @@ class _VibeSelectorState extends State<_VibeSelector> {
                 border: isSelected
                     ? null
                     : Border.all(
-                        color:
-                            AppTheme.textTertiary.withValues(alpha: 0.3),
+                        color: AppTheme.textTertiary.withValues(alpha: 0.3),
                       ),
               ),
               child: Row(
@@ -2146,8 +2186,7 @@ class _VibeSelectorState extends State<_VibeSelector> {
           GestureDetector(
             onTap: () => setState(() => _expanded = true),
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(20),

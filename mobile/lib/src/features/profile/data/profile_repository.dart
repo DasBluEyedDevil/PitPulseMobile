@@ -20,7 +20,9 @@ class ProfileRepository {
   }
 
   /// Get user statistics — `GET /api/users/:userId/stats`
-  Future<Either<Failure, UserStatistics>> getUserStatistics(String userId) async {
+  Future<Either<Failure, UserStatistics>> getUserStatistics(
+    String userId,
+  ) async {
     try {
       final response = await _dioClient.get('${ApiConfig.auth}/$userId/stats');
       final statisticsData = response.data['data'] as Map<String, dynamic>;

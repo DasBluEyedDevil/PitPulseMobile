@@ -75,8 +75,10 @@ class WebSocketService {
   final _connectionController = StreamController<bool>.broadcast();
   final _toastController = StreamController<Map<String, dynamic>>.broadcast();
   final _commentController = StreamController<Map<String, dynamic>>.broadcast();
-  final _newCheckinController = StreamController<Map<String, dynamic>>.broadcast();
-  final _sameEventController = StreamController<Map<String, dynamic>>.broadcast();
+  final _newCheckinController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _sameEventController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   /// Stream of all WebSocket messages
   Stream<WebSocketMessage> get messageStream => _messageController.stream;
@@ -91,10 +93,12 @@ class WebSocketService {
   Stream<Map<String, dynamic>> get commentStream => _commentController.stream;
 
   /// Stream of new check-in events (friend checked in)
-  Stream<Map<String, dynamic>> get newCheckinStream => _newCheckinController.stream;
+  Stream<Map<String, dynamic>> get newCheckinStream =>
+      _newCheckinController.stream;
 
   /// Stream of same-event check-in events ("Alex is here too!")
-  Stream<Map<String, dynamic>> get sameEventCheckinStream => _sameEventController.stream;
+  Stream<Map<String, dynamic>> get sameEventCheckinStream =>
+      _sameEventController.stream;
 
   /// Whether the WebSocket is connected
   bool get isConnected => _isConnected;
@@ -187,13 +191,15 @@ class WebSocketService {
     _userId = userId;
     _authToken = token;
 
-    _send(WebSocketMessage(
-      type: 'auth',
-      payload: {
-        'userId': userId,
-        'token': token,
-      },
-    ),);
+    _send(
+      WebSocketMessage(
+        type: 'auth',
+        payload: {
+          'userId': userId,
+          'token': token,
+        },
+      ),
+    );
   }
 
   /// Join a room for targeted messages
@@ -203,10 +209,12 @@ class WebSocketService {
       return;
     }
 
-    _send(WebSocketMessage(
-      type: 'join_room',
-      payload: {'room': room},
-    ),);
+    _send(
+      WebSocketMessage(
+        type: 'join_room',
+        payload: {'room': room},
+      ),
+    );
 
     _joinedRooms.add(room);
   }
@@ -218,10 +226,12 @@ class WebSocketService {
       return;
     }
 
-    _send(WebSocketMessage(
-      type: 'leave_room',
-      payload: {'room': room},
-    ),);
+    _send(
+      WebSocketMessage(
+        type: 'leave_room',
+        payload: {'room': room},
+      ),
+    );
 
     _joinedRooms.remove(room);
   }
@@ -273,10 +283,12 @@ class WebSocketService {
           LogService.i('WebSocket authenticated');
           // Re-join previously joined rooms
           for (final room in _joinedRooms) {
-            _send(WebSocketMessage(
-              type: 'join_room',
-              payload: {'room': room},
-            ),);
+            _send(
+              WebSocketMessage(
+                type: 'join_room',
+                payload: {'room': room},
+              ),
+            );
           }
           break;
 
@@ -338,10 +350,12 @@ class WebSocketService {
     _pingTimer?.cancel();
     _pingTimer = Timer.periodic(const Duration(seconds: 25), (_) {
       if (_isConnected) {
-        _send(WebSocketMessage(
-          type: 'ping',
-          payload: {},
-        ),);
+        _send(
+          WebSocketMessage(
+            type: 'ping',
+            payload: {},
+          ),
+        );
       }
     });
   }
@@ -351,7 +365,9 @@ class WebSocketService {
     _reconnectTimer?.cancel();
 
     if (_reconnectAttempts >= _maxReconnectAttempts) {
-      LogService.w('WebSocket max reconnect attempts reached ($_maxReconnectAttempts). Giving up.');
+      LogService.w(
+        'WebSocket max reconnect attempts reached ($_maxReconnectAttempts). Giving up.',
+      );
       return;
     }
 
@@ -361,7 +377,9 @@ class WebSocketService {
 
     _reconnectTimer = Timer(delay, () {
       if (!_isConnected && _authToken != null) {
-        LogService.i('Attempting WebSocket reconnection (attempt $_reconnectAttempts/$_maxReconnectAttempts)...');
+        LogService.i(
+          'Attempting WebSocket reconnection (attempt $_reconnectAttempts/$_maxReconnectAttempts)...',
+        );
         connect(authToken: _authToken, userId: _userId);
       }
     });

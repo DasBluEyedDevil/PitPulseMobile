@@ -23,7 +23,8 @@ class EmptyStateWidget extends StatelessWidget {
   final VoidCallback? onAction;
 
   const EmptyStateWidget({
-    required this.type, super.key,
+    required this.type,
+    super.key,
     this.customTitle,
     this.customMessage,
     this.actionLabel,
@@ -44,7 +45,7 @@ class EmptyStateWidget extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppTheme.spacing32),
               decoration: BoxDecoration(
-                color: config.color.withValues(alpha:0.1),
+                color: config.color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -162,7 +163,8 @@ class EmptyStateWidget extends StatelessWidget {
           icon: Icons.event_outlined,
           color: AppTheme.primary,
           title: 'No Events Found',
-          message: 'There are no upcoming events in your area. Check back later!',
+          message:
+              'There are no upcoming events in your area. Check back later!',
           actionLabel: 'Refresh',
           actionIcon: Icons.refresh,
         );

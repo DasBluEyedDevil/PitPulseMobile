@@ -46,8 +46,7 @@ class _PremiumPaywallSheetState extends ConsumerState<PremiumPaywallSheet> {
       }
       final customerInfo = await SubscriptionService.purchase(packages.first);
       if (customerInfo != null && mounted) {
-        final hasPro =
-            customerInfo.entitlements.all['pro']?.isActive ?? false;
+        final hasPro = customerInfo.entitlements.all['pro']?.isActive ?? false;
         if (hasPro) {
           ref.read(isPremiumProvider.notifier).set(true);
           // Sync premium status with backend immediately
@@ -161,8 +160,7 @@ class _PremiumPaywallSheetState extends ConsumerState<PremiumPaywallSheet> {
             TextButton(
               style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
               onPressed: _isRestoring ? null : _onRestore,
-              child:
-                  Text(_isRestoring ? 'Restoring...' : 'Restore Purchases'),
+              child: Text(_isRestoring ? 'Restoring...' : 'Restore Purchases'),
             ),
           ],
         ),

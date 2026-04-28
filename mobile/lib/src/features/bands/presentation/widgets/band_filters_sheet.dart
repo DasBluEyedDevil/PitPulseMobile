@@ -22,7 +22,8 @@ class BandFiltersSheet extends ConsumerWidget {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         return Container(
           decoration: BoxDecoration(
-            color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
+            color:
+                isDark ? Theme.of(context).colorScheme.surface : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
@@ -84,7 +85,8 @@ class BandFiltersSheet extends ConsumerWidget {
                       loading: () => const Center(
                         child: CircularProgressIndicator(),
                       ),
-                      error: (error, stack) => const Text('Failed to load genres'),
+                      error: (error, stack) =>
+                          const Text('Failed to load genres'),
                     ),
                     const SizedBox(height: AppTheme.spacing24),
 

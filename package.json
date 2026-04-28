@@ -10,6 +10,10 @@
     "start": "npm start --prefix backend",
     "dev": "npm run dev --prefix backend",
     "test": "npm test --prefix backend",
+    "harness:check": "node scripts/check-agent-harness.mjs",
+    "check:backend": "npm run lint --prefix backend && npm run typecheck --prefix backend && npm test --prefix backend",
+    "check:mobile": "cd mobile && flutter analyze && flutter test",
+    "check": "npm run harness:check && npm run check:backend && npm run check:mobile",
     "prepare": "husky"
   },
   "lint-staged": {

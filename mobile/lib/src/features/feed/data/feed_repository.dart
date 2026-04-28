@@ -21,7 +21,10 @@ class FeedRepository {
 
   /// Get global discovery feed with cursor-based pagination
   /// GET /feed/global?cursor=X&limit=N
-  Future<Either<Failure, FeedPage>> getGlobalFeed({String? cursor, int limit = 20}) async {
+  Future<Either<Failure, FeedPage>> getGlobalFeed({
+    String? cursor,
+    int limit = 20,
+  }) async {
     try {
       final queryParams = <String, dynamic>{'limit': limit};
       if (cursor != null) queryParams['cursor'] = cursor;
@@ -31,7 +34,9 @@ class FeedRepository {
         queryParameters: queryParams,
       );
 
-      return Right(FeedPage.fromJson(response.data['data'] as Map<String, dynamic>));
+      return Right(
+        FeedPage.fromJson(response.data['data'] as Map<String, dynamic>),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -39,7 +44,10 @@ class FeedRepository {
 
   /// Get friends feed with cursor-based pagination
   /// GET /feed/friends?cursor=X&limit=N
-  Future<Either<Failure, FeedPage>> getFriendsFeed({String? cursor, int limit = 20}) async {
+  Future<Either<Failure, FeedPage>> getFriendsFeed({
+    String? cursor,
+    int limit = 20,
+  }) async {
     try {
       final queryParams = <String, dynamic>{'limit': limit};
       if (cursor != null) queryParams['cursor'] = cursor;
@@ -49,7 +57,9 @@ class FeedRepository {
         queryParameters: queryParams,
       );
 
-      return Right(FeedPage.fromJson(response.data['data'] as Map<String, dynamic>));
+      return Right(
+        FeedPage.fromJson(response.data['data'] as Map<String, dynamic>),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -71,7 +81,9 @@ class FeedRepository {
         queryParameters: queryParams,
       );
 
-      return Right(FeedPage.fromJson(response.data['data'] as Map<String, dynamic>));
+      return Right(
+        FeedPage.fromJson(response.data['data'] as Map<String, dynamic>),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -79,7 +91,10 @@ class FeedRepository {
 
   /// Discovery-style feed for the "Events" tab (backend has no `GET /feed/events`).
   /// Uses global feed until a dedicated merged-events feed exists (audit H-MOB-1).
-  Future<Either<Failure, FeedPage>> getEventsFeed({String? cursor, int limit = 20}) async {
+  Future<Either<Failure, FeedPage>> getEventsFeed({
+    String? cursor,
+    int limit = 20,
+  }) async {
     return getGlobalFeed(cursor: cursor, limit: limit);
   }
 
@@ -90,10 +105,14 @@ class FeedRepository {
       final response = await _dioClient.get('/feed/happening-now');
 
       final List<dynamic> data = response.data['data'] as List<dynamic>;
-      return Right(data
-          .map((json) =>
-              HappeningNowGroup.fromJson(json as Map<String, dynamic>),)
-          .toList());
+      return Right(
+        data
+            .map(
+              (json) =>
+                  HappeningNowGroup.fromJson(json as Map<String, dynamic>),
+            )
+            .toList(),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -105,8 +124,11 @@ class FeedRepository {
     try {
       final response = await _dioClient.get('/feed/unseen');
 
-      return Right(UnseenCounts.fromJson(
-          response.data['data'] as Map<String, dynamic>,));
+      return Right(
+        UnseenCounts.fromJson(
+          response.data['data'] as Map<String, dynamic>,
+        ),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -137,7 +159,10 @@ class FeedRepository {
 
   /// Register a device token for push notifications
   /// POST /users/device-token
-  Future<Either<Failure, void>> registerDeviceToken(String token, String platform) async {
+  Future<Either<Failure, void>> registerDeviceToken(
+    String token,
+    String platform,
+  ) async {
     try {
       await _dioClient.post(
         '/users/device-token',

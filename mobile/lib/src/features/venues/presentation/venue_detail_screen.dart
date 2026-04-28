@@ -9,8 +9,8 @@ import '../domain/venue.dart';
 import '../../checkins/presentation/providers/checkin_providers.dart';
 import '../../checkins/domain/checkin.dart';
 
-
-final venueDetailProvider = FutureProvider.autoDispose.family<Venue, String>((ref, id) async {
+final venueDetailProvider =
+    FutureProvider.autoDispose.family<Venue, String>((ref, id) async {
   final repository = ref.watch(venueRepositoryProvider);
   return repository.getVenueById(id);
 });
@@ -107,7 +107,9 @@ class _VenueContent extends ConsumerWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Theme.of(context).scaffoldBackgroundColor.withValues(alpha:0.95),
+                        Theme.of(context)
+                            .scaffoldBackgroundColor
+                            .withValues(alpha: 0.95),
                       ],
                     ),
                   ),
@@ -141,7 +143,8 @@ class _VenueContent extends ConsumerWidget {
                                   vertical: 12,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primary.withValues(alpha: 0.2),
+                                  color:
+                                      AppTheme.primary.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: const Row(
@@ -293,8 +296,8 @@ class _VenueContent extends ConsumerWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppTheme.hotOrange.withValues(alpha:0.7),
-            AppTheme.voltLime.withValues(alpha:0.7),
+            AppTheme.hotOrange.withValues(alpha: 0.7),
+            AppTheme.voltLime.withValues(alpha: 0.7),
           ],
         ),
       ),
@@ -409,7 +412,8 @@ class _MapStrip extends StatelessWidget {
       return;
     }
 
-    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+    final uri =
+        Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -425,9 +429,8 @@ class _VenueStatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     // Use aggregate data if available; fall back to legacy averageRating
     final aggregateRating = venue.aggregate?.avgExperienceRating ?? 0;
-    final displayRating = aggregateRating > 0
-        ? aggregateRating
-        : venue.averageRating;
+    final displayRating =
+        aggregateRating > 0 ? aggregateRating : venue.averageRating;
     final ratingLabel = aggregateRating > 0 ? 'Experience' : 'Rating';
     final visitors = venue.aggregate?.uniqueVisitors ?? venue.uniqueVisitors;
     final ratings = venue.aggregate?.totalRatings ?? 0;
@@ -598,7 +601,11 @@ class _UpcomingEventsSection extends StatelessWidget {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.event_busy, color: AppTheme.textTertiary, size: 20),
+                  Icon(
+                    Icons.event_busy,
+                    color: AppTheme.textTertiary,
+                    size: 20,
+                  ),
                   SizedBox(width: 12),
                   Text(
                     'No upcoming events',
@@ -634,8 +641,20 @@ class _UpcomingEventItem extends StatelessWidget {
     if (eventDate.length >= 10) {
       try {
         final date = DateTime.parse(eventDate);
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',];
+        const months = [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
         monthStr = months[date.month - 1];
         dayStr = date.day.toString();
       } catch (_) {
@@ -666,7 +685,7 @@ class _UpcomingEventItem extends StatelessWidget {
               width: 50,
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
-                color: AppTheme.voltLime.withValues(alpha:0.2),
+                color: AppTheme.voltLime.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -729,7 +748,8 @@ class _UpcomingEventItem extends StatelessWidget {
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: AppTheme.voltLime,
                     borderRadius: BorderRadius.circular(8),
@@ -756,8 +776,6 @@ class _UpcomingEventItem extends StatelessWidget {
     );
   }
 }
-
-
 
 /// Widget that displays recent bands from venue check-ins
 class _RecentBandsSection extends ConsumerWidget {
@@ -854,5 +872,3 @@ class _RecentBandsSection extends ConsumerWidget {
     );
   }
 }
-
-

@@ -58,8 +58,7 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
     try {
       final customerInfo = await SubscriptionService.purchase(pkg);
       if (customerInfo != null && mounted) {
-        final hasPro =
-            customerInfo.entitlements.all['pro']?.isActive ?? false;
+        final hasPro = customerInfo.entitlements.all['pro']?.isActive ?? false;
         if (hasPro) {
           ref.read(isPremiumProvider.notifier).set(true);
           AnalyticsService.logEvent(name: 'subscription_started');
@@ -149,8 +148,7 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
             const _PerkCard(
               icon: Icons.analytics_outlined,
               title: 'Detailed Wrapped Analytics',
-              description:
-                  'Monthly breakdown, genre evolution, friend overlap',
+              description: 'Monthly breakdown, genre evolution, friend overlap',
             ),
             const _PerkCard(
               icon: Icons.share_outlined,
@@ -227,7 +225,8 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Theme.of(context).scaffoldBackgroundColor,
+                                    color: Theme.of(context)
+                                        .scaffoldBackgroundColor,
                                   ),
                                 )
                               : const Text('Subscribe'),
@@ -255,13 +254,16 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
               TextButton(
                 style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
                 onPressed: _isRestoring ? null : _onRestore,
-                child: Text(_isRestoring
-                    ? 'Restoring...'
-                    : 'Restore Purchases',),
+                child: Text(
+                  _isRestoring ? 'Restoring...' : 'Restore Purchases',
+                ),
               ),
             ] else ...[
-              const Icon(Icons.check_circle,
-                  color: AppTheme.voltLime, size: 48,),
+              const Icon(
+                Icons.check_circle,
+                color: AppTheme.voltLime,
+                size: 48,
+              ),
               const SizedBox(height: 8),
               const Text(
                 'All Pro features are unlocked',
@@ -274,15 +276,21 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
               children: [
                 TextButton(
                   onPressed: () => _launchUrl('https://soundcheck.app/terms'),
-                  child: const Text('Terms of Service',
-                      style: TextStyle(fontSize: 14),),
+                  child: const Text(
+                    'Terms of Service',
+                    style: TextStyle(fontSize: 14),
+                  ),
                 ),
-                const Text(' | ',
-                    style: TextStyle(color: AppTheme.textTertiary),),
+                const Text(
+                  ' | ',
+                  style: TextStyle(color: AppTheme.textTertiary),
+                ),
                 TextButton(
                   onPressed: () => _launchUrl('https://soundcheck.app/privacy'),
-                  child: const Text('Privacy Policy',
-                      style: TextStyle(fontSize: 14),),
+                  child: const Text(
+                    'Privacy Policy',
+                    style: TextStyle(fontSize: 14),
+                  ),
                 ),
               ],
             ),
@@ -321,18 +329,22 @@ class _PerkCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(description,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 13,
-                    ),),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
               ],
             ),
           ),

@@ -9,7 +9,8 @@ import '../../domain/happening_now_group.dart';
 /// Displays event name, venue, friend avatars row, and relative timestamp
 class HappeningNowCard extends StatelessWidget {
   const HappeningNowCard({
-    required this.group, super.key,
+    required this.group,
+    super.key,
     this.onTap,
   });
 
@@ -57,7 +58,8 @@ class HappeningNowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final timeAgo = _getTimeAgo(group.lastCheckinAt);
-    final firstFriend = group.friends.isNotEmpty ? group.friends.first.username : 'Friends';
+    final firstFriend =
+        group.friends.isNotEmpty ? group.friends.first.username : 'Friends';
 
     return Semantics(
       label: happeningNowSemantics(
@@ -67,99 +69,99 @@ class HappeningNowCard extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.voltLime.withValues(alpha: 0.3),
-            width: 1,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppTheme.voltLime.withValues(alpha: 0.3),
+              width: 1,
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Event header with live indicator
-            Row(
-              children: [
-                // Pulsing live dot
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppTheme.liveIndicator,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Event header with live indicator
+              Row(
+                children: [
+                  // Pulsing live dot
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppTheme.liveIndicator,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        group.eventName,
-                        style: const TextStyle(
-                          color: AppTheme.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          group.eventName,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        group.venueName,
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
+                        const SizedBox(height: 2),
+                        Text(
+                          group.venueName,
+                          style: const TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Friend avatars row (max 3 visible + overflow count)
-            Row(
-              children: [
-                _FriendAvatarRow(
-                  friends: group.friends,
-                  totalCount: group.totalFriendCount,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-
-            // Friend names summary
-            Text(
-              _buildFriendNames(),
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 13,
+                ],
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
 
-            const SizedBox(height: 8),
+              const SizedBox(height: 12),
 
-            // Timestamp
-            Text(
-              'Last check-in: $timeAgo',
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 13,
+              // Friend avatars row (max 3 visible + overflow count)
+              Row(
+                children: [
+                  _FriendAvatarRow(
+                    friends: group.friends,
+                    totalCount: group.totalFriendCount,
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
+
+              const SizedBox(height: 8),
+
+              // Friend names summary
+              Text(
+                _buildFriendNames(),
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+
+              const SizedBox(height: 8),
+
+              // Timestamp
+              Text(
+                'Last check-in: $timeAgo',
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -253,22 +255,22 @@ class _FriendAvatar extends StatelessWidget {
         ),
       ),
       child: ClipOval(
-        child: friend.profileImageUrl != null &&
-                friend.profileImageUrl!.isNotEmpty
-            ? CachedNetworkImage(
-                imageUrl: friend.profileImageUrl!,
-                width: size,
-                height: size,
-                fit: BoxFit.cover,
-                errorWidget: (context, url, error) => _InitialCircle(
-                  username: friend.username,
-                  size: size,
-                ),
-              )
-            : _InitialCircle(
-                username: friend.username,
-                size: size,
-              ),
+        child:
+            friend.profileImageUrl != null && friend.profileImageUrl!.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: friend.profileImageUrl!,
+                    width: size,
+                    height: size,
+                    fit: BoxFit.cover,
+                    errorWidget: (context, url, error) => _InitialCircle(
+                      username: friend.username,
+                      size: size,
+                    ),
+                  )
+                : _InitialCircle(
+                    username: friend.username,
+                    size: size,
+                  ),
       ),
     );
   }

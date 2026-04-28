@@ -42,22 +42,24 @@ class DiscoverSearchResults {
   });
 
   factory DiscoverSearchResults.empty() => const DiscoverSearchResults(
-    bands: [],
-    venues: [],
-    users: [],
-    events: [],
-  );
+        bands: [],
+        venues: [],
+        users: [],
+        events: [],
+      );
 
   factory DiscoverSearchResults.loading() => const DiscoverSearchResults(
-    bands: [],
-    venues: [],
-    users: [],
-    events: [],
-    isLoading: true,
-  );
+        bands: [],
+        venues: [],
+        users: [],
+        events: [],
+        isLoading: true,
+      );
 
-  bool get isEmpty => bands.isEmpty && venues.isEmpty && users.isEmpty && events.isEmpty;
-  int get totalCount => bands.length + venues.length + users.length + events.length;
+  bool get isEmpty =>
+      bands.isEmpty && venues.isEmpty && users.isEmpty && events.isEmpty;
+  int get totalCount =>
+      bands.length + venues.length + users.length + events.length;
 }
 
 /// Provider for band search results in discover (debounced)
@@ -90,7 +92,8 @@ Future<List<Venue>> discoverVenueSearch(Ref ref) async {
   if (ref.watch(discoverSearchQueryProvider) != query) return [];
 
   final repository = ref.watch(venueRepositoryProvider);
-  final paginatedResult = await repository.getVenues(search: query, page: 1, limit: 10);
+  final paginatedResult =
+      await repository.getVenues(search: query, page: 1, limit: 10);
   return paginatedResult.venues;
 }
 
@@ -160,7 +163,10 @@ Future<List<User>> discoverUserSearch(Ref ref) async {
 
     if (response.data['success'] == true && response.data['data'] != null) {
       return (response.data['data'] as List)
-          .map((json) => UserSearchResult.fromJson(json as Map<String, dynamic>).toUser())
+          .map(
+            (json) => UserSearchResult.fromJson(json as Map<String, dynamic>)
+                .toUser(),
+          )
           .toList();
     }
 
@@ -209,16 +215,19 @@ DiscoverSearchResults discoverSearchResults(Ref ref) {
   final eventsAsync = ref.watch(discoverEventSearchProvider);
 
   final isLoading = bandsAsync.isLoading ||
-                    venuesAsync.isLoading ||
-                    usersAsync.isLoading ||
-                    eventsAsync.isLoading;
+      venuesAsync.isLoading ||
+      usersAsync.isLoading ||
+      eventsAsync.isLoading;
 
   final hasError = bandsAsync.hasError ||
-                   venuesAsync.hasError ||
-                   usersAsync.hasError ||
-                   eventsAsync.hasError;
+      venuesAsync.hasError ||
+      usersAsync.hasError ||
+      eventsAsync.hasError;
 
-  if (isLoading && bandsAsync.value == null && venuesAsync.value == null && eventsAsync.value == null) {
+  if (isLoading &&
+      bandsAsync.value == null &&
+      venuesAsync.value == null &&
+      eventsAsync.value == null) {
     return DiscoverSearchResults.loading();
   }
 
@@ -228,7 +237,12 @@ DiscoverSearchResults discoverSearchResults(Ref ref) {
     users: usersAsync.value ?? [],
     events: eventsAsync.value ?? [],
     isLoading: isLoading,
-    error: hasError ? (bandsAsync.error ?? venuesAsync.error ?? usersAsync.error ?? eventsAsync.error) : null,
+    error: hasError
+        ? (bandsAsync.error ??
+            venuesAsync.error ??
+            usersAsync.error ??
+            eventsAsync.error)
+        : null,
   );
 }
 

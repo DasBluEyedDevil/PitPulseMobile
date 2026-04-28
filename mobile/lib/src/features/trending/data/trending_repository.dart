@@ -50,8 +50,8 @@ class TrendingEvent {
           (json['checkinVelocity'] ?? json['checkin_velocity'] ?? 0) as int,
       friendSignals:
           (json['friendSignals'] ?? json['friend_signals'] ?? 0) as int,
-      distanceKm: ((json['distanceKm'] ?? json['distance_km'] ?? 0) as num)
-          .toDouble(),
+      distanceKm:
+          ((json['distanceKm'] ?? json['distance_km'] ?? 0) as num).toDouble(),
       trendingScore:
           ((json['trendingScore'] ?? json['trending_score'] ?? 0) as num)
               .toDouble(),
@@ -101,9 +101,11 @@ class TrendingRepository {
         },
       );
       final List<dynamic> data = response.data['data'] as List<dynamic>;
-      return Right(data
-          .map((e) => TrendingEvent.fromJson(e as Map<String, dynamic>))
-          .toList());
+      return Right(
+        data
+            .map((e) => TrendingEvent.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }

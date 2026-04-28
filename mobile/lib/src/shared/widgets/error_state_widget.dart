@@ -21,7 +21,8 @@ class ErrorStateWidget extends StatelessWidget {
   final String? customMessage;
 
   const ErrorStateWidget({
-    required this.error, super.key,
+    required this.error,
+    super.key,
     this.stackTrace,
     this.onRetry,
     this.customMessage,
@@ -42,7 +43,7 @@ class ErrorStateWidget extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppTheme.spacing24),
               decoration: BoxDecoration(
-                color: config.color.withValues(alpha:0.1),
+                color: config.color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(

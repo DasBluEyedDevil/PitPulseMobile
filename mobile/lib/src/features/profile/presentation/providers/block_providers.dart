@@ -36,8 +36,7 @@ final blockedUsersProvider =
 /// Provider to fetch another user's public profile.
 /// GET /users/:userId returns the user object, parsed into a User model.
 final userPublicProfileProvider =
-    FutureProvider.autoDispose.family<User, String>(
-        (ref, userId) async {
+    FutureProvider.autoDispose.family<User, String>((ref, userId) async {
   final dioClient = ref.watch(dioClientProvider);
   final response = await dioClient.get('/users/$userId');
   final data = response.data['data'] as Map<String, dynamic>;
