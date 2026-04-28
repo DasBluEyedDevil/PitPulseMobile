@@ -31,14 +31,20 @@ class VerificationClaim {
   factory VerificationClaim.fromJson(Map<String, dynamic> json) {
     return VerificationClaim(
       id: json['id'] as String,
-      entityType: json['entityType'] as String? ?? json['entity_type'] as String,
+      entityType:
+          json['entityType'] as String? ?? json['entity_type'] as String,
       entityId: json['entityId'] as String? ?? json['entity_id'] as String,
       status: json['status'] as String,
-      evidenceText: json['evidenceText'] as String? ?? json['evidence_text'] as String?,
-      evidenceUrl: json['evidenceUrl'] as String? ?? json['evidence_url'] as String?,
-      entityName: json['entityName'] as String? ?? json['entity_name'] as String?,
-      reviewNotes: json['reviewNotes'] as String? ?? json['review_notes'] as String?,
-      createdAt: json['createdAt'] as String? ?? json['created_at'] as String? ?? '',
+      evidenceText:
+          json['evidenceText'] as String? ?? json['evidence_text'] as String?,
+      evidenceUrl:
+          json['evidenceUrl'] as String? ?? json['evidence_url'] as String?,
+      entityName:
+          json['entityName'] as String? ?? json['entity_name'] as String?,
+      reviewNotes:
+          json['reviewNotes'] as String? ?? json['review_notes'] as String?,
+      createdAt:
+          json['createdAt'] as String? ?? json['created_at'] as String? ?? '',
     );
   }
 }
@@ -67,17 +73,22 @@ class ClaimRepository {
     String? evidenceUrl,
   }) async {
     try {
-      final response = await _client.post('/claims', data: {
-        'entityType': entityType,
-        'entityId': entityId,
-        if (evidenceText != null && evidenceText.isNotEmpty)
-          'evidenceText': evidenceText,
-        if (evidenceUrl != null && evidenceUrl.isNotEmpty)
-          'evidenceUrl': evidenceUrl,
-      },);
-      return Right(VerificationClaim.fromJson(
-        response.data['data'] as Map<String, dynamic>,
-      ));
+      final response = await _client.post(
+        '/claims',
+        data: {
+          'entityType': entityType,
+          'entityId': entityId,
+          if (evidenceText != null && evidenceText.isNotEmpty)
+            'evidenceText': evidenceText,
+          if (evidenceUrl != null && evidenceUrl.isNotEmpty)
+            'evidenceUrl': evidenceUrl,
+        },
+      );
+      return Right(
+        VerificationClaim.fromJson(
+          response.data['data'] as Map<String, dynamic>,
+        ),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -89,9 +100,11 @@ class ClaimRepository {
     try {
       final response = await _client.get('/claims/me');
       final data = response.data['data'] as List;
-      return Right(data
-          .map((e) => VerificationClaim.fromJson(e as Map<String, dynamic>))
-          .toList());
+      return Right(
+        data
+            .map((e) => VerificationClaim.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -110,5 +123,4 @@ class ClaimRepository {
       return Left(_mapErrorToFailure(e));
     }
   }
-
 }

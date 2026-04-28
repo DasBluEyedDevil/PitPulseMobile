@@ -42,7 +42,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ? const Center(child: Text('Not logged in'))
             : RefreshIndicator(
                 color: AppTheme.voltLime,
-                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+                backgroundColor:
+                    Theme.of(context).colorScheme.surfaceContainerHigh,
                 onRefresh: () async {
                   ref.invalidate(concertCredProvider(user.id));
                   ref.invalidate(userRecentCheckinsProvider(user.id));
@@ -66,41 +67,70 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       // Your Wrapped entry point
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           child: InkWell(
-                            onTap: () => context.push('/wrapped/${DateTime.now().year}'),
+                            onTap: () =>
+                                context.push('/wrapped/${DateTime.now().year}'),
                             borderRadius: BorderRadius.circular(12),
                             child: Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHigh,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: AppTheme.voltLime.withValues(alpha: 0.3)),
+                                border: Border.all(
+                                  color:
+                                      AppTheme.voltLime.withValues(alpha: 0.3),
+                                ),
                               ),
                               child: Row(
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.all(10),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.voltLime.withValues(alpha: 0.15),
+                                      color: AppTheme.voltLime
+                                          .withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    child: const Icon(Icons.auto_awesome, color: AppTheme.voltLime, size: 24),
+                                    child: const Icon(
+                                      Icons.auto_awesome,
+                                      color: AppTheme.voltLime,
+                                      size: 24,
+                                    ),
                                   ),
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text('Your ${DateTime.now().year} Wrapped',
-                                          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),),
+                                        Text(
+                                          'Your ${DateTime.now().year} Wrapped',
+                                          style: const TextStyle(
+                                            color: AppTheme.textPrimary,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
                                         const SizedBox(height: 4),
-                                        const Text('See your year in concerts',
-                                          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),),
+                                        const Text(
+                                          'See your year in concerts',
+                                          style: TextStyle(
+                                            color: AppTheme.textSecondary,
+                                            fontSize: 13,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
-                                  const Icon(Icons.chevron_right, color: AppTheme.textTertiary),
+                                  const Icon(
+                                    Icons.chevron_right,
+                                    color: AppTheme.textTertiary,
+                                  ),
                                 ],
                               ),
                             ),
@@ -110,7 +140,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                       // Level Progress
                       SliverToBoxAdapter(
-                        child: _LevelProgress(totalCheckins: user.totalCheckins),
+                        child:
+                            _LevelProgress(totalCheckins: user.totalCheckins),
                       ),
 
                       // Section: Genre Breakdown
@@ -147,9 +178,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     // See More / See Less toggle button
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         child: TextButton(
-                          onPressed: () => setState(() => _showMore = !_showMore),
+                          onPressed: () =>
+                              setState(() => _showMore = !_showMore),
                           style: TextButton.styleFrom(
                             minimumSize: const Size(0, 44),
                           ),
@@ -166,7 +201,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ),
                               const SizedBox(width: 4),
                               Icon(
-                                _showMore ? Icons.expand_less : Icons.expand_more,
+                                _showMore
+                                    ? Icons.expand_less
+                                    : Icons.expand_more,
                                 color: AppTheme.voltLime,
                                 size: 20,
                               ),
@@ -323,7 +360,8 @@ class _ProfileHeader extends ConsumerWidget {
                     ),
                     child: CircleAvatar(
                       radius: 50,
-                      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.surfaceContainerHigh,
                       backgroundImage: user.profileImageUrl != null
                           ? NetworkImage(user.profileImageUrl!)
                           : null,
@@ -711,8 +749,7 @@ class _LevelProgress extends StatelessWidget {
               value: progress,
               minHeight: 6,
               backgroundColor: Theme.of(context).colorScheme.surface,
-              valueColor:
-                  const AlwaysStoppedAnimation<Color>(AppTheme.primary),
+              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
             ),
           ),
           const SizedBox(height: 8),

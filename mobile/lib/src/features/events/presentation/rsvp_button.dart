@@ -64,10 +64,10 @@ class _RsvpButtonState extends ConsumerState<RsvpButton> {
               ),
         label: Text(isGoing ? "I'm Going!" : "I'm Going"),
         style: ElevatedButton.styleFrom(
-          backgroundColor:
-              isGoing ? AppTheme.voltLime : Colors.transparent,
-          foregroundColor:
-              isGoing ? Theme.of(context).scaffoldBackgroundColor : AppTheme.voltLime,
+          backgroundColor: isGoing ? AppTheme.voltLime : Colors.transparent,
+          foregroundColor: isGoing
+              ? Theme.of(context).scaffoldBackgroundColor
+              : AppTheme.voltLime,
           side: const BorderSide(color: AppTheme.voltLime),
           minimumSize: const Size(0, 48),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

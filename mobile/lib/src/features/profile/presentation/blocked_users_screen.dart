@@ -71,19 +71,19 @@ class BlockedUsersScreen extends ConsumerWidget {
               // The blocked user data may be nested under 'blockedUser' or at top level
               final blockedUser =
                   user['blockedUser'] as Map<String, dynamic>? ?? user;
-              final userId =
-                  blockedUser['id'] as String? ?? user['blockedId'] as String? ?? '';
+              final userId = blockedUser['id'] as String? ??
+                  user['blockedId'] as String? ??
+                  '';
               final username =
                   blockedUser['username'] as String? ?? 'Unknown User';
-              final profileImageUrl =
-                  blockedUser['profileImageUrl'] as String?;
-              final initials = username.isNotEmpty
-                  ? username[0].toUpperCase()
-                  : '?';
+              final profileImageUrl = blockedUser['profileImageUrl'] as String?;
+              final initials =
+                  username.isNotEmpty ? username[0].toUpperCase() : '?';
 
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
                   backgroundImage: profileImageUrl != null
                       ? CachedNetworkImageProvider(profileImageUrl)
                       : null,

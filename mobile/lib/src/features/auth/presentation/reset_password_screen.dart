@@ -93,8 +93,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
           backgroundColor: AppTheme.error,
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.all(16),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       );
     }
@@ -295,8 +294,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   )
                 : const Text(
                     'Reset Password',
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
           ),
         ],

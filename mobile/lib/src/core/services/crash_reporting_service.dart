@@ -127,10 +127,12 @@ class CrashReportingService {
     if (!_initialized) return;
 
     Sentry.configureScope((scope) {
-      scope.setUser(SentryUser(
-        id: userId,
-        email: email,
-      ),);
+      scope.setUser(
+        SentryUser(
+          id: userId,
+          email: email,
+        ),
+      );
     });
   }
 
@@ -151,12 +153,14 @@ class CrashReportingService {
   }) {
     if (!_initialized) return;
 
-    Sentry.addBreadcrumb(Breadcrumb(
-      message: message,
-      category: category,
-      data: data,
-      timestamp: DateTime.now(),
-    ),);
+    Sentry.addBreadcrumb(
+      Breadcrumb(
+        message: message,
+        category: category,
+        data: data,
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 
   /// Check if Sentry is initialized

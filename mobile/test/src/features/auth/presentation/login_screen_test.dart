@@ -14,7 +14,8 @@ void main() {
       });
     });
 
-    testWidgets('displays all required UI elements', (WidgetTester tester) async {
+    testWidgets('displays all required UI elements',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(
@@ -25,28 +26,29 @@ void main() {
 
       // Check for logo/icon
       expect(find.byIcon(Icons.music_note), findsOneWidget);
-      
+
       // Check for app name
       expect(find.text('SoundCheck'), findsOneWidget);
-      
+
       // Check for tagline
       expect(find.text('Check In, Share, Connect'), findsOneWidget);
-      
+
       // Check for email field
       expect(find.widgetWithText(TextFormField, 'Email'), findsOneWidget);
-      
+
       // Check for password field
       expect(find.widgetWithText(TextFormField, 'Password'), findsOneWidget);
-      
+
       // Check for login button
       expect(find.widgetWithText(ElevatedButton, 'Login'), findsOneWidget);
-      
+
       // Check for sign up link
       expect(find.text("Don't have an account? "), findsOneWidget);
       expect(find.widgetWithText(TextButton, 'Sign Up'), findsOneWidget);
     });
 
-    testWidgets('email field has correct keyboard type', (WidgetTester tester) async {
+    testWidgets('email field has correct keyboard type',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(
@@ -56,15 +58,18 @@ void main() {
       );
 
       final emailFieldFinder = find.widgetWithText(TextFormField, 'Email');
-      final emailTextField = tester.widget<TextField>(find.descendant(
-        of: emailFieldFinder,
-        matching: find.byType(TextField),
-      ),);
-      
+      final emailTextField = tester.widget<TextField>(
+        find.descendant(
+          of: emailFieldFinder,
+          matching: find.byType(TextField),
+        ),
+      );
+
       expect(emailTextField.keyboardType, TextInputType.emailAddress);
     });
 
-    testWidgets('password field is initially obscured', (WidgetTester tester) async {
+    testWidgets('password field is initially obscured',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(
@@ -73,12 +78,15 @@ void main() {
         ),
       );
 
-      final passwordFieldFinder = find.widgetWithText(TextFormField, 'Password');
-      final passwordTextField = tester.widget<TextField>(find.descendant(
-        of: passwordFieldFinder,
-        matching: find.byType(TextField),
-      ),);
-      
+      final passwordFieldFinder =
+          find.widgetWithText(TextFormField, 'Password');
+      final passwordTextField = tester.widget<TextField>(
+        find.descendant(
+          of: passwordFieldFinder,
+          matching: find.byType(TextField),
+        ),
+      );
+
       expect(passwordTextField.obscureText, true);
     });
 
@@ -92,15 +100,18 @@ void main() {
       );
 
       // Find the password field
-      final passwordFieldFinder = find.widgetWithText(TextFormField, 'Password');
-      
+      final passwordFieldFinder =
+          find.widgetWithText(TextFormField, 'Password');
+
       // Initially obscured
-      TextField passwordTextField = tester.widget<TextField>(find.descendant(
-        of: passwordFieldFinder,
-        matching: find.byType(TextField),
-      ),);
+      TextField passwordTextField = tester.widget<TextField>(
+        find.descendant(
+          of: passwordFieldFinder,
+          matching: find.byType(TextField),
+        ),
+      );
       expect(passwordTextField.obscureText, true);
-      
+
       // Find and tap the visibility toggle button
       final visibilityIcon = find.descendant(
         of: passwordFieldFinder,
@@ -108,12 +119,14 @@ void main() {
       );
       await tester.tap(visibilityIcon);
       await tester.pumpAndSettle();
-      
+
       // Now should be visible
-      passwordTextField = tester.widget<TextField>(find.descendant(
-        of: passwordFieldFinder,
-        matching: find.byType(TextField),
-      ),);
+      passwordTextField = tester.widget<TextField>(
+        find.descendant(
+          of: passwordFieldFinder,
+          matching: find.byType(TextField),
+        ),
+      );
       expect(passwordTextField.obscureText, false);
     });
 
@@ -148,7 +161,7 @@ void main() {
         find.widgetWithText(TextFormField, 'Email'),
         'notanemail',
       );
-      
+
       // Tap login button
       await tester.tap(find.widgetWithText(ElevatedButton, 'Login'));
       await tester.pumpAndSettle();
@@ -171,7 +184,7 @@ void main() {
         find.widgetWithText(TextFormField, 'Email'),
         'test@example.com',
       );
-      
+
       // Tap login button
       await tester.tap(find.widgetWithText(ElevatedButton, 'Login'));
       await tester.pumpAndSettle();
@@ -180,7 +193,8 @@ void main() {
       expect(find.text('Password is required'), findsOneWidget);
     });
 
-    testWidgets('validates password minimum length', (WidgetTester tester) async {
+    testWidgets('validates password minimum length',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(
@@ -204,10 +218,14 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should show password validation error
-      expect(find.text('Password must be at least 8 characters'), findsOneWidget);
+      expect(
+        find.text('Password must be at least 8 characters'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('accepts valid email and password', (WidgetTester tester) async {
+    testWidgets('accepts valid email and password',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(

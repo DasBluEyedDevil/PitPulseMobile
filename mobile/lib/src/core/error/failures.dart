@@ -11,7 +11,9 @@ class ServerFailure extends Failure {
 }
 
 class NetworkFailure extends Failure {
-  const NetworkFailure([super.message = 'Please check your internet connection']);
+  const NetworkFailure([
+    super.message = 'Please check your internet connection',
+  ]);
 }
 
 class AuthFailure extends Failure {

@@ -29,28 +29,36 @@ class ShareRepository {
   }
 
   /// Request server to generate check-in share card images.
-  Future<Either<Failure, ShareCardUrls>> generateCheckinCard(String checkinId) async {
+  Future<Either<Failure, ShareCardUrls>> generateCheckinCard(
+    String checkinId,
+  ) async {
     try {
       final response = await _dioClient.post('/share/checkin/$checkinId');
       final data = response.data['data'] as Map<String, dynamic>;
-      return Right(ShareCardUrls(
-        ogUrl: data['ogUrl'] as String,
-        storiesUrl: data['storiesUrl'] as String,
-      ));
+      return Right(
+        ShareCardUrls(
+          ogUrl: data['ogUrl'] as String,
+          storiesUrl: data['storiesUrl'] as String,
+        ),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
   }
 
   /// Request server to generate badge share card images.
-  Future<Either<Failure, ShareCardUrls>> generateBadgeCard(String badgeAwardId) async {
+  Future<Either<Failure, ShareCardUrls>> generateBadgeCard(
+    String badgeAwardId,
+  ) async {
     try {
       final response = await _dioClient.post('/share/badge/$badgeAwardId');
       final data = response.data['data'] as Map<String, dynamic>;
-      return Right(ShareCardUrls(
-        ogUrl: data['ogUrl'] as String,
-        storiesUrl: data['storiesUrl'] as String,
-      ));
+      return Right(
+        ShareCardUrls(
+          ogUrl: data['ogUrl'] as String,
+          storiesUrl: data['storiesUrl'] as String,
+        ),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }

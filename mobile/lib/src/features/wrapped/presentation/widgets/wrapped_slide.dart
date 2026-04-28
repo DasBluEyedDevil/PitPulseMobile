@@ -19,7 +19,10 @@ class WrappedSlide extends StatelessWidget {
   final bool isLastSlide;
 
   const WrappedSlide({
-    required this.type, required this.headline, required this.value, super.key,
+    required this.type,
+    required this.headline,
+    required this.value,
+    super.key,
     this.subtitle,
     this.isLastSlide = false,
   });

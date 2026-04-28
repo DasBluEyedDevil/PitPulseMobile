@@ -37,8 +37,14 @@ void main() {
       });
 
       test('returns error for password less than 8 characters', () {
-        expect(Validators.password('Pass1!'), 'Password must be at least 8 characters');
-        expect(Validators.password('Aa1!xyz'), 'Password must be at least 8 characters');
+        expect(
+          Validators.password('Pass1!'),
+          'Password must be at least 8 characters',
+        );
+        expect(
+          Validators.password('Aa1!xyz'),
+          'Password must be at least 8 characters',
+        );
       });
 
       test('returns error for password without lowercase', () {
@@ -85,7 +91,10 @@ void main() {
       });
 
       test('returns error for username less than 3 characters', () {
-        expect(Validators.username('ab'), 'Username must be at least 3 characters');
+        expect(
+          Validators.username('ab'),
+          'Username must be at least 3 characters',
+        );
       });
 
       test('returns error for username more than 30 characters', () {

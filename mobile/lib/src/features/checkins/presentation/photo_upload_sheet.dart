@@ -39,7 +39,8 @@ class _PhotoUploadSheetState extends ConsumerState<PhotoUploadSheet> {
 
   static const int _maxPhotos = 4;
 
-  int get _remainingSlots => _maxPhotos - widget.existingPhotoCount - _selectedPhotos.length;
+  int get _remainingSlots =>
+      _maxPhotos - widget.existingPhotoCount - _selectedPhotos.length;
 
   @override
   Widget build(BuildContext context) {
@@ -113,12 +114,19 @@ class _PhotoUploadSheetState extends ConsumerState<PhotoUploadSheet> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, color: AppTheme.error, size: 20),
+                    const Icon(
+                      Icons.error_outline,
+                      color: AppTheme.error,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(color: AppTheme.error, fontSize: 13),
+                        style: const TextStyle(
+                          color: AppTheme.error,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
@@ -159,12 +167,14 @@ class _PhotoUploadSheetState extends ConsumerState<PhotoUploadSheet> {
                 children: [
                   LinearProgressIndicator(
                     color: AppTheme.voltLime,
-                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
                   ),
                   const SizedBox(height: 12),
                   const Text(
                     'Uploading photos...',
-                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                    style:
+                        TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -177,7 +187,8 @@ class _PhotoUploadSheetState extends ConsumerState<PhotoUploadSheet> {
               child: ElevatedButton(
                 onPressed: _isUploading ? null : () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -418,26 +429,26 @@ class _ActionButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 28),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );

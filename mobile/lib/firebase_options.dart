@@ -67,5 +67,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'soundcheck-prod-e973c.firebasestorage.app',
     iosBundleId: 'com.soundcheck.app',
   );
-
 }

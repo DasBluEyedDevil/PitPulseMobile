@@ -10,7 +10,8 @@ import '../../checkins/domain/checkin.dart';
 import '../domain/band.dart';
 import 'providers/band_providers.dart';
 
-final bandDetailProvider = FutureProvider.autoDispose.family<Band, String>((ref, id) async {
+final bandDetailProvider =
+    FutureProvider.autoDispose.family<Band, String>((ref, id) async {
   final repository = ref.watch(bandRepositoryProvider);
   final result = await repository.getBandById(id);
   return result.fold(
@@ -106,7 +107,9 @@ class _BandDetailScreenState extends ConsumerState<BandDetailScreen>
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Theme.of(context).scaffoldBackgroundColor.withValues(alpha:0.9),
+                          Theme.of(context)
+                              .scaffoldBackgroundColor
+                              .withValues(alpha: 0.9),
                         ],
                       ),
                     ),
@@ -260,7 +263,8 @@ class _BandDetailScreenState extends ConsumerState<BandDetailScreen>
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => ref.invalidate(bandDetailProvider(widget.bandId)),
+              onPressed: () =>
+                  ref.invalidate(bandDetailProvider(widget.bandId)),
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
             ),
@@ -387,9 +391,8 @@ class _StatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     // Use aggregate data if available; fall back to legacy averageRating
     final aggregateRating = band.aggregate?.avgPerformanceRating ?? 0;
-    final displayRating = aggregateRating > 0
-        ? aggregateRating
-        : band.averageRating;
+    final displayRating =
+        aggregateRating > 0 ? aggregateRating : band.averageRating;
     final ratingLabel = aggregateRating > 0 ? 'Live Performance' : 'Rating';
     final fans = band.aggregate?.uniqueFans ?? band.uniqueFans;
     final ratings = band.aggregate?.totalRatings ?? 0;
@@ -575,8 +578,20 @@ class _UpcomingShowItem extends StatelessWidget {
     if (eventDate.length >= 10) {
       try {
         final date = DateTime.parse(eventDate);
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',];
+        const months = [
+          'Jan',
+          'Feb',
+          'Mar',
+          'Apr',
+          'May',
+          'Jun',
+          'Jul',
+          'Aug',
+          'Sep',
+          'Oct',
+          'Nov',
+          'Dec',
+        ];
         monthStr = months[date.month - 1];
         dayStr = date.day.toString();
       } catch (_) {
@@ -750,13 +765,11 @@ class _ActionBar extends StatelessWidget {
                 style: TextStyle(fontSize: 12),
               ),
               style: OutlinedButton.styleFrom(
-                foregroundColor: isOnWishlist
-                    ? AppTheme.voltLime
-                    : AppTheme.textSecondary,
+                foregroundColor:
+                    isOnWishlist ? AppTheme.voltLime : AppTheme.textSecondary,
                 side: BorderSide(
-                  color: isOnWishlist
-                      ? AppTheme.voltLime
-                      : AppTheme.textTertiary,
+                  color:
+                      isOnWishlist ? AppTheme.voltLime : AppTheme.textTertiary,
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -961,7 +974,8 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   double get minExtent => 48;
 
   @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) =>
+      false;
 }
 
 class _GlobalActivityTab extends ConsumerWidget {
@@ -1043,7 +1057,8 @@ class _GlobalActivityTab extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
-                onPressed: () => ref.invalidate(bandGlobalCheckinsProvider(bandId)),
+                onPressed: () =>
+                    ref.invalidate(bandGlobalCheckinsProvider(bandId)),
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Retry'),
                 style: ElevatedButton.styleFrom(
@@ -1138,7 +1153,8 @@ class _YourActivityTab extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
-                onPressed: () => ref.invalidate(bandUserCheckinsProvider(bandId)),
+                onPressed: () =>
+                    ref.invalidate(bandUserCheckinsProvider(bandId)),
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Retry'),
                 style: ElevatedButton.styleFrom(
@@ -1161,9 +1177,8 @@ class _CheckInPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userName = checkin.user?.username ??
-        checkin.user?.firstName ??
-        'Unknown User';
+    final userName =
+        checkin.user?.username ?? checkin.user?.firstName ?? 'Unknown User';
     final venueName = checkin.venue?.name ?? 'Unknown Venue';
     final timeAgo = DateFormatter.formatRelativeTime(checkin.createdAt);
     final rating = checkin.rating;

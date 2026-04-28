@@ -9,7 +9,8 @@ import 'providers/checkin_providers.dart';
 /// Supports per-set band ratings and venue rating with half-star increments
 class RatingBottomSheet extends ConsumerStatefulWidget {
   const RatingBottomSheet({
-    required this.checkinId, super.key,
+    required this.checkinId,
+    super.key,
     this.eventId,
     this.lineup,
     this.venueName,
@@ -20,6 +21,7 @@ class RatingBottomSheet extends ConsumerStatefulWidget {
   final String? eventId;
   final List<NearbyEventLineup>? lineup;
   final String? venueName;
+
   /// 0 = bands tab, 1 = venue tab
   final int initialTab;
 
@@ -84,10 +86,12 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
     // Build band ratings list (only include rated bands)
     final bandRatings = _bandRatings.entries
         .where((e) => e.value > 0)
-        .map((e) => {
-              'bandId': e.key,
-              'rating': e.value,
-            },)
+        .map(
+          (e) => {
+            'bandId': e.key,
+            'rating': e.value,
+          },
+        )
         .toList();
 
     final submitNotifier = ref.read(submitRatingsProvider.notifier);
@@ -167,9 +171,9 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
                       if (_bandRatings.values.any((r) => r > 0)) ...[
                         const SizedBox(width: 6),
                         const Icon(
-                            Icons.check_circle,
-                            color: AppTheme.voltLime,
-                            size: 16,
+                          Icons.check_circle,
+                          color: AppTheme.voltLime,
+                          size: 16,
                         ),
                       ],
                     ],
@@ -183,9 +187,9 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
                       if (_venueRating > 0) ...[
                         const SizedBox(width: 6),
                         const Icon(
-                            Icons.check_circle,
-                            color: AppTheme.voltLime,
-                            size: 16,
+                          Icons.check_circle,
+                          color: AppTheme.voltLime,
+                          size: 16,
                         ),
                       ],
                     ],
@@ -254,7 +258,8 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: _hasAnyRatings
-                                      ? Theme.of(context).scaffoldBackgroundColor
+                                      ? Theme.of(context)
+                                          .scaffoldBackgroundColor
                                       : AppTheme.textTertiary,
                                 ),
                               ),
@@ -307,7 +312,8 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
             borderRadius: BorderRadius.circular(16),
             border: currentRating > 0
                 ? Border.all(
-                    color: AppTheme.voltLime.withValues(alpha: 0.5),)
+                    color: AppTheme.voltLime.withValues(alpha: 0.5),
+                  )
                 : null,
           ),
           child: Column(
@@ -323,8 +329,11 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
                       gradient: AppTheme.primaryGradient,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(Icons.music_note,
-                        color: Theme.of(context).scaffoldBackgroundColor, size: 24,),
+                    child: Icon(
+                      Icons.music_note,
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -365,7 +374,8 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
               const SizedBox(height: 12),
               Center(
                 child: Semantics(
-                  label: 'Band rating: ${currentRating > 0 ? '$currentRating out of 5 stars' : 'not yet rated'}',
+                  label:
+                      'Band rating: ${currentRating > 0 ? '$currentRating out of 5 stars' : 'not yet rated'}',
                   liveRegion: true,
                   child: RatingBar.builder(
                     initialRating: currentRating,
@@ -439,7 +449,8 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
 
           // Venue rating
           Semantics(
-            label: 'Venue rating: ${_venueRating > 0 ? '$_venueRating out of 5 stars' : 'not yet rated'}',
+            label:
+                'Venue rating: ${_venueRating > 0 ? '$_venueRating out of 5 stars' : 'not yet rated'}',
             liveRegion: true,
             child: RatingBar.builder(
               initialRating: _venueRating,

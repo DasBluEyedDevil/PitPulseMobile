@@ -27,7 +27,11 @@ Future<List<VerificationClaim>> myClaims(Ref ref) async {
 /// Entity stats for a claimed venue or band.
 /// Keyed by "$entityType:$entityId" (e.g., "venue:abc-123").
 @riverpod
-Future<Map<String, dynamic>> entityStats(Ref ref, String entityType, String entityId) async {
+Future<Map<String, dynamic>> entityStats(
+  Ref ref,
+  String entityType,
+  String entityId,
+) async {
   final repo = ref.watch(claimRepositoryProvider);
   final result = await repo.getEntityStats(entityType, entityId);
   return result.fold(
@@ -35,4 +39,3 @@ Future<Map<String, dynamic>> entityStats(Ref ref, String entityType, String enti
     (stats) => stats,
   );
 }
-

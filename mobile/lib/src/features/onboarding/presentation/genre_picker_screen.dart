@@ -92,10 +92,9 @@ class _GenrePickerScreenState extends ConsumerState<GenrePickerScreen> {
                 children: [
                   Text(
                     'What music do you love?',
-                    style:
-                        Theme.of(context).textTheme.headlineLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                   const SizedBox(height: AppTheme.spacing8),
                   Text(
@@ -121,8 +120,7 @@ class _GenrePickerScreenState extends ConsumerState<GenrePickerScreen> {
                   runSpacing: AppTheme.spacing12,
                   children: Genre.allGenres.map((genre) {
                     final isSelected = selectedGenres.contains(genre.name);
-                    final isAtMax =
-                        selectedCount >= _maxGenres && !isSelected;
+                    final isAtMax = selectedCount >= _maxGenres && !isSelected;
 
                     return ChoiceChip(
                       label: Text('${genre.emoji}  ${genre.name}'),
@@ -134,22 +132,20 @@ class _GenrePickerScreenState extends ConsumerState<GenrePickerScreen> {
                                   .read(selectedGenresProvider.notifier)
                                   .toggle(genre.name);
                             },
-                      selectedColor:
-                          AppTheme.primary.withValues(alpha: 0.2),
-                      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      selectedColor: AppTheme.primary.withValues(alpha: 0.2),
+                      backgroundColor:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
                       labelStyle: TextStyle(
                         color: isSelected
                             ? AppTheme.primary
                             : AppTheme.textPrimary,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w500,
                         fontSize: 14,
                       ),
                       side: BorderSide(
-                        color: isSelected
-                            ? AppTheme.primary
-                            : Colors.transparent,
+                        color:
+                            isSelected ? AppTheme.primary : Colors.transparent,
                         width: 1.5,
                       ),
                       shape: RoundedRectangleBorder(
@@ -194,8 +190,9 @@ class _GenrePickerScreenState extends ConsumerState<GenrePickerScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        disabledBackgroundColor:
-                            Theme.of(context).colorScheme.surfaceContainerHighest,
+                        disabledBackgroundColor: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                         disabledForegroundColor: AppTheme.textTertiary,
                       ),
                       child: const Text(

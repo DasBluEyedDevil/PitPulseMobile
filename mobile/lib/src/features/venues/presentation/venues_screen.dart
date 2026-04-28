@@ -135,28 +135,37 @@ class _VenuesScreenState extends ConsumerState<VenuesScreen> {
                 child: Row(
                   children: [
                     if (filters.venueTypes.isNotEmpty)
-                      ...filters.venueTypes.map((type) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Chip(
-                              label: Text(_venueTypeLabel(type)),
-                              deleteIcon: const Icon(Icons.close, size: 16),
-                              onDeleted: () {
-                                ref.read(venueFiltersProvider.notifier).toggleVenueType(type);
-                              },
-                            ),
-                          ),),
+                      ...filters.venueTypes.map(
+                        (type) => Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Chip(
+                            label: Text(_venueTypeLabel(type)),
+                            deleteIcon: const Icon(Icons.close, size: 16),
+                            onDeleted: () {
+                              ref
+                                  .read(venueFiltersProvider.notifier)
+                                  .toggleVenueType(type);
+                            },
+                          ),
+                        ),
+                      ),
                     if (filters.minRating != null)
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: Chip(
-                          label: Text('${filters.minRating!.toStringAsFixed(1)}+ stars'),
+                          label: Text(
+                            '${filters.minRating!.toStringAsFixed(1)}+ stars',
+                          ),
                           deleteIcon: const Icon(Icons.close, size: 16),
                           onDeleted: () {
-                            ref.read(venueFiltersProvider.notifier).setMinRating(null);
+                            ref
+                                .read(venueFiltersProvider.notifier)
+                                .setMinRating(null);
                           },
                         ),
                       ),
-                    if (filters.minCapacity != null || filters.maxCapacity != null)
+                    if (filters.minCapacity != null ||
+                        filters.maxCapacity != null)
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: Chip(
@@ -165,7 +174,9 @@ class _VenuesScreenState extends ConsumerState<VenuesScreen> {
                           ),
                           deleteIcon: const Icon(Icons.close, size: 16),
                           onDeleted: () {
-                            ref.read(venueFiltersProvider.notifier).setCapacityRange(
+                            ref
+                                .read(venueFiltersProvider.notifier)
+                                .setCapacityRange(
                                   min: null,
                                   max: null,
                                 );
@@ -179,7 +190,10 @@ class _VenuesScreenState extends ConsumerState<VenuesScreen> {
           // Error banner
           if (venuesState.error != null)
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacing16, vertical: AppTheme.spacing8),
+              margin: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacing16,
+                vertical: AppTheme.spacing8,
+              ),
               padding: const EdgeInsets.all(AppTheme.spacing12),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.errorContainer,
@@ -245,13 +259,16 @@ class _VenuesScreenState extends ConsumerState<VenuesScreen> {
           ? EmptyStateWidget(
               type: EmptyStateType.noSearchResults,
               customTitle: 'No Venues Found',
-              customMessage: 'No venues match your current filters. Try adjusting your filter criteria.',
+              customMessage:
+                  'No venues match your current filters. Try adjusting your filter criteria.',
               actionLabel: 'Clear Filters',
-              onAction: () => ref.read(venueFiltersProvider.notifier).clearAll(),
+              onAction: () =>
+                  ref.read(venueFiltersProvider.notifier).clearAll(),
             )
           : EmptyStateWidget(
               type: EmptyStateType.noVenues,
-              onAction: () => ref.read(paginatedVenuesProvider.notifier).refresh(),
+              onAction: () =>
+                  ref.read(paginatedVenuesProvider.notifier).refresh(),
             );
     }
 

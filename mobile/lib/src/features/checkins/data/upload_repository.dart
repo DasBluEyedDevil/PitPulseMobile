@@ -65,7 +65,9 @@ class UploadRepository {
       final List<dynamic> data = response.data['data'] as List<dynamic>;
       return Right(
         data
-            .map((json) => PresignedUpload.fromJson(json as Map<String, dynamic>))
+            .map(
+              (json) => PresignedUpload.fromJson(json as Map<String, dynamic>),
+            )
             .toList(),
       );
     } catch (e) {
@@ -155,12 +157,18 @@ class UploadRepository {
       }).toList();
 
       // 2. Request presigned URLs
-      final presignedUrlsResult = await requestPresignedUrls(checkinId, contentTypes);
-      
+      final presignedUrlsResult =
+          await requestPresignedUrls(checkinId, contentTypes);
+
       // Early return on error
       final List<PresignedUpload> presignedUrls;
       if (presignedUrlsResult.isLeft()) {
-        return Left(presignedUrlsResult.fold((l) => l, (r) => const ServerFailure('Unexpected error')));
+        return Left(
+          presignedUrlsResult.fold(
+            (l) => l,
+            (r) => const ServerFailure('Unexpected error'),
+          ),
+        );
       } else {
         presignedUrls = presignedUrlsResult.getOrElse(() => []);
       }
@@ -186,7 +194,7 @@ class UploadRepository {
         } else {
           bytesToUpload = Uint8List.fromList(compressed);
         }
-        
+
         onProgress?.call(i, 0.3);
 
         // 4. Upload directly to R2
@@ -195,10 +203,15 @@ class UploadRepository {
           bytesToUpload,
           contentTypes[i],
         );
-        
+
         // Early return on error
         if (uploadResult.isLeft()) {
-          return Left(uploadResult.fold((l) => l, (r) => const ServerFailure('Unexpected error')));
+          return Left(
+            uploadResult.fold(
+              (l) => l,
+              (r) => const ServerFailure('Unexpected error'),
+            ),
+          );
         }
 
         onProgress?.call(i, 0.9);

@@ -140,36 +140,40 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                       textField: true,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: TextField(
                           controller: _searchController,
                           style: const TextStyle(color: AppTheme.textPrimary),
                           decoration: InputDecoration(
-                            hintText: 'Search shows, bands, venues, or users...',
-                          hintStyle: const TextStyle(color: AppTheme.textTertiary),
-                          prefixIcon: const Icon(
-                            Icons.search,
-                            color: AppTheme.textTertiary,
+                            hintText:
+                                'Search shows, bands, venues, or users...',
+                            hintStyle:
+                                const TextStyle(color: AppTheme.textTertiary),
+                            prefixIcon: const Icon(
+                              Icons.search,
+                              color: AppTheme.textTertiary,
+                            ),
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(
+                                      Icons.clear,
+                                      color: AppTheme.textTertiary,
+                                    ),
+                                    tooltip: 'Clear Search',
+                                    onPressed: _clearSearch,
+                                  )
+                                : null,
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                           ),
-                          suffixIcon: _searchController.text.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(
-                                    Icons.clear,
-                                    color: AppTheme.textTertiary,
-                                  ),
-                                  tooltip: 'Clear Search',
-                                  onPressed: _clearSearch,
-                                )
-                              : null,
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                        onChanged: _onSearchChanged,
+                          onChanged: _onSearchChanged,
                         ),
                       ),
                     ),
@@ -868,7 +872,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           const SizedBox(height: 24),
 
           // Trending Near You
-          _buildTrendingNearYouSection(trendingEventsAsync, locationStatusAsync),
+          _buildTrendingNearYouSection(
+            trendingEventsAsync,
+            locationStatusAsync,
+          ),
           const SizedBox(height: 24),
 
           // Popular This Week (bands - secondary content)
@@ -925,7 +932,9 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
   /// "For You" section: personalized recommendations based on genre history + friend activity.
   /// Hidden entirely when recommendations are empty (no empty state shown).
-  Widget _buildForYouSection(AsyncValue<List<DiscoverEvent>> recommendedEventsAsync) {
+  Widget _buildForYouSection(
+    AsyncValue<List<DiscoverEvent>> recommendedEventsAsync,
+  ) {
     return recommendedEventsAsync.when(
       data: (events) {
         if (events.isEmpty) return const SizedBox.shrink();
@@ -1125,12 +1134,15 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? AppTheme.voltLime
-                                  : Theme.of(context).colorScheme.surfaceContainerHighest,
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(20),
                               border: isSelected
                                   ? null
                                   : Border.all(
-                                      color: AppTheme.voltLime.withValues(alpha: 0.3),
+                                      color: AppTheme.voltLime
+                                          .withValues(alpha: 0.3),
                                     ),
                             ),
                             child: Text(
@@ -1184,7 +1196,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
             ),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surfaceContainerHigh,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1283,7 +1296,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 return const Center(
                   child: Text(
                     'Enable location to see trending shows nearby',
-                    style: TextStyle(color: AppTheme.textTertiary, fontSize: 13),
+                    style:
+                        TextStyle(color: AppTheme.textTertiary, fontSize: 13),
                   ),
                 );
               }
@@ -1483,7 +1497,7 @@ class _SearchResultItem extends StatelessWidget {
         width: 48,
         height: 48,
         decoration: BoxDecoration(
-          color: _color.withValues(alpha:0.2),
+          color: _color.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(_icon, color: _color),
@@ -1581,7 +1595,9 @@ class _EventCard extends ConsumerWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.85),
+                          color: Theme.of(context)
+                              .scaffoldBackgroundColor
+                              .withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -1629,7 +1645,9 @@ class _EventCard extends ConsumerWidget {
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.85),
+                          color: Theme.of(context)
+                              .scaffoldBackgroundColor
+                              .withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -1787,7 +1805,9 @@ class _TrendingEventCard extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.85),
+                          color: Theme.of(context)
+                              .scaffoldBackgroundColor
+                              .withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -1913,7 +1933,9 @@ class _ForYouCard extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.85),
+                          color: Theme.of(context)
+                              .scaffoldBackgroundColor
+                              .withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(

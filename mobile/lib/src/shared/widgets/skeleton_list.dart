@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
-
 /// A reusable skeleton loader for list items
 class SkeletonListItem extends StatelessWidget {
   final double height;
@@ -22,9 +21,14 @@ class SkeletonListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark ? Theme.of(context).colorScheme.surfaceContainerHighest : Colors.grey[300]!;
-    final highlightColor = isDark ? Theme.of(context).colorScheme.surfaceContainerHigh : Colors.grey[100]!;
-    final shapeColor = isDark ? Theme.of(context).colorScheme.surface : Colors.white;
+    final baseColor = isDark
+        ? Theme.of(context).colorScheme.surfaceContainerHighest
+        : Colors.grey[300]!;
+    final highlightColor = isDark
+        ? Theme.of(context).colorScheme.surfaceContainerHigh
+        : Colors.grey[100]!;
+    final shapeColor =
+        isDark ? Theme.of(context).colorScheme.surface : Colors.white;
 
     return Container(
       margin: margin,
@@ -34,7 +38,7 @@ class SkeletonListItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -79,7 +83,7 @@ class SkeletonListItem extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                   Container(
+                  Container(
                     width: 100,
                     height: 12,
                     decoration: BoxDecoration(
@@ -113,7 +117,8 @@ class SkeletonList extends StatelessWidget {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: itemCount,
-      physics: const NeverScrollableScrollPhysics(), // Disable scrolling for loading state usually
+      physics:
+          const NeverScrollableScrollPhysics(), // Disable scrolling for loading state usually
       shrinkWrap: true,
       itemBuilder: (context, index) {
         return SkeletonListItem(height: itemHeight);

@@ -16,8 +16,7 @@ class WrappedStoryScreen extends ConsumerStatefulWidget {
   const WrappedStoryScreen({required this.year, super.key});
 
   @override
-  ConsumerState<WrappedStoryScreen> createState() =>
-      _WrappedStoryScreenState();
+  ConsumerState<WrappedStoryScreen> createState() => _WrappedStoryScreenState();
 }
 
 class _WrappedStoryScreenState extends ConsumerState<WrappedStoryScreen>
@@ -60,7 +59,9 @@ class _WrappedStoryScreenState extends ConsumerState<WrappedStoryScreen>
   }
 
   void _startTimer() {
-    if (_currentPage >= _slideCount - 1) return; // Don't auto-advance last slide
+    if (_currentPage >= _slideCount - 1) {
+      return; // Don't auto-advance last slide
+    }
     _timerController.forward(from: 0.0);
   }
 
@@ -183,8 +184,11 @@ class _WrappedStoryScreenState extends ConsumerState<WrappedStoryScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline,
-                  color: AppTheme.error, size: 48,),
+              const Icon(
+                Icons.error_outline,
+                color: AppTheme.error,
+                size: 48,
+              ),
               const SizedBox(height: 16),
               const Text(
                 'Failed to load Wrapped',
@@ -213,7 +217,8 @@ class _WrappedStoryScreenState extends ConsumerState<WrappedStoryScreen>
 
           // Start timer on first build
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_timerController.isDismissed && !_isPaused &&
+            if (_timerController.isDismissed &&
+                !_isPaused &&
                 _currentPage < _slideCount - 1) {
               _startTimer();
             }
@@ -251,7 +256,10 @@ class _WrappedStoryScreenState extends ConsumerState<WrappedStoryScreen>
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHigh.withValues(alpha: 0.7),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHigh
+                            .withValues(alpha: 0.7),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -281,12 +289,14 @@ class _WrappedStoryScreenState extends ConsumerState<WrappedStoryScreen>
                                     height: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: Theme.of(context).scaffoldBackgroundColor,
+                                      color: Theme.of(context)
+                                          .scaffoldBackgroundColor,
                                     ),
                                   )
                                 : const Icon(Icons.share),
                             label: Text(
-                                _isSharing ? 'Generating...' : 'Share',),
+                              _isSharing ? 'Generating...' : 'Share',
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -318,8 +328,11 @@ class _WrappedStoryScreenState extends ConsumerState<WrappedStoryScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.music_note,
-                  size: 64, color: AppTheme.voltLime,),
+              const Icon(
+                Icons.music_note,
+                size: 64,
+                color: AppTheme.voltLime,
+              ),
               const SizedBox(height: 24),
               Text(
                 "You've been to ${stats.totalShows} show${stats.totalShows == 1 ? '' : 's'} this year.",

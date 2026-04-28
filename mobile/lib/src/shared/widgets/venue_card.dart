@@ -17,17 +17,17 @@ class VenueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final location = [venue.city, venue.state]
-        .where((e) => e != null)
-        .join(', ');
+    final location =
+        [venue.city, venue.state].where((e) => e != null).join(', ');
 
     return Semantics(
       button: true,
       enabled: onTap != null,
-      label: 'Venue: ${venue.name}${location.isNotEmpty ? ', located in $location' : ''}, ${venue.averageRating.toStringAsFixed(1)} star rating',
+      label:
+          'Venue: ${venue.name}${location.isNotEmpty ? ', located in $location' : ''}, ${venue.averageRating.toStringAsFixed(1)} star rating',
       child: Card(
         elevation: 4,
-        shadowColor: Colors.black.withValues(alpha:0.2),
+        shadowColor: Colors.black.withValues(alpha: 0.2),
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: InkWell(
@@ -55,7 +55,8 @@ class VenueCard extends StatelessWidget {
                               child: CircularProgressIndicator(),
                             ),
                           ),
-                          errorWidget: (context, url, error) => _buildPlaceholder(context),
+                          errorWidget: (context, url, error) =>
+                              _buildPlaceholder(context),
                         )
                       : _buildPlaceholder(context),
                 ),
@@ -70,8 +71,8 @@ class VenueCard extends StatelessWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Colors.black.withValues(alpha:0.2),
-                        Colors.black.withValues(alpha:0.8),
+                        Colors.black.withValues(alpha: 0.2),
+                        Colors.black.withValues(alpha: 0.8),
                       ],
                       stops: const [0.4, 0.6, 1.0],
                     ),

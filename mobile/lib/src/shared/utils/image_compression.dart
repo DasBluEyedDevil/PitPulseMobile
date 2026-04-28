@@ -92,7 +92,10 @@ class ImageCompression {
   }
 
   /// Get compression ratio as percentage
-  static Future<double> getCompressionRatio(File original, File compressed) async {
+  static Future<double> getCompressionRatio(
+    File original,
+    File compressed,
+  ) async {
     final originalSize = await original.length();
     final compressedSize = await compressed.length();
     return ((originalSize - compressedSize) / originalSize) * 100;

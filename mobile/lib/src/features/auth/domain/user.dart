@@ -38,6 +38,7 @@ sealed class AuthResponse with _$AuthResponse {
   const factory AuthResponse({
     required User user,
     required String token,
+
     /// Present for password and social login — persisted for silent refresh.
     String? refreshToken,
   }) = _AuthResponse;
@@ -91,7 +92,8 @@ sealed class UserBadgeInfo with _$UserBadgeInfo {
   const factory UserBadgeInfo({
     required String id,
     required String name,
-    required String earnedAt, String? description,
+    required String earnedAt,
+    String? description,
     String? iconUrl,
     String? color,
   }) = _UserBadgeInfo;

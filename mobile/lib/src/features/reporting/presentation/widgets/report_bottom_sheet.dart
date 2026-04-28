@@ -8,9 +8,21 @@ import '../providers/report_providers.dart';
 /// Report reasons matching the backend enum exactly.
 enum ReportReason {
   spam('spam', 'Spam', 'Unsolicited or repetitive content'),
-  harassment('harassment', 'Harassment', 'Bullying, threats, or targeted abuse'),
-  inappropriate('inappropriate', 'Inappropriate', 'Offensive or unsuitable content'),
-  copyright('copyright', 'Copyright', 'Unauthorized use of copyrighted material'),
+  harassment(
+    'harassment',
+    'Harassment',
+    'Bullying, threats, or targeted abuse',
+  ),
+  inappropriate(
+    'inappropriate',
+    'Inappropriate',
+    'Offensive or unsuitable content',
+  ),
+  copyright(
+    'copyright',
+    'Copyright',
+    'Unauthorized use of copyrighted material',
+  ),
   other('other', 'Other', 'Another reason not listed above');
 
   const ReportReason(this.value, this.label, this.description);
@@ -120,9 +132,7 @@ class _ReportBottomSheetState extends ConsumerState<ReportBottomSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isDuplicate
-                ? "You've already reported this content"
-                : e.message,
+            isDuplicate ? "You've already reported this content" : e.message,
           ),
           backgroundColor: AppTheme.error,
         ),
@@ -238,10 +248,9 @@ class _ReportBottomSheetState extends ConsumerState<ReportBottomSheet> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed:
-                      _selectedReason != null && !_isSubmitting
-                          ? _submitReport
-                          : null,
+                  onPressed: _selectedReason != null && !_isSubmitting
+                      ? _submitReport
+                      : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.error,
                     disabledBackgroundColor:

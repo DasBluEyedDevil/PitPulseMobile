@@ -58,8 +58,7 @@ class DioClient {
               try {
                 final token =
                     await _secureStorage.read(key: ApiConfig.tokenKey);
-                error.requestOptions.headers['Authorization'] =
-                    'Bearer $token';
+                error.requestOptions.headers['Authorization'] = 'Bearer $token';
                 final retryResponse = await _dio.fetch(error.requestOptions);
                 return handler.resolve(retryResponse);
               } catch (_) {
@@ -86,10 +85,10 @@ class DioClient {
         onError: (error, handler) async {
           final isRetryable = error.requestOptions.method == 'GET' &&
               (error.type == DioExceptionType.connectionTimeout ||
-               error.type == DioExceptionType.receiveTimeout ||
-               error.type == DioExceptionType.connectionError ||
-               (error.type == DioExceptionType.unknown &&
-                (error.message?.contains('SocketException') ?? false)));
+                  error.type == DioExceptionType.receiveTimeout ||
+                  error.type == DioExceptionType.connectionError ||
+                  (error.type == DioExceptionType.unknown &&
+                      (error.message?.contains('SocketException') ?? false)));
 
           final retryCount =
               error.requestOptions.extra['_retryCount'] as int? ?? 0;
@@ -268,7 +267,9 @@ class DioClient {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        return const NetworkFailure('Connection timeout. Please check your internet connection.');
+        return const NetworkFailure(
+          'Connection timeout. Please check your internet connection.',
+        );
 
       case DioExceptionType.badResponse:
         final statusCode = error.response?.statusCode;
@@ -285,7 +286,8 @@ class DioClient {
             // Zod validation errors format: [{message: "...", path: [...]}]
             final errors = data['errors'] as List;
             if (errors.isNotEmpty) {
-              message = errors.map((e) => e['message'] ?? e.toString()).join(', ');
+              message =
+                  errors.map((e) => e['message'] ?? e.toString()).join(', ');
             }
           }
         }
@@ -296,7 +298,9 @@ class DioClient {
         if (statusCode == 400) {
           return ValidationFailure(message);
         } else if (statusCode == 401) {
-          return const AuthFailure('Authentication required. Please log in again.');
+          return const AuthFailure(
+            'Authentication required. Please log in again.',
+          );
         } else if (statusCode == 403) {
           return ForbiddenFailure('Access denied: $message');
         } else if (statusCode == 404) {
@@ -314,7 +318,9 @@ class DioClient {
         return const UnknownFailure('Request was cancelled');
 
       case DioExceptionType.connectionError:
-        return const NetworkFailure('No internet connection. Please check your network settings.');
+        return const NetworkFailure(
+          'No internet connection. Please check your network settings.',
+        );
 
       case DioExceptionType.badCertificate:
         return const NetworkFailure('Security certificate error.');

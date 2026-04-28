@@ -31,7 +31,9 @@
   3. Audit references real code (not speculation) — every claim backed by file path + line or API endpoint
   4. Gap inventory grouped into candidate phases (proposed Phase 29+ breakdown)
 Plans:
-- [ ] 28-01-PLAN.md — Audit scope TBD (planned via `/legion:plan 28`)
+- [ ] 28-01-PLAN.md — Core Check-in E2E Audit (B1-B5) [Wave 1] — `QA Verification Specialist` + `Mobile App Builder`
+- [ ] 28-02-PLAN.md — Social/Sharing E2E Audit (D1-D5) [Wave 1] — `QA Verification Specialist` + `Senior Developer`
+- [ ] 28-03-PLAN.md — AUDIT Consolidation + Phase 29+ Breakdown [Wave 2, depends on 28-01 + 28-02] — `Senior Project Manager` + `Reality Checker`
 
 ## Progress
 
@@ -40,7 +42,7 @@ Phases execute in numeric order: 28 -> 29 -> ... (to be defined post-audit)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 28. v5.0 AUDIT | v5.0 | 0/? | Pending | — |
+| 28. v5.0 AUDIT | v5.0 | 0/3 | Planned | — |
 
 <details>
 <summary>✅ v4.0 Technical Consolidation & Launch Hardening (Phases 22-27) — SHIPPED 2026-03-13</summary>
@@ -275,4 +277,4 @@ Phases execute in numeric order: 9 -> 9.1 -> 10 -> 10.1 -> 10.2 -> 11 -> 11.1 ->
 
 ---
 *Roadmap created: 2026-02-02*
-*Last updated: 2026-04-19 — v5.0 milestone opened: Phase 28 AUDIT scaffolded, Phases 29+ seeded from audit*
+*Last updated: 2026-04-19 — Phase 28 planned (3 plans / 2 waves) via /legion:plan 28 --auto-refine. Auto-refine cycle 2 PASS. GH issue #23 + GH milestone v5.0 (#2) created.*

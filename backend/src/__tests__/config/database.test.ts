@@ -1,3 +1,5 @@
+export {};
+
 const mockLoggerWarn = jest.fn();
 const mockLoggerError = jest.fn();
 

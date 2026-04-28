@@ -204,14 +204,16 @@ class _SuggestionCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 28,
-                backgroundColor:
-                    AppTheme.voltLime.withValues(alpha: 0.2),
+                backgroundColor: AppTheme.voltLime.withValues(alpha: 0.2),
                 backgroundImage: user.profileImageUrl != null
                     ? CachedNetworkImageProvider(user.profileImageUrl!)
                     : null,
                 child: user.profileImageUrl == null
-                    ? const Icon(Icons.person,
-                        color: AppTheme.voltLime, size: 28,)
+                    ? const Icon(
+                        Icons.person,
+                        color: AppTheme.voltLime,
+                        size: 28,
+                      )
                     : null,
               ),
               const SizedBox(width: 16),
@@ -235,8 +237,11 @@ class _SuggestionCard extends StatelessWidget {
                         ),
                         if (user.isVerified) ...[
                           const SizedBox(width: 4),
-                          const Icon(Icons.verified,
-                              color: AppTheme.electricBlue, size: 16,),
+                          const Icon(
+                            Icons.verified,
+                            color: AppTheme.electricBlue,
+                            size: 16,
+                          ),
                         ],
                       ],
                     ),
@@ -297,7 +302,8 @@ class _SuggestionCard extends StatelessWidget {
                             onPressed: onFollow,
                             style: OutlinedButton.styleFrom(
                               side: const BorderSide(
-                                  color: AppTheme.voltLime,),
+                                color: AppTheme.voltLime,
+                              ),
                               padding: EdgeInsets.zero,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),

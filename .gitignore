@@ -44,7 +44,5 @@ errors.txt
 *.backup
 *.orig
 *.old
-/.planning/
 /.claude_commits/
-/docs/
 .claude/worktrees/

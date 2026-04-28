@@ -30,7 +30,9 @@ class AnalyticsService {
     if (_initialized) return;
 
     try {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
       _analytics = FirebaseAnalytics.instance;
       _observer = FirebaseAnalyticsObserver(analytics: _analytics!);
       _initialized = true;
@@ -113,11 +115,14 @@ class AnalyticsService {
     String? bandId,
     int? rating,
   }) async {
-    await logEvent(name: 'checkin', parameters: {
-      'venue_id': venueId,
-      if (bandId != null) 'band_id': bandId,
-      if (rating != null) 'rating': rating,
-    },);
+    await logEvent(
+      name: 'checkin',
+      parameters: {
+        'venue_id': venueId,
+        if (bandId != null) 'band_id': bandId,
+        if (rating != null) 'rating': rating,
+      },
+    );
   }
 
   /// Log a search event
@@ -127,18 +132,24 @@ class AnalyticsService {
 
   /// Log venue view
   static Future<void> logVenueView(String venueId, {String? venueName}) async {
-    await logEvent(name: 'venue_viewed', parameters: {
-      'venue_id': venueId,
-      if (venueName != null) 'venue_name': venueName,
-    },);
+    await logEvent(
+      name: 'venue_viewed',
+      parameters: {
+        'venue_id': venueId,
+        if (venueName != null) 'venue_name': venueName,
+      },
+    );
   }
 
   /// Log band view
   static Future<void> logBandView(String bandId, {String? bandName}) async {
-    await logEvent(name: 'band_viewed', parameters: {
-      'band_id': bandId,
-      if (bandName != null) 'band_name': bandName,
-    },);
+    await logEvent(
+      name: 'band_viewed',
+      parameters: {
+        'band_id': bandId,
+        if (bandName != null) 'band_name': bandName,
+      },
+    );
   }
 
   /// Log follow action
@@ -146,10 +157,13 @@ class AnalyticsService {
     required String targetType,
     required String targetId,
   }) async {
-    await logEvent(name: 'follow', parameters: {
-      'target_type': targetType,
-      'target_id': targetId,
-    },);
+    await logEvent(
+      name: 'follow',
+      parameters: {
+        'target_type': targetType,
+        'target_id': targetId,
+      },
+    );
   }
 
   /// Log unfollow action
@@ -157,10 +171,13 @@ class AnalyticsService {
     required String targetType,
     required String targetId,
   }) async {
-    await logEvent(name: 'unfollow', parameters: {
-      'target_type': targetType,
-      'target_id': targetId,
-    },);
+    await logEvent(
+      name: 'unfollow',
+      parameters: {
+        'target_type': targetType,
+        'target_id': targetId,
+      },
+    );
   }
 
   /// Log content share
@@ -168,10 +185,13 @@ class AnalyticsService {
     required String contentType,
     required String itemId,
   }) async {
-    await logEvent(name: 'share', parameters: {
-      'content_type': contentType,
-      'item_id': itemId,
-    },);
+    await logEvent(
+      name: 'share',
+      parameters: {
+        'content_type': contentType,
+        'item_id': itemId,
+      },
+    );
   }
 
   /// Log error occurrence
@@ -180,11 +200,14 @@ class AnalyticsService {
     String? errorMessage,
     String? errorCode,
   }) async {
-    await logEvent(name: 'app_error', parameters: {
-      'error_type': errorType,
-      if (errorMessage != null) 'error_message': errorMessage,
-      if (errorCode != null) 'error_code': errorCode,
-    },);
+    await logEvent(
+      name: 'app_error',
+      parameters: {
+        'error_type': errorType,
+        if (errorMessage != null) 'error_message': errorMessage,
+        if (errorCode != null) 'error_code': errorCode,
+      },
+    );
   }
 }
 

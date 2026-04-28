@@ -244,7 +244,8 @@ Future<Map<String, dynamic>> userCheckInStats(Ref ref, String userId) async {
 @riverpod
 Future<List<CheckInBand>> venueRecentBands(Ref ref, String venueId) async {
   final checkInRepository = ref.watch(checkInRepositoryProvider);
-  final result = await checkInRepository.getCheckIns(venueId: venueId, limit: 20);
+  final result =
+      await checkInRepository.getCheckIns(venueId: venueId, limit: 20);
   final checkIns = result.fold(
     (failure) => throw Exception(failure.message),
     (checkIns) => checkIns,
@@ -276,7 +277,8 @@ Future<List<NearbyEvent>> nearbyEvents(Ref ref) async {
   if (position == null) return [];
 
   final repository = ref.watch(checkInRepositoryProvider);
-  final result = await repository.getNearbyEvents(position.latitude, position.longitude);
+  final result =
+      await repository.getNearbyEvents(position.latitude, position.longitude);
   return result.fold(
     (failure) => throw Exception(failure.message),
     (events) => events,

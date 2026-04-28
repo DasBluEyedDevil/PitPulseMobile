@@ -121,7 +121,10 @@ class BandRepository {
   }
 
   /// Update band (admin only)
-  Future<Either<Failure, Band>> updateBand(String id, Map<String, dynamic> updates) async {
+  Future<Either<Failure, Band>> updateBand(
+    String id,
+    Map<String, dynamic> updates,
+  ) async {
     try {
       final response = await _dioClient.put(
         '${ApiConfig.bands}/$id',

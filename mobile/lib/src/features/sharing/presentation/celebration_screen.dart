@@ -35,7 +35,8 @@ class CelebrationParams {
 /// 5. Done button to dismiss
 class CelebrationScreen extends ConsumerStatefulWidget {
   const CelebrationScreen({
-    required this.params, super.key,
+    required this.params,
+    super.key,
   });
 
   final CelebrationParams params;
@@ -406,7 +407,8 @@ class _BadgeProgressTile extends StatelessWidget {
                   lineHeight: 6,
                   percent: pct,
                   progressColor: AppTheme.voltLime,
-                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.surfaceContainerHighest,
                   barRadius: const Radius.circular(3),
                   animation: true,
                   animationDuration: 600,

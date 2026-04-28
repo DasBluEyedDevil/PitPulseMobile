@@ -158,7 +158,9 @@ class AuthState extends _$AuthState {
           _syncSubscriptionState(authResponse.user.id);
 
           // Sync onboarding genre preferences to backend if saved locally
-          ref.read(genrePersistenceProvider.notifier).syncGenresToBackendIfNeeded();
+          ref
+              .read(genrePersistenceProvider.notifier)
+              .syncGenresToBackendIfNeeded();
 
           return authResponse.user;
         },
@@ -196,7 +198,9 @@ class AuthState extends _$AuthState {
           _syncSubscriptionState(authResponse.user.id);
 
           // Sync onboarding genre preferences to backend if saved locally
-          ref.read(genrePersistenceProvider.notifier).syncGenresToBackendIfNeeded();
+          ref
+              .read(genrePersistenceProvider.notifier)
+              .syncGenresToBackendIfNeeded();
 
           return authResponse.user;
         },
@@ -225,7 +229,12 @@ class AuthState extends _$AuthState {
     try {
       final prefs = await SharedPreferences.getInstance();
       final keys = prefs.getKeys();
-      final userScopedPrefixes = ['user_', 'feed_', 'onboarding_', 'notification_'];
+      final userScopedPrefixes = [
+        'user_',
+        'feed_',
+        'onboarding_',
+        'notification_',
+      ];
       for (final key in keys) {
         if (userScopedPrefixes.any(key.startsWith)) {
           await prefs.remove(key);

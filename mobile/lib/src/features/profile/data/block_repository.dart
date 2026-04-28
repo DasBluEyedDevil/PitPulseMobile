@@ -56,7 +56,9 @@ class BlockRepository {
   Future<Either<Failure, List<Map<String, dynamic>>>> getBlockedUsers() async {
     try {
       final response = await _dioClient.get('/blocks');
-      return Right(List<Map<String, dynamic>>.from(response.data['data'] as List));
+      return Right(
+        List<Map<String, dynamic>>.from(response.data['data'] as List),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }

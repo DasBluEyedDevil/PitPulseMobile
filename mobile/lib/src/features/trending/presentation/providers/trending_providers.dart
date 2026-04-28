@@ -19,12 +19,12 @@ Future<List<TrendingEvent>> trendingFeed(Ref ref) async {
   final repo = ref.watch(trendingRepositoryProvider);
   final position = await ref.watch(currentLocationProvider.future);
   if (position == null) return [];
-  
+
   final result = await repo.getTrendingNearby(
     lat: position.latitude,
     lon: position.longitude,
   );
-  
+
   return result.fold(
     (failure) => throw Exception(failure.message),
     (events) => events,

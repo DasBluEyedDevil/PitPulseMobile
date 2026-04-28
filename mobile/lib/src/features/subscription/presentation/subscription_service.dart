@@ -21,7 +21,9 @@ class SubscriptionService {
           'RevenueCat API key missing for ${Platform.operatingSystem}',
         );
       }
-      LogService.w('SubscriptionService: No RevenueCat API key -- subscriptions disabled');
+      LogService.w(
+        'SubscriptionService: No RevenueCat API key -- subscriptions disabled',
+      );
       return;
     }
 

@@ -50,22 +50,26 @@ class RsvpRepository {
 
   /// Get friends who RSVP'd to an event.
   /// GET /api/rsvp/:eventId/friends -> { success: true, data: { count, friends: [...] } }
-  Future<Either<Failure, FriendsGoingData>> getFriendsGoing(String eventId) async {
+  Future<Either<Failure, FriendsGoingData>> getFriendsGoing(
+    String eventId,
+  ) async {
     try {
       final response = await _dioClient.get('/rsvp/$eventId/friends');
       final data = response.data['data'] as Map<String, dynamic>;
-      return Right(FriendsGoingData(
-        count: data['count'] as int,
-        friends: (data['friends'] as List)
-            .map(
-              (f) => FriendAvatar(
-                id: f['id'] as String,
-                username: f['username'] as String,
-                profileImageUrl: f['profileImageUrl'] as String?,
-              ),
-            )
-            .toList(),
-      ));
+      return Right(
+        FriendsGoingData(
+          count: data['count'] as int,
+          friends: (data['friends'] as List)
+              .map(
+                (f) => FriendAvatar(
+                  id: f['id'] as String,
+                  username: f['username'] as String,
+                  profileImageUrl: f['profileImageUrl'] as String?,
+                ),
+              )
+              .toList(),
+        ),
+      );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }

@@ -58,7 +58,8 @@ sealed class FriendOverlap with _$FriendOverlap {
   const factory FriendOverlap({
     required String friendId,
     required String friendUsername,
-    required int sharedShows, String? friendProfileImageUrl,
+    required int sharedShows,
+    String? friendProfileImageUrl,
   }) = _FriendOverlap;
 
   factory FriendOverlap.fromJson(Map<String, dynamic> json) =>

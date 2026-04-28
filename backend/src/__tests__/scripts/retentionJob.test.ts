@@ -1,3 +1,5 @@
+export {};
+
 // Mock dependencies before imports
 const mockProcessPendingDeletions = jest.fn();
 const mockDbQuery = jest.fn();

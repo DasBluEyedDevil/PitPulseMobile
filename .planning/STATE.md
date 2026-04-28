@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: "Feature Completion & E2E Polish"
 status: in_progress
-last_updated: "2026-04-19T18:00:00Z"
+last_updated: "2026-04-19T19:30:00Z"
 progress:
   total_phases: 1
   completed_phases: 0
-  total_plans: 0
+  total_plans: 3
   completed_plans: 0
 ---
 
@@ -24,9 +24,9 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 Phase: 28 of ? (expanded post-audit)
 Phase Name: v5.0 AUDIT
-Status: Pending — ready for planning
-Last Activity: v5.0 milestone opened 2026-04-19 — ROADMAP + REQUIREMENTS scaffolded
-Next Action: Run `/legion:plan 28 --auto-refine` to scope Phase 28 AUDIT
+Status: Planned — 3 plans across 2 waves, ready for execution
+Last Activity: Phase 28 planned 2026-04-19 via `/legion:plan 28 --auto-refine`. Auto-refine cycle 1 CAUTION → 14 mitigations applied. Cycle 2 PASS. GitHub issue #23 + GH milestone v5.0 created.
+Next Action: Run `/legion:build` to execute Phase 28 (Wave 1 parallel: 28-01 + 28-02; Wave 2: 28-03)
 
 ## Milestone: v5.0 — Feature Completion & E2E Polish
 
@@ -43,6 +43,7 @@ Archive: `.planning/milestones/v4.0-SUMMARY.md`, `.planning/milestones/v4.0-REQU
 
 ## Recent Decisions
 
+- Phase 28 planned (2026-04-19): 3 plans / 2 waves. Wave 1 = 28-01 Core Check-in audit + 28-02 Social/Sharing audit (parallel, read-only). Wave 2 = 28-03 consolidation + REQUIREMENTS/ROADMAP/STATE updates. Auto-refine: cycle 1 CAUTION → 14 mitigations (auth Standing Assumption, Pro entitlement enumeration, BullMQ lifecycle checklist, severity rubric, header schema enforcement, BROKEN reproduction evidence, ROADMAP/STATE write deferral to 28-03, OPS-02 BLOCKED tagging, gap-density phase count, cross-flow detection algorithm, STATIC vs RUNTIME-VERIFIED, design-resolution task, Reality Checker N=10 sampling, scope clarification). Cycle 2 PASS (13/14 closed, 1 partial acceptable). GH milestone v5.0 (#2) + issue #23 created.
 - v5.0 milestone opened (2026-04-19): Phases 28+ for Feature Completion & E2E Polish. Phase 28 = AUDIT (produce v5.0-AUDIT.md gap inventory for 10 E2E flows: B1-B5 Core Check-in, D1-D5 Social/Sharing). Phases 29+ seeded from audit. v4.0 REQUIREMENTS archived to milestones/.
 - v5.0 crystallized (2026-04-19): `/legion:explore` → 4 exchanges → Proceed to planning. Scope locked at all 10 E2E flows per user direction. Exploration doc: `.planning/exploration-v5.0-feature-completion.md`.
 - OPS-02 provider config (2026-04-19): Sentry DSN, Firebase adminsdk JSON, RevenueCat webhook auth, Cloudflare R2 (5 vars), Redis wired, Ticketmaster Discovery API key. Prod `/health` green with `firebaseConfigured: true`. 3 providers still open (Resend deferred on DNS, Google OAuth, Apple Developer).
@@ -63,14 +64,14 @@ Archive: `.planning/milestones/v4.0-SUMMARY.md`, `.planning/milestones/v4.0-REQU
 | Phase 25: CheckinCreator Legacy Removal | #17 | Complete |
 | Phase 26: Reviews System Consolidation | #18 | Complete |
 | Phase 27: Validation Sweep | #19 | Complete |
-| Phase 28: v5.0 AUDIT | — | Not created |
+| Phase 28: v5.0 AUDIT | #23 | Planned |
 
 ### Milestone Mapping
 
 | Milestone | GitHub Milestone | Status |
 |-----------|------------------|--------|
 | v4.0 — Technical Consolidation & Launch Hardening | v4.0 Technical Consolidation & Launch Hardening | Open |
-| v5.0 — Feature Completion & E2E Polish | — | Not created |
+| v5.0 — Feature Completion & E2E Polish | v5.0 Feature Completion & E2E Polish (#2) | Open |
 
 ## Performance Metrics
 
@@ -85,7 +86,8 @@ Archive: `.planning/milestones/v4.0-SUMMARY.md`, `.planning/milestones/v4.0-REQU
 ## Session Continuity
 
 Last session: 2026-04-19
-Stopped at: v5.0 milestone opened. ROADMAP.md + REQUIREMENTS.md + STATE.md scaffolded. Phase 28 AUDIT entry ready for planning.
-Resume command: `/legion:plan 28 --auto-refine`
+Stopped at: Phase 28 planned (3 plans / 2 waves). Auto-refine cycle 2 PASS. GH issue #23 + GH milestone v5.0 (#2) created. Plans ready for execution.
+Resume command: `/legion:build`
+Plans: `.planning/phases/28-v5.0-audit/{28-CONTEXT.md, 28-01-PLAN.md, 28-02-PLAN.md, 28-03-PLAN.md}`
 Exploration: `.planning/exploration-v5.0-feature-completion.md`
 Runbook (OPS-02): `.planning/runbooks/OPS-02-PROVIDER-SETUP.md`

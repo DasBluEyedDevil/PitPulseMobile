@@ -44,7 +44,8 @@ class PushNotificationService {
     try {
       // Set background message handler
       FirebaseMessaging.onBackgroundMessage(
-          firebaseMessagingBackgroundHandler,);
+        firebaseMessagingBackgroundHandler,
+      );
 
       // Request notification permission
       final settings = await FirebaseMessaging.instance.requestPermission(
@@ -60,7 +61,8 @@ class PushNotificationService {
       }
 
       LogService.i(
-          'Push notification permission: ${settings.authorizationStatus}',);
+        'Push notification permission: ${settings.authorizationStatus}',
+      );
 
       // Initialize local notifications for foreground display
       await _initializeLocalNotifications();
@@ -171,7 +173,7 @@ class PushNotificationService {
   /// Handle notification tap to navigate to relevant screen
   void _handleNotificationTap(RemoteMessage message) {
     LogService.d('Notification tapped: ${message.data}');
-    
+
     // Parse deep link from notification data
     final deepLink = _parseDeepLink(message.data);
     if (deepLink != null) {
@@ -185,37 +187,37 @@ class PushNotificationService {
     if (data['deepLink'] != null) {
       return data['deepLink'] as String;
     }
-    
+
     // Check for notification ID (to show notification detail)
     if (data['notificationId'] != null) {
       return '/notifications/${data['notificationId']}';
     }
-    
+
     // Check for check-in ID
     if (data['checkinId'] != null) {
       return '/checkins/${data['checkinId']}';
     }
-    
+
     // Check for band ID
     if (data['bandId'] != null) {
       return '/bands/${data['bandId']}';
     }
-    
+
     // Check for venue ID
     if (data['venueId'] != null) {
       return '/venues/${data['venueId']}';
     }
-    
+
     // Check for user ID (profile)
     if (data['userId'] != null) {
       return '/users/${data['userId']}';
     }
-    
+
     // Check for show ID
     if (data['showId'] != null) {
       return '/events/${data['showId']}';
     }
-    
+
     return null;
   }
 

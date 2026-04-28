@@ -18,7 +18,8 @@ void main() {
       expect(starIcons, findsNWidgets(5));
     });
 
-    testWidgets('displays full stars for integer rating', (WidgetTester tester) async {
+    testWidgets('displays full stars for integer rating',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -29,12 +30,13 @@ void main() {
 
       final fullStars = find.byIcon(Icons.star);
       final emptyStars = find.byIcon(Icons.star_border);
-      
+
       expect(fullStars, findsNWidgets(3));
       expect(emptyStars, findsNWidgets(2));
     });
 
-    testWidgets('displays half star for decimal rating', (WidgetTester tester) async {
+    testWidgets('displays half star for decimal rating',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -46,13 +48,14 @@ void main() {
       final fullStars = find.byIcon(Icons.star);
       final halfStars = find.byIcon(Icons.star_half);
       final emptyStars = find.byIcon(Icons.star_border);
-      
+
       expect(fullStars, findsNWidgets(3));
       expect(halfStars, findsOneWidget);
       expect(emptyStars, findsOneWidget);
     });
 
-    testWidgets('displays all full stars for rating 5.0', (WidgetTester tester) async {
+    testWidgets('displays all full stars for rating 5.0',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -65,7 +68,8 @@ void main() {
       expect(fullStars, findsNWidgets(5));
     });
 
-    testWidgets('displays all empty stars for rating 0.0', (WidgetTester tester) async {
+    testWidgets('displays all empty stars for rating 0.0',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -80,7 +84,7 @@ void main() {
 
     testWidgets('uses custom size when provided', (WidgetTester tester) async {
       const customSize = 32.0;
-      
+
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -111,7 +115,7 @@ void main() {
 
     testWidgets('uses custom color when provided', (WidgetTester tester) async {
       const customColor = Colors.blue;
-      
+
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(

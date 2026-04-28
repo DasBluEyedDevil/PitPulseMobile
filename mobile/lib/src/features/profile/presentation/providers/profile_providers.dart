@@ -28,7 +28,10 @@ Future<List<CheckIn>> userRecentCheckins(Ref ref, String userId) async {
 /// Provider for user's genre stats (computed from check-ins)
 /// @deprecated Use concertCredProvider instead for server-side genre stats.
 @riverpod
-Future<List<Map<String, dynamic>>> userGenreStats(Ref ref, String userId) async {
+Future<List<Map<String, dynamic>>> userGenreStats(
+  Ref ref,
+  String userId,
+) async {
   final repository = ref.watch(checkInRepositoryProvider);
   final result = await repository.getCheckIns(userId: userId, limit: 100);
 
@@ -49,11 +52,16 @@ Future<List<Map<String, dynamic>>> userGenreStats(Ref ref, String userId) async 
   final sortedGenres = genreCounts.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
 
-  return sortedGenres.take(5).map((e) => {
-    'name': e.key,
-    'count': e.value,
-    'percent': total > 0 ? e.value / total : 0.0,
-  },).toList();
+  return sortedGenres
+      .take(5)
+      .map(
+        (e) => {
+          'name': e.key,
+          'count': e.value,
+          'percent': total > 0 ? e.value / total : 0.0,
+        },
+      )
+      .toList();
 }
 
 /// Provider for user's earned badges

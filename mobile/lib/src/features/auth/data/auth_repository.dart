@@ -25,7 +25,9 @@ class AuthRepository {
   }
 
   /// Register a new user
-  Future<Either<Failure, AuthResponse>> register(RegisterRequest request) async {
+  Future<Either<Failure, AuthResponse>> register(
+    RegisterRequest request,
+  ) async {
     try {
       final response = await _dioClient.post(
         '${ApiConfig.auth}/register',
@@ -41,7 +43,8 @@ class AuthRepository {
         key: ApiConfig.tokenKey,
         value: authResponse.token,
       );
-      if (authResponse.refreshToken != null && authResponse.refreshToken!.isNotEmpty) {
+      if (authResponse.refreshToken != null &&
+          authResponse.refreshToken!.isNotEmpty) {
         await _secureStorage.write(
           key: 'refresh_token',
           value: authResponse.refreshToken,
@@ -75,7 +78,8 @@ class AuthRepository {
         key: ApiConfig.tokenKey,
         value: authResponse.token,
       );
-      if (authResponse.refreshToken != null && authResponse.refreshToken!.isNotEmpty) {
+      if (authResponse.refreshToken != null &&
+          authResponse.refreshToken!.isNotEmpty) {
         await _secureStorage.write(
           key: 'refresh_token',
           value: authResponse.refreshToken,
@@ -109,7 +113,7 @@ class AuthRepository {
     try {
       final userData = await _secureStorage.read(key: ApiConfig.userKey);
       if (userData == null) return null;
-      
+
       final userJson = jsonDecode(userData) as Map<String, dynamic>;
       return User.fromJson(userJson);
     } catch (e) {
@@ -139,7 +143,9 @@ class AuthRepository {
   }
 
   /// Update user profile
-  Future<Either<Failure, User>> updateProfile(Map<String, dynamic> updates) async {
+  Future<Either<Failure, User>> updateProfile(
+    Map<String, dynamic> updates,
+  ) async {
     try {
       final response = await _dioClient.put(
         '${ApiConfig.auth}/me',
@@ -169,7 +175,9 @@ class AuthRepository {
   }
 
   /// Check username availability
-  Future<Either<Failure, bool>> checkUsernameAvailability(String username) async {
+  Future<Either<Failure, bool>> checkUsernameAvailability(
+    String username,
+  ) async {
     try {
       final response = await _dioClient.get(
         '${ApiConfig.auth}/check-username/$username',

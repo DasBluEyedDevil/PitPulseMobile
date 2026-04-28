@@ -14,7 +14,9 @@ sealed class Show with _$Show {
     required String venueId,
     required String bandId,
     required String showDate,
-    required String createdAt, required String updatedAt, String? doorsTime,
+    required String createdAt,
+    required String updatedAt,
+    String? doorsTime,
     String? startTime,
     String? endTime,
     String? ticketUrl,
@@ -58,7 +60,8 @@ sealed class WishlistItem with _$WishlistItem {
     required String id,
     required String userId,
     required String bandId,
-    required String createdAt, @Default(true) bool notifyWhenNearby,
+    required String createdAt,
+    @Default(true) bool notifyWhenNearby,
     // Populated fields
     Band? band,
   }) = _WishlistItem;

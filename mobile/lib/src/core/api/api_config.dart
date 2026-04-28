@@ -16,8 +16,10 @@ class ApiConfig {
   );
 
   // Base URLs per environment
-  static const String _stagingBaseUrl = 'https://soundcheck-staging.railway.app/api';
-  static const String _prodBaseUrl = 'https://soundcheck-app.up.railway.app/api';
+  static const String _stagingBaseUrl =
+      'https://soundcheck-staging.railway.app/api';
+  static const String _prodBaseUrl =
+      'https://soundcheck-app.up.railway.app/api';
 
   // Development base URL - platform-aware
   static String get _devBaseUrl {

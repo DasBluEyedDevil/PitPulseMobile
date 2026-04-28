@@ -72,7 +72,8 @@ class UserProfileScreen extends ConsumerWidget {
           final username = user.username;
           final displayName = _buildDisplayName(user);
           final profileImageUrl = user.profileImageUrl;
-          final initials = username.isNotEmpty ? username[0].toUpperCase() : '?';
+          final initials =
+              username.isNotEmpty ? username[0].toUpperCase() : '?';
 
           return RefreshIndicator(
             color: AppTheme.primary,
@@ -91,7 +92,8 @@ class UserProfileScreen extends ConsumerWidget {
                   // User Avatar
                   CircleAvatar(
                     radius: 50,
-                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    backgroundColor:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
                     backgroundImage: profileImageUrl != null
                         ? CachedNetworkImageProvider(profileImageUrl)
                         : null,
@@ -147,7 +149,11 @@ class UserProfileScreen extends ConsumerWidget {
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () => _showBlockDialog(
-                              context, ref, isBlocked, username,),
+                            context,
+                            ref,
+                            isBlocked,
+                            username,
+                          ),
                           icon: Icon(
                             isBlocked
                                 ? Icons.check_circle_outline
@@ -264,7 +270,9 @@ class UserProfileScreen extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to ${isCurrentlyBlocked ? 'unblock' : 'block'} user: $e'),
+              content: Text(
+                'Failed to ${isCurrentlyBlocked ? 'unblock' : 'block'} user: $e',
+              ),
               backgroundColor: AppTheme.error,
             ),
           );
@@ -290,7 +298,9 @@ class _StatsRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-        border: Border.all(color: Theme.of(context).colorScheme.surfaceContainerHighest),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,

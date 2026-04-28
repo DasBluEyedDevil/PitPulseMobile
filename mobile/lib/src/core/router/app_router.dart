@@ -103,7 +103,10 @@ GoRouter goRouter(Ref ref) {
       }
 
       // First-time user: show onboarding before login
-      if (!isAuthenticated && !hasSeenOnboarding && !isOnOnboardingPage && !isOnAuthPage) {
+      if (!isAuthenticated &&
+          !hasSeenOnboarding &&
+          !isOnOnboardingPage &&
+          !isOnAuthPage) {
         return '/onboarding';
       }
 
@@ -205,7 +208,8 @@ GoRouter goRouter(Ref ref) {
           return CustomTransitionPage(
             key: state.pageKey,
             child: ResetPasswordScreen(token: token),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
@@ -285,7 +289,8 @@ GoRouter goRouter(Ref ref) {
                       return CustomTransitionPage(
                         key: state.pageKey,
                         child: const EditProfileScreen(),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        transitionsBuilder:
+                            (context, animation, secondaryAnimation, child) {
                           const begin = Offset(1.0, 0.0);
                           const end = Offset.zero;
                           const curve = Curves.easeInOut;
@@ -307,7 +312,8 @@ GoRouter goRouter(Ref ref) {
                       return CustomTransitionPage(
                         key: state.pageKey,
                         child: const SettingsScreen(),
-                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        transitionsBuilder:
+                            (context, animation, secondaryAnimation, child) {
                           const begin = Offset(1.0, 0.0);
                           const end = Offset.zero;
                           const curve = Curves.easeInOut;
@@ -329,7 +335,12 @@ GoRouter goRouter(Ref ref) {
                           return CustomTransitionPage(
                             key: state.pageKey,
                             child: const BlockedUsersScreen(),
-                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                            transitionsBuilder: (
+                              context,
+                              animation,
+                              secondaryAnimation,
+                              child,
+                            ) {
                               const begin = Offset(1.0, 0.0);
                               const end = Offset.zero;
                               const curve = Curves.easeInOut;
@@ -351,7 +362,12 @@ GoRouter goRouter(Ref ref) {
                           return CustomTransitionPage(
                             key: state.pageKey,
                             child: const MyClaimsScreen(),
-                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                            transitionsBuilder: (
+                              context,
+                              animation,
+                              secondaryAnimation,
+                              child,
+                            ) {
                               const begin = Offset(1.0, 0.0);
                               const end = Offset.zero;
                               const curve = Curves.easeInOut;
@@ -396,7 +412,8 @@ GoRouter goRouter(Ref ref) {
           return CustomTransitionPage(
             key: state.pageKey,
             child: const CheckInScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(0.0, 1.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
@@ -425,7 +442,8 @@ GoRouter goRouter(Ref ref) {
           return CustomTransitionPage(
             key: state.pageKey,
             child: CelebrationScreen(params: params),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(0.0, 1.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
@@ -449,7 +467,8 @@ GoRouter goRouter(Ref ref) {
           return CustomTransitionPage(
             key: state.pageKey,
             child: const BadgeCollectionScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
@@ -474,7 +493,8 @@ GoRouter goRouter(Ref ref) {
           return CustomTransitionPage(
             key: state.pageKey,
             child: BandDetailScreen(bandId: bandId),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
@@ -499,7 +519,8 @@ GoRouter goRouter(Ref ref) {
           return CustomTransitionPage(
             key: state.pageKey,
             child: VenueDetailScreen(venueId: venueId),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
@@ -524,7 +545,8 @@ GoRouter goRouter(Ref ref) {
           return CustomTransitionPage(
             key: state.pageKey,
             child: EventDetailScreen(eventId: eventId),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
@@ -549,7 +571,8 @@ GoRouter goRouter(Ref ref) {
           return CustomTransitionPage(
             key: state.pageKey,
             child: UserProfileScreen(userId: userId),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
@@ -580,7 +603,8 @@ GoRouter goRouter(Ref ref) {
               entityId: entityId,
               entityName: entityName,
             ),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
@@ -605,7 +629,8 @@ GoRouter goRouter(Ref ref) {
           return CustomTransitionPage(
             key: state.pageKey,
             child: CheckInDetailScreen(checkinId: checkinId),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
@@ -639,7 +664,8 @@ GoRouter goRouter(Ref ref) {
           return CustomTransitionPage(
             key: state.pageKey,
             child: const SearchScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(0.0, 1.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
@@ -660,11 +686,13 @@ GoRouter goRouter(Ref ref) {
         path: '/wrapped/:year',
         name: 'wrapped',
         pageBuilder: (context, state) {
-          final year = int.tryParse(state.pathParameters['year'] ?? '') ?? DateTime.now().year;
+          final year = int.tryParse(state.pathParameters['year'] ?? '') ??
+              DateTime.now().year;
           return CustomTransitionPage(
             key: state.pageKey,
             child: WrappedStoryScreen(year: year),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               return FadeTransition(opacity: animation, child: child);
             },
           );
@@ -676,11 +704,13 @@ GoRouter goRouter(Ref ref) {
         path: '/wrapped/:year/detail',
         name: 'wrapped-detail',
         pageBuilder: (context, state) {
-          final year = int.tryParse(state.pathParameters['year'] ?? '') ?? DateTime.now().year;
+          final year = int.tryParse(state.pathParameters['year'] ?? '') ??
+              DateTime.now().year;
           return CustomTransitionPage(
             key: state.pageKey,
             child: WrappedDetailScreen(year: year),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
@@ -704,7 +734,8 @@ GoRouter goRouter(Ref ref) {
           return CustomTransitionPage(
             key: state.pageKey,
             child: const DiscoverUsersScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
@@ -728,7 +759,8 @@ GoRouter goRouter(Ref ref) {
           return CustomTransitionPage(
             key: state.pageKey,
             child: const ProFeatureScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
               const begin = Offset(1.0, 0.0);
               const end = Offset.zero;
               const curve = Curves.easeInOut;
