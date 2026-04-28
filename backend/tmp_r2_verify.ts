@@ -1,7 +1,8 @@
-const { S3Client, HeadBucketCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
-const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+import { S3Client, HeadBucketCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+
+const accountId: string | undefined = process.env.CLOUDFLARE_ACCOUNT_ID;
+const accessKeyId: string | undefined = process.env.R2_ACCESS_KEY_ID;
+const secretAccessKey: string | undefined = process.env.R2_SECRET_ACCESS_KEY;
 
 if (!accountId || !accessKeyId || !secretAccessKey) {
   throw new Error(
@@ -12,8 +13,9 @@ if (!accountId || !accessKeyId || !secretAccessKey) {
 const s3 = new S3Client({
   region: 'auto',
   endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-  credentials: { accessKeyId, secretAccessKey }
+  credentials: { accessKeyId, secretAccessKey },
 });
+
 (async () => {
   try {
     await s3.send(new HeadBucketCommand({ Bucket: 'soundcheck-photos' }));
@@ -21,7 +23,8 @@ const s3 = new S3Client({
     const list = await s3.send(new ListObjectsV2Command({ Bucket: 'soundcheck-photos', MaxKeys: 1 }));
     console.log('Objects:', list.KeyCount || 0);
   } catch (e) {
-    console.error('FAIL:', e.name, e.message);
+    const err = e as Error;
+    console.error('FAIL:', err.name, err.message);
     process.exit(1);
   }
 })();
