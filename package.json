@@ -19,7 +19,7 @@
     "check:backend": "npm run lint --prefix backend && npm run typecheck --prefix backend && npm test --prefix backend",
     "check:mobile": "cd mobile && flutter pub run build_runner build --delete-conflicting-outputs && flutter analyze && flutter test",
     "check": "npm run harness:check && npm run check:backend && npm run check:mobile",
-    "prepare": "husky"
+    "prepare": "node .husky/install.mjs"
   },
   "lint-staged": {
     "backend/**/*.ts": [
