@@ -4,7 +4,7 @@
 **Date:** 2026-03-18
 **Scope:** Riverpod providers, GoRouter configuration, Dio interceptors, logout flow
 **Target:** SoundCheck Flutter mobile app (pre-beta readiness)
-**Codebase snapshot:** `master` branch, commit `148788e`
+**Codebase snapshot:** `main` branch, commit `148788e`
 
 ---
 

@@ -4,7 +4,7 @@
 **Date:** 2026-03-18
 **Scope:** 10 secondary user journeys traced end-to-end (Flutter mobile -> Node.js/Express API -> PostgreSQL)
 **Target:** Pre-beta readiness for invite-only launch (~500-2,000 users)
-**Branch:** `master` at commit `148788e`
+**Branch:** `main` at commit `148788e`
 
 ---
 

@@ -4,7 +4,7 @@
 **Auditor:** Security Engineer (automated code review)
 **Scope:** Backend (Node.js / Express / TypeScript / PostgreSQL)
 **Target:** Pre-beta hardening for invite-only launch (~500-2,000 users)
-**Branch:** `master` at commit `148788e`
+**Branch:** `main` at commit `148788e`
 
 ---
 

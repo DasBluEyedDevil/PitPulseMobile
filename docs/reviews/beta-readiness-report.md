@@ -13,7 +13,7 @@ A comprehensive three-phase review of the SoundCheck application was conducted o
 
 The review dispatched approximately 40 specialist agents across multiple phases, producing 17 audit reports that surfaced 227 raw findings. After deduplication, 173 unique issues were catalogued: 19 Blockers, 35 High, 72 Medium, and 47 Low.
 
-**All 173 findings have been addressed.** Fixes were implemented by parallel specialist agents working in isolated git worktrees, merged into master, and verified with the full test suite (22 suites, 325 tests, 0 failures). The fixes cover:
+**All 173 findings have been addressed.** Fixes were implemented by parallel specialist agents working in isolated git worktrees, merged into main, and verified with the full test suite (22 suites, 325 tests, 0 failures). The fixes cover:
 
 - **Security:** Authorization on all destructive endpoints, JWT auth on WebSocket, PII stripped from API responses and Sentry, social auth anti-linking guard, timing-safe webhook comparison, HTTPS enforcement, Sentry screenshot gating
 - **Data integrity:** Transaction wrapping on multi-table writes, DELETE trigger for stat counters, rating=0 exclusion from averages, FK fixes, migration chain self-sufficiency, schema.sql synchronization
@@ -39,7 +39,7 @@ The application is recommended for unconditional invite-only beta launch.
 | High findings | 35 -- **all resolved** |
 | Medium findings | 72 -- **~70 resolved, ~2 documented as acceptable** |
 | Low findings | 47 -- **~45 resolved, ~2 documented/deferred** |
-| Fix commits on master | 68 |
+| Fix commits on main | 68 |
 | Test suites passing | 22 / 22 |
 | Test cases passing | 325 / 325 |
 
@@ -233,7 +233,7 @@ The SoundCheck application is approved for invite-only beta deployment.
 | High-Priority Plan | `docs/superpowers/plans/2026-03-18-high-priority-fixes.md` | 14-task plan for 35 High findings |
 | Design Spec | `docs/superpowers/specs/2026-03-18-beta-readiness-review-design.md` | Original review design |
 | This Report | `docs/reviews/beta-readiness-report.md` | Final GO/NO-GO assessment |
-| Git History | 68 fix commits on master | Full audit trail |
+| Git History | 68 fix commits on main | Full audit trail |
 | Test Suite | 22 suites, 325 tests, 0 failures | Post-fix verification |
 
 ---

@@ -31,7 +31,7 @@ See `.env.example` for the full list with tiers and descriptions.
 
 ### Pre-Deploy Checklist
 
-- [ ] All changes committed and pushed to `master`
+- [ ] All changes committed and pushed to `main`
 - [ ] CI pipeline passes (GitHub Actions: build, test, gitleaks)
 - [ ] If schema changes: migration file exists in `backend/migrations/`
 - [ ] If new env vars: added to Railway Variables dashboard
@@ -39,7 +39,7 @@ See `.env.example` for the full list with tiers and descriptions.
 
 ### Deploy Steps
 
-1. **Push to master**: Railway auto-deploys on push to `master` via GitHub webhook
+1. **Push to main**: Railway auto-deploys on push to `main` via GitHub webhook
 2. **Monitor build**: Railway Dashboard > Deployments > watch build logs
 3. **Verify startup**: Build completes > migrations run > server starts on configured port
 4. **Run smoke check**: After deploy completes, verify core endpoints (see [Post-Deploy Verification](#post-deploy-verification))
@@ -133,13 +133,13 @@ UptimeRobot includes a free public status page. Enable it at Monitor > Status Pa
    - **Change**: `NODE_ENV=staging` (or keep `production` for parity)
    - **Change**: `CORS_ORIGIN` > staging URL
    - **Change**: `SENTRY_DSN` > same Sentry project (use `environment` tag to separate) or a separate project
-5. Deploy by pushing to `master` — both production and staging will deploy
+5. Deploy by pushing to `main` — both production and staging will deploy
 
 ### Using Staging
 
 - **Before risky deploys**: Push to a branch, manually deploy from that branch in the staging project
 - **Verify migrations**: Staging runs `npm run migrate:up` on the separate database — if migration fails, production is unaffected
-- **Test new features**: Use staging URL for manual QA before merging to master
+- **Test new features**: Use staging URL for manual QA before merging to main
 
 ### Cost
 
@@ -164,7 +164,7 @@ If logs are missing from the Railway dashboard, check that the winston Console t
 
 1. Check Railway build logs for the migration error
 2. Fix the migration file locally
-3. Push to master — Railway will re-run all pending migrations
+3. Push to main — Railway will re-run all pending migrations
 4. Migrations are idempotent: previously applied migrations are skipped
 
 ### Sentry not receiving errors

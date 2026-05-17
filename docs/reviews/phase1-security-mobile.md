@@ -3,7 +3,7 @@
 **Audit Date:** 2026-03-18
 **Auditor:** Security Engineer (automated review)
 **Scope:** `mobile/lib/src/` -- Flutter client, platform configs, auth flows, state management
-**App Version:** Pre-beta (master branch)
+**App Version:** Pre-beta (main branch)
 **Target Audience:** ~500-2,000 invite-only beta users
 
 ---
