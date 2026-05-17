@@ -29,6 +29,7 @@
     "format:check": "prettier --check \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "prepare": "node .husky/install.mjs"
+    "prepare": "husky || true"
   },
   "lint-staged": {
     "*.ts": [
