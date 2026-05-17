@@ -1,13 +1,12 @@
-# Configure Nixpacks for monorepo - build from backend subdirectory
-
-[variables]
-NIXPACKS_PATH = "./backend"
+# Root-level Nixpacks fallback config.
+# Railway is configured with rootDirectory = "backend", so the backend/nixpacks.toml
+# is the authoritative config. This file is kept as a fallback only.
 
 [phases.setup]
 nixPkgs = ["nodejs_20"]
 
 [phases.install]
-cmds = ["(cd backend && npm ci --production=false)"]
+cmds = ["(cd backend && npm ci --include=dev)"]
 
 [phases.build]
-cmds = ["(cd backend && rm -rf dist && npm run build)"]
+cmds = ["(cd backend && npm run build)"]

@@ -1,0 +1,17 @@
+# Nixpacks config for the backend service.
+# Railway is configured with rootDirectory = "backend", so Nixpacks runs
+# from this directory. All commands are relative to backend/.
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+# --include=dev ensures devDependencies (including TypeScript) are installed
+# so the build phase can invoke the TypeScript compiler.
+cmds = ["npm ci --include=dev"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run migrate:up && npm start"
