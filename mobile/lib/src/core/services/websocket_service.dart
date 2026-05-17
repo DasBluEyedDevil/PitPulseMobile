@@ -1,13 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as status;
 
 import '../api/api_config.dart';
 import 'log_service.dart';
 
-typedef WebSocketChannelFactory = WebSocketChannel Function(Uri uri);
+typedef WebSocketChannelFactory =
+    WebSocketChannel Function(Uri uri, {String? authToken});
 typedef WebSocketUriBuilder = Uri Function(String? authToken);
 
 /// WebSocket event types matching backend
@@ -55,7 +57,7 @@ class WebSocketService {
   WebSocketService({
     WebSocketChannelFactory? channelFactory,
     WebSocketUriBuilder? uriBuilder,
-  }) : _channelFactory = channelFactory ?? WebSocketChannel.connect,
+  }) : _channelFactory = channelFactory ?? _connectWithAuthorizationHeader,
        _uriBuilder = uriBuilder ?? buildUri;
 
   final WebSocketChannelFactory _channelFactory;
@@ -84,8 +86,20 @@ class WebSocketService {
       return uri;
     }
 
-    return uri.replace(
-      queryParameters: {...uri.queryParameters, 'token': authToken},
+    return uri;
+  }
+
+  static WebSocketChannel _connectWithAuthorizationHeader(
+    Uri uri, {
+    String? authToken,
+  }) {
+    if (authToken == null || authToken.isEmpty) {
+      return IOWebSocketChannel.connect(uri);
+    }
+
+    return IOWebSocketChannel.connect(
+      uri,
+      headers: {'Authorization': 'Bearer $authToken'},
     );
   }
 
@@ -140,7 +154,7 @@ class WebSocketService {
       final uri = _uriBuilder(_authToken);
       LogService.i('Connecting to WebSocket');
 
-      _channel = _channelFactory(uri);
+      _channel = _channelFactory(uri, authToken: _authToken);
 
       // Wait for connection to be ready
       await _channel!.ready;
@@ -160,7 +174,7 @@ class WebSocketService {
       // Start ping timer to keep connection alive
       _startPingTimer();
 
-      // Initial auth happens during upgrade via the token query parameter.
+      // Initial auth happens during upgrade via the Authorization header.
       // authenticate() remains available for compatibility with older servers.
     } catch (e, stack) {
       LogService.e('WebSocket connection failed', e, stack);

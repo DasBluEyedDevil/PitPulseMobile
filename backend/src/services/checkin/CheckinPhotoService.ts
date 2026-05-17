@@ -9,7 +9,12 @@
  */
 
 import Database from '../../config/database';
-import { r2Service } from '../R2Service';
+import {
+  ALLOWED_IMAGE_TYPES,
+  MAX_UPLOAD_FILE_SIZE_BYTES,
+  R2ObjectMetadata,
+  r2Service,
+} from '../R2Service';
 import logger from '../../utils/logger';
 
 export interface PhotoUploadUrl {
@@ -33,6 +38,34 @@ export interface PhotoConfirmationRequest {
 type ServiceError = Error & {
   statusCode?: number;
 };
+
+function normalizeContentType(contentType?: string): string {
+  return (contentType || '').split(';')[0].trim().toLowerCase();
+}
+
+function expectedExtensionForObjectKey(objectKey: string): string | undefined {
+  const extension = objectKey.split('.').pop()?.toLowerCase();
+  return extension || undefined;
+}
+
+function validateUploadedPhotoMetadata(objectKey: string, metadata: R2ObjectMetadata): boolean {
+  if (!metadata.exists) {
+    return false;
+  }
+
+  const contentLength = metadata.contentLength ?? 0;
+  if (contentLength <= 0 || contentLength > MAX_UPLOAD_FILE_SIZE_BYTES) {
+    return false;
+  }
+
+  const contentType = normalizeContentType(metadata.contentType);
+  const expectedExtension = ALLOWED_IMAGE_TYPES[contentType];
+  if (!expectedExtension) {
+    return false;
+  }
+
+  return expectedExtensionForObjectKey(objectKey) === expectedExtension;
+}
 
 export class CheckinPhotoService {
   private db = Database.getInstance();
@@ -171,6 +204,24 @@ export class CheckinPhotoService {
           'One or more photos have not finished uploading. Please retry confirmation after upload completes.'
         );
         err.statusCode = 409;
+        throw err;
+      }
+
+      const invalidPhotoKeys = photoKeys.filter(
+        (key, index) => !validateUploadedPhotoMetadata(key, headResults[index])
+      );
+
+      if (invalidPhotoKeys.length > 0) {
+        logger.warn('[CheckinPhotoService] Photo confirmation rejected for invalid R2 metadata', {
+          checkinId,
+          userId,
+          invalidCount: invalidPhotoKeys.length,
+        });
+
+        const err: ServiceError = new Error(
+          'One or more uploaded photos have an invalid type or size'
+        );
+        err.statusCode = 400;
         throw err;
       }
 

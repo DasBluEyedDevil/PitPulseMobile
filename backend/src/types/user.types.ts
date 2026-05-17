@@ -54,6 +54,8 @@ export interface SearchUserResult {
   isVerified: boolean;
 }
 
+export type PublicUser = Omit<User, 'email' | 'dateOfBirth' | 'isAdmin' | 'isPremium'>;
+
 // JWT Payload
 export interface JWTPayload {
   userId: string;

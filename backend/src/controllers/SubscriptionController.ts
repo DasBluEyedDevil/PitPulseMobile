@@ -55,6 +55,13 @@ export class SubscriptionController {
       id: event.id,
       type: event.type,
       app_user_id: event.app_user_id,
+      entitlement_ids: Array.isArray(event.entitlement_ids)
+        ? event.entitlement_ids
+        : event.entitlement_id
+          ? [event.entitlement_id]
+          : undefined,
+      environment: event.environment,
+      expiration_at_ms: event.expiration_at_ms,
     });
 
     // API-031: Use canonical ApiResponse format for webhook responses

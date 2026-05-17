@@ -14,6 +14,7 @@ import { DiscoveryService } from '../services/DiscoveryService';
 import { ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '../utils/errors';
+import { parseBoundedFloat, parseBoundedInt } from '../utils/queryBounds';
 
 export class EventController {
   private eventService = new EventService();
@@ -193,12 +194,10 @@ export class EventController {
    * Without lat/lon, falls back to global trending (backward compat).
    */
   getTrendingEvents = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+    const limit = parseBoundedInt(req.query.limit, 20, { min: 1, max: 100 });
     const lat = req.query.lat ? parseFloat(req.query.lat as string) : undefined;
     const lon = req.query.lon ? parseFloat(req.query.lon as string) : undefined;
-    const rawRadius = req.query.radius ? parseFloat(req.query.radius as string) : 50;
-    // API-022: Cap radius at 500 km
-    const radius = Math.max(0.1, Math.min(500, isNaN(rawRadius) ? 50 : rawRadius));
+    const radius = parseBoundedFloat(req.query.radius, 50, { min: 0.1, max: 500 });
 
     // If lat/lon provided, use location-aware trending
     // API-021: Validate geo coordinate ranges
@@ -307,10 +306,8 @@ export class EventController {
       throw new BadRequestError('lat must be between -90 and 90, lng must be between -180 and 180');
     }
 
-    const rawRadius = req.query.radius ? parseFloat(req.query.radius as string) : 10;
-    // API-022: Cap radius at 500 km
-    const radius = Math.max(0.1, Math.min(500, isNaN(rawRadius) ? 10 : rawRadius));
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+    const radius = parseBoundedFloat(req.query.radius, 10, { min: 0.1, max: 500 });
+    const limit = parseBoundedInt(req.query.limit, 20, { min: 1, max: 100 });
 
     const events = await this.eventService.getNearbyEvents(lat, lng, radius, limit);
 
@@ -338,11 +335,9 @@ export class EventController {
       throw new BadRequestError('lat must be between -90 and 90, lon must be between -180 and 180');
     }
 
-    const rawRadius = req.query.radius ? parseFloat(req.query.radius as string) : 50;
-    // API-022: Cap radius at 500 km
-    const radius = Math.max(0.1, Math.min(500, isNaN(rawRadius) ? 50 : rawRadius));
-    const days = req.query.days ? parseInt(req.query.days as string) : 30;
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+    const radius = parseBoundedFloat(req.query.radius, 50, { min: 0.1, max: 500 });
+    const days = parseBoundedInt(req.query.days, 30, { min: 1, max: 365 });
+    const limit = parseBoundedInt(req.query.limit, 20, { min: 1, max: 100 });
 
     const events = await this.eventService.getNearbyUpcoming(lat, lon, radius, days, limit);
 
@@ -392,7 +387,7 @@ export class EventController {
       throw new BadRequestError('q query parameter is required');
     }
 
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+    const limit = parseBoundedInt(req.query.limit, 20, { min: 1, max: 100 });
 
     const events = await this.eventService.searchEvents(q.trim(), limit);
 
@@ -420,8 +415,11 @@ export class EventController {
 
     const lat = req.query.lat ? parseFloat(req.query.lat as string) : undefined;
     const lon = req.query.lon ? parseFloat(req.query.lon as string) : undefined;
-    const radius = req.query.radius ? parseFloat(req.query.radius as string) : undefined;
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+    const radius =
+      req.query.radius === undefined
+        ? undefined
+        : parseBoundedFloat(req.query.radius, 50, { min: 0.1, max: 500 });
+    const limit = parseBoundedInt(req.query.limit, 20, { min: 1, max: 100 });
 
     const events = await this.discoveryService.getRecommendedEvents(
       userId,

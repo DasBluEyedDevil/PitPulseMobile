@@ -1,7 +1,9 @@
 import Database from '../config/database';
-import { User } from '../types';
-import { mapDbUserToUser } from '../utils/dbMappers';
+import { PublicUser } from '../types';
+import { mapDbUserToPublicUser } from '../utils/dbMappers';
 import { NotificationService } from './NotificationService';
+import { BlockService } from './BlockService';
+import { ForbiddenError } from '../utils/errors';
 import logger from '../utils/logger';
 
 export interface FollowResult {
@@ -11,7 +13,7 @@ export interface FollowResult {
 }
 
 export interface FollowerListResult {
-  users: User[];
+  users: PublicUser[];
   total: number;
   page: number;
   limit: number;
@@ -20,9 +22,11 @@ export interface FollowerListResult {
 export class FollowService {
   private db = Database.getInstance();
   private notificationService: NotificationService;
+  private blockService: BlockService;
 
-  constructor(notificationService?: NotificationService) {
+  constructor(notificationService?: NotificationService, blockService?: BlockService) {
     this.notificationService = notificationService ?? new NotificationService();
+    this.blockService = blockService ?? new BlockService();
   }
 
   /**
@@ -36,6 +40,10 @@ export class FollowService {
     const targetResult = await this.db.query(targetUserQuery, [followingId]);
     if (targetResult.rows.length === 0) {
       throw new Error('User not found');
+    }
+
+    if (await this.blockService.isBlocked(followerId, followingId)) {
+      throw new ForbiddenError('Cannot follow a user when either account has blocked the other');
     }
 
     // Create follow relationship (ON CONFLICT handles duplicates -- no pre-check needed)
@@ -121,8 +129,8 @@ export class FollowService {
     // PERF-010: Fold COUNT into the main query via window function,
     // eliminating a redundant sequential query.
     const query = `
-      SELECT u.id, u.email, u.username, u.first_name, u.last_name, u.bio,
-             u.profile_image_url, u.location, u.date_of_birth, u.is_verified,
+      SELECT u.id, u.username, u.first_name, u.last_name, u.bio,
+             u.profile_image_url, u.location, u.is_verified,
              u.is_active, u.created_at, u.updated_at, uf.created_at as followed_at,
              COUNT(*) OVER() AS total_count
       FROM user_followers uf
@@ -134,7 +142,7 @@ export class FollowService {
 
     const result = await this.db.query(query, [userId, limit, offset]);
     const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count) || 0 : 0;
-    const users = result.rows.map((row: any) => mapDbUserToUser(row));
+    const users = result.rows.map((row: any) => mapDbUserToPublicUser(row));
 
     return {
       users,
@@ -166,8 +174,8 @@ export class FollowService {
     // PERF-010: Fold COUNT into the main query via window function,
     // eliminating a redundant sequential query.
     const query = `
-      SELECT u.id, u.email, u.username, u.first_name, u.last_name, u.bio,
-             u.profile_image_url, u.location, u.date_of_birth, u.is_verified,
+      SELECT u.id, u.username, u.first_name, u.last_name, u.bio,
+             u.profile_image_url, u.location, u.is_verified,
              u.is_active, u.created_at, u.updated_at, uf.created_at as followed_at,
              COUNT(*) OVER() AS total_count
       FROM user_followers uf
@@ -179,7 +187,7 @@ export class FollowService {
 
     const result = await this.db.query(query, [userId, limit, offset]);
     const total = result.rows.length > 0 ? parseInt(result.rows[0].total_count) || 0 : 0;
-    const users = result.rows.map((row: any) => mapDbUserToUser(row));
+    const users = result.rows.map((row: any) => mapDbUserToPublicUser(row));
 
     return {
       users,

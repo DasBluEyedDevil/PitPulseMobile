@@ -5,6 +5,13 @@ import { CheckinPhotoService } from '../../services/checkin/CheckinPhotoService'
 
 jest.mock('../../config/database');
 jest.mock('../../services/R2Service', () => ({
+  ALLOWED_IMAGE_TYPES: {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/heic': 'heic',
+  },
+  MAX_UPLOAD_FILE_SIZE_BYTES: 10 * 1024 * 1024,
   r2Service: {
     getPresignedUploadUrl: jest.fn(),
     headObject: jest.fn(),
@@ -116,6 +123,44 @@ describe('CheckinPhotoService', () => {
     });
 
     expect(mockR2Service.headObject).not.toHaveBeenCalled();
+    expect(mockDb.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects uploaded objects with unsigned or mismatched content type metadata', async () => {
+    mockDb.query
+      .mockResolvedValueOnce({ rows: [{ user_id: userId, image_urls: [] }] })
+      .mockResolvedValueOnce({ rows: [{ object_key: photoKeys[0] }] });
+    mockR2Service.headObject.mockResolvedValueOnce({
+      exists: true,
+      contentLength: 100,
+      contentType: 'text/plain',
+    });
+
+    await expect(service.addPhotos(checkinId, userId, [photoKeys[0]])).rejects.toMatchObject({
+      statusCode: 400,
+    });
+
+    expect(mockDb.query).toHaveBeenCalledTimes(2);
+    expect(mockDb.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE checkins'),
+      expect.anything()
+    );
+  });
+
+  it('rejects uploaded objects larger than the configured photo size limit', async () => {
+    mockDb.query
+      .mockResolvedValueOnce({ rows: [{ user_id: userId, image_urls: [] }] })
+      .mockResolvedValueOnce({ rows: [{ object_key: photoKeys[0] }] });
+    mockR2Service.headObject.mockResolvedValueOnce({
+      exists: true,
+      contentLength: 10 * 1024 * 1024 + 1,
+      contentType: 'image/jpeg',
+    });
+
+    await expect(service.addPhotos(checkinId, userId, [photoKeys[0]])).rejects.toMatchObject({
+      statusCode: 400,
+    });
+
     expect(mockDb.query).toHaveBeenCalledTimes(2);
   });
 });

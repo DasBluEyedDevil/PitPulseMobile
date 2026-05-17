@@ -60,7 +60,10 @@ export class ClaimController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const claim = await this.claimService.getClaimById(routeParam(req, 'id'));
+    const claim = await this.claimService.getClaimById(routeParam(req, 'id'), {
+      requestingUserId: req.user.id,
+      isAdmin: !!req.user.isAdmin,
+    });
 
     res.status(200).json({ success: true, data: claim } as ApiResponse);
   });

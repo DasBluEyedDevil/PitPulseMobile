@@ -30,7 +30,12 @@ router.get('/nearby', authenticateToken, eventController.getNearbyEvents);
 
 // On-demand Ticketmaster event lookup (requires auth)
 // MUST be before /:id to avoid param conflict
-router.get('/lookup/:ticketmasterId', authenticateToken, eventController.lookupEvent);
+router.get(
+  '/lookup/:ticketmasterId',
+  authenticateToken,
+  createPerUserRateLimit(RateLimitPresets.expensive),
+  eventController.lookupEvent
+);
 
 // Create a new event (requires auth)
 // SEC-013/CFR-014: Rate limit event creation

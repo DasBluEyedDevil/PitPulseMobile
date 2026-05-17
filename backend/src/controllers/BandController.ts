@@ -13,6 +13,7 @@ import { EventService } from '../services/EventService';
 import { CreateBandRequest, SearchQuery, ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
 import { UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError } from '../utils/errors';
+import { parseBoundedInt } from '../utils/queryBounds';
 
 export class BandController {
   private bandService = new BandService();
@@ -52,8 +53,8 @@ export class BandController {
       q: req.query.q as string,
       genre: req.query.genre as string,
       rating: req.query.rating ? parseFloat(req.query.rating as string) : undefined,
-      page: req.query.page ? parseInt(req.query.page as string) : 1,
-      limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+      page: parseBoundedInt(req.query.page, 1, { min: 1, max: 10000 }),
+      limit: parseBoundedInt(req.query.limit, 20, { min: 1, max: 100 }),
       sort: req.query.sort as string,
       order: req.query.order as 'asc' | 'desc',
     };
@@ -162,7 +163,7 @@ export class BandController {
    * GET /api/bands/popular
    */
   getPopularBands = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+    const limit = parseBoundedInt(req.query.limit, 10, { min: 1, max: 100 });
     const bands = await this.bandService.getPopularBands(limit);
 
     const response: ApiResponse = {
@@ -178,7 +179,7 @@ export class BandController {
    * GET /api/bands/trending
    */
   getTrendingBands = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+    const limit = parseBoundedInt(req.query.limit, 10, { min: 1, max: 100 });
     const bands = await this.bandService.getTrendingBands(limit);
 
     const response: ApiResponse = {
@@ -195,7 +196,7 @@ export class BandController {
    */
   getBandsByGenre = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { genre } = routeParams(req);
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+    const limit = parseBoundedInt(req.query.limit, 20, { min: 1, max: 100 });
 
     const bands = await this.bandService.getBandsByGenre(genre, limit);
 

@@ -1,19 +1,18 @@
 import { Router, Request, Response } from 'express';
 import {
   AuthUtils,
+  consumeRefreshToken,
   generateRefreshToken,
   verifyRefreshToken,
   revokeRefreshToken,
 } from '../utils/auth';
 import { rateLimit } from '../middleware/auth';
-import { UserService } from '../services/UserService';
 import { AuditService } from '../services/AuditService';
 import { ApiResponse } from '../types';
 import Database from '../config/database';
 import logger from '../utils/logger';
 
 const router = Router();
-const userService = new UserService();
 const auditService = new AuditService();
 
 // Rate limiting for token endpoints (security critical)
@@ -53,36 +52,40 @@ router.post('/refresh', tokenRateLimit, async (req: Request, res: Response) => {
       return res.status(400).json(response);
     }
 
-    const result = await verifyRefreshToken(refreshToken);
-
-    if (!result.valid || !result.userId) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'Invalid or expired refresh token',
-      };
-      return res.status(401).json(response);
-    }
-
-    // Fetch user to get email and username for the new access token
-    const user = await userService.findById(result.userId);
-    if (!user || !user.isActive) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'User not found or inactive',
-      };
-      return res.status(401).json(response);
-    }
-
     // Token rotation in a transaction to prevent race conditions
-    // If server crashes between revoking and generating, user keeps refresh capability
+    // If server crashes between revoking and generating, the transaction rolls back.
     const db = Database.getInstance();
     const client = await db.getClient();
 
     try {
       await client.query('BEGIN');
 
-      // Revoke old refresh token (token rotation for security)
-      await revokeRefreshToken(refreshToken, client);
+      const result = await consumeRefreshToken(refreshToken, client);
+      if (!result.valid || !result.userId) {
+        await client.query('ROLLBACK');
+        const response: ApiResponse = {
+          success: false,
+          error: 'Invalid or expired refresh token',
+        };
+        return res.status(401).json(response);
+      }
+
+      // Fetch user to get email and username for the new access token.
+      // This stays inside the token transaction so rotation observes one
+      // consistent user-active check.
+      const userResult = await client.query(
+        'SELECT id, email, username, is_active FROM users WHERE id = $1',
+        [result.userId]
+      );
+      const user = userResult.rows[0];
+      if (!user || !user.is_active) {
+        await client.query('ROLLBACK');
+        const response: ApiResponse = {
+          success: false,
+          error: 'User not found or inactive',
+        };
+        return res.status(401).json(response);
+      }
 
       // Generate new tokens
       const newAccessToken = AuthUtils.generateToken({

@@ -29,10 +29,16 @@ describe('DataRetentionService', () => {
   let dataRetentionService: DataRetentionService;
 
   beforeEach(() => {
-    dataRetentionService = new DataRetentionService();
     jest.clearAllMocks();
+    mockDb.query.mockReset();
+    mockDb.getClient.mockReset();
+    mockClient.query.mockReset();
+    mockClient.release.mockReset();
+    mockPool.connect.mockReset();
+    mockDb.getClient.mockResolvedValue(mockClient);
     // Reset pool mock to return client
     mockPool.connect.mockResolvedValue(mockClient);
+    dataRetentionService = new DataRetentionService();
   });
 
   describe('requestAccountDeletion', () => {
@@ -68,8 +74,8 @@ describe('DataRetentionService', () => {
       expect(result.deletionRequest.status).toBe('pending');
       expect(result.message).toContain('30 days');
 
-      // Verify user was deactivated
-      expect(mockDb.query).toHaveBeenCalledWith(
+      // Users remain active during the grace period so they can cancel the request.
+      expect(mockDb.query).not.toHaveBeenCalledWith(
         expect.stringContaining('UPDATE users SET is_active = false'),
         [userId]
       );
@@ -643,7 +649,7 @@ describe('DataRetentionService', () => {
             },
           ],
         })
-        .mockResolvedValueOnce({ rowCount: 1 }) // Mark as processing
+        .mockResolvedValueOnce({ rows: [{ id: 'request-1' }], rowCount: 1 }) // Mark as processing
         .mockResolvedValueOnce({ rows: [{ id: 'user-1', email: 'test1@example.com' }] }); // User check
 
       // Transaction queries (on client) - includes DB-010 cleanup steps
@@ -712,11 +718,11 @@ describe('DataRetentionService', () => {
           ],
         })
         // First deletion fails
-        .mockResolvedValueOnce({ rowCount: 1 }) // Mark as processing
+        .mockResolvedValueOnce({ rows: [{ id: 'request-1' }], rowCount: 1 }) // Mark as processing
         .mockResolvedValueOnce({ rows: [] }) // User not found - will throw
         .mockResolvedValueOnce({ rowCount: 1 }) // Revert status
         // Second deletion succeeds
-        .mockResolvedValueOnce({ rowCount: 1 }) // Mark as processing
+        .mockResolvedValueOnce({ rows: [{ id: 'request-2' }], rowCount: 1 }) // Mark as processing
         .mockResolvedValueOnce({ rows: [{ id: 'user-2', email: 'test2@example.com' }] }); // User check
 
       // Transaction queries for second deletion (on client) - includes DB-010 cleanup steps
@@ -775,7 +781,7 @@ describe('DataRetentionService', () => {
             },
           ],
         })
-        .mockResolvedValueOnce({ rowCount: 1 }) // Mark as processing
+        .mockResolvedValueOnce({ rows: [{ id: 'request-1' }], rowCount: 1 }) // Mark as processing
         .mockResolvedValueOnce({ rows: [] }) // User not found
         .mockResolvedValueOnce({ rowCount: 1 }); // Revert status
 
@@ -783,7 +789,7 @@ describe('DataRetentionService', () => {
 
       // Verify status was reverted
       expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining("UPDATE deletion_requests SET status = 'pending'"),
+        expect.stringContaining("SET status = 'pending'"),
         ['request-1']
       );
     });
@@ -1076,6 +1082,7 @@ describe('DataRetentionService', () => {
 
       // Reset mocks for cancellation
       jest.clearAllMocks();
+      mockDb.query.mockReset();
       mockPool.connect.mockResolvedValue(mockClient);
       mockDb.query
         .mockResolvedValueOnce({ rows: [{ id: 'request-123' }] })

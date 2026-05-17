@@ -6,6 +6,7 @@ const USER_456 = '22222222-2222-4222-8222-222222222222';
 const EVENT_ID = '33333333-3333-4333-8333-333333333333';
 const VENUE_ID = '44444444-4444-4444-8444-444444444444';
 const CHECKIN_ID = '55555555-5555-4555-8555-555555555555';
+const mockDbQuery = jest.fn<(...args: unknown[]) => Promise<any>>();
 
 jest.mock('../../utils/auth', () => ({
   AuthUtils: {
@@ -29,6 +30,15 @@ jest.mock('../../config/redis', () => ({
   createPubSubConnection: jest.fn(() => {
     throw new Error('Redis disabled in websocket tests');
   }),
+}));
+
+jest.mock('../../config/database', () => ({
+  __esModule: true,
+  default: {
+    getInstance: () => ({
+      query: mockDbQuery,
+    }),
+  },
 }));
 
 import { websocket } from '../../utils/websocket';
@@ -124,18 +134,19 @@ describe('WebSocket Authentication', () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
+      mockDbQuery.mockReset();
       sentMessages = [];
       mockWs = createMockWs(sentMessages);
       mockClient = createClient(mockWs);
     });
 
-    test('rejects join_room before authentication', () => {
+    test('rejects join_room before authentication', async () => {
       const clientsMap = (websocket as any).clients as Map<string, any>;
       const clientId = 'test-client-1';
       clientsMap.set(clientId, mockClient);
 
       try {
-        (websocket as any).handleMessage(clientId, {
+        await (websocket as any).handleMessage(clientId, {
           type: 'join_room',
           payload: { room: `venue:${VENUE_ID}` },
         });
@@ -206,6 +217,7 @@ describe('WebSocket Authentication', () => {
     let mockClient: any;
 
     beforeEach(() => {
+      mockDbQuery.mockReset();
       sentMessages = [];
       mockWs = createMockWs(sentMessages);
       mockClient = createClient(mockWs, USER_123);
@@ -216,14 +228,18 @@ describe('WebSocket Authentication', () => {
       ['venue room', `venue:${VENUE_ID}`],
       ['checkin room', `checkin:${CHECKIN_ID}`],
       ['own user room', `user:${USER_123}`],
-    ])('allows joining valid %s', (_label, room) => {
+    ])('allows joining valid %s', async (_label, room) => {
       const clientsMap = (websocket as any).clients as Map<string, any>;
       const roomsMap = (websocket as any).rooms as Map<string, Set<string>>;
       const clientId = `test-${room}`;
       clientsMap.set(clientId, mockClient);
 
       try {
-        (websocket as any).handleMessage(clientId, {
+        if (!room.startsWith('user:')) {
+          mockDbQuery.mockResolvedValueOnce({ rows: [{ allowed: 1 }] });
+        }
+
+        await (websocket as any).handleMessage(clientId, {
           type: 'join_room',
           payload: { room },
         });
@@ -246,13 +262,13 @@ describe('WebSocket Authentication', () => {
       ['venue non-UUID', 'venue:xyz-789', 'Invalid venue room id'],
       ['checkin non-UUID', 'checkin:not-a-uuid', 'Invalid checkin room id'],
       ['user non-UUID', 'user:user-123', 'Invalid user room id'],
-    ])('rejects %s', (_label, room, expectedMessage) => {
+    ])('rejects %s', async (_label, room, expectedMessage) => {
       const clientsMap = (websocket as any).clients as Map<string, any>;
       const clientId = `test-invalid-${room}`;
       clientsMap.set(clientId, mockClient);
 
       try {
-        (websocket as any).handleMessage(clientId, {
+        await (websocket as any).handleMessage(clientId, {
           type: 'join_room',
           payload: { room },
         });
@@ -266,14 +282,14 @@ describe('WebSocket Authentication', () => {
       }
     });
 
-    test('rejects cross-user user room', () => {
+    test('rejects cross-user user room', async () => {
       const clientsMap = (websocket as any).clients as Map<string, any>;
       const clientId = 'test-cross-user-room';
       const room = `user:${USER_456}`;
       clientsMap.set(clientId, mockClient);
 
       try {
-        (websocket as any).handleMessage(clientId, {
+        await (websocket as any).handleMessage(clientId, {
           type: 'join_room',
           payload: { room },
         });
@@ -281,6 +297,28 @@ describe('WebSocket Authentication', () => {
         const errorMsg = sentMessages.find((message) => message.type === 'error');
         expect(errorMsg).toBeDefined();
         expect(errorMsg.payload.message).toBe("Cannot join another user's room");
+        expect(mockClient.rooms.has(room)).toBe(false);
+      } finally {
+        clientsMap.delete(clientId);
+      }
+    });
+
+    test('rejects non-user rooms when the authenticated user lacks resource access', async () => {
+      const clientsMap = (websocket as any).clients as Map<string, any>;
+      const clientId = 'test-unauthorized-room';
+      const room = `checkin:${CHECKIN_ID}`;
+      clientsMap.set(clientId, mockClient);
+      mockDbQuery.mockResolvedValueOnce({ rows: [] });
+
+      try {
+        await (websocket as any).handleMessage(clientId, {
+          type: 'join_room',
+          payload: { room },
+        });
+
+        const errorMsg = sentMessages.find((message) => message.type === 'error');
+        expect(errorMsg).toBeDefined();
+        expect(errorMsg.payload.message).toBe('Not authorized for this room');
         expect(mockClient.rooms.has(room)).toBe(false);
       } finally {
         clientsMap.delete(clientId);
