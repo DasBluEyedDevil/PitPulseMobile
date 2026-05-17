@@ -34,8 +34,9 @@ describe('SubscriptionService', () => {
   let subscriptionService: SubscriptionService;
 
   beforeEach(() => {
-    subscriptionService = new SubscriptionService();
     jest.clearAllMocks();
+    mockDb.query.mockReset();
+    subscriptionService = new SubscriptionService();
     // Reset logger mocks
     mockLogger.info.mockClear();
     mockLogger.warn.mockClear();
@@ -47,6 +48,7 @@ describe('SubscriptionService', () => {
       id: 'evt-123',
       type: 'INITIAL_PURCHASE',
       app_user_id: 'user-456',
+      entitlement_ids: ['pro'],
     };
 
     it('should process INITIAL_PURCHASE event and grant premium', async () => {
@@ -100,7 +102,7 @@ describe('SubscriptionService', () => {
     });
 
     it('should process EXPIRATION event and revoke premium', async () => {
-      const expirationEvent = { ...mockEvent, type: 'EXPIRATION' };
+      const expirationEvent = { ...mockEvent, type: 'EXPIRATION', expiration_at_ms: Date.now() - 1000 };
       mockDb.query
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: 'user-456' }] })
@@ -293,6 +295,7 @@ describe('SubscriptionService', () => {
         id: 'evt-1',
         type: 'INITIAL_PURCHASE',
         app_user_id: 'user-789',
+        entitlement_ids: ['pro'],
       });
 
       expect(mockDb.query).toHaveBeenCalledWith('UPDATE users SET is_premium = $2 WHERE id = $1', [
@@ -313,6 +316,7 @@ describe('SubscriptionService', () => {
         id: 'evt-2',
         type: 'CANCELLATION',
         app_user_id: 'user-789',
+        entitlement_ids: ['pro'],
       });
 
       // Should NOT have called update for premium
@@ -334,6 +338,8 @@ describe('SubscriptionService', () => {
         id: 'evt-3',
         type: 'EXPIRATION',
         app_user_id: 'user-789',
+        entitlement_ids: ['pro'],
+        expiration_at_ms: Date.now() - 1000,
       });
 
       expect(mockDb.query).toHaveBeenCalledWith('UPDATE users SET is_premium = $2 WHERE id = $1', [
@@ -352,6 +358,7 @@ describe('SubscriptionService', () => {
         id: 'evt-uncancel',
         type: 'UNCANCELLATION',
         app_user_id: 'user-abc',
+        entitlement_ids: ['pro'],
       });
 
       expect(mockDb.query).toHaveBeenCalledWith('UPDATE users SET is_premium = $2 WHERE id = $1', [
@@ -371,6 +378,7 @@ describe('SubscriptionService', () => {
         id: 'evt-race',
         type: 'INITIAL_PURCHASE',
         app_user_id: 'user-race',
+        entitlement_ids: ['pro'],
       });
 
       expect(result1.processed).toBe(true);
@@ -383,6 +391,7 @@ describe('SubscriptionService', () => {
         id: 'evt-race',
         type: 'INITIAL_PURCHASE',
         app_user_id: 'user-race',
+        entitlement_ids: ['pro'],
       });
 
       expect(result2.processed).toBe(false);
@@ -422,6 +431,7 @@ describe('SubscriptionService', () => {
           id: `evt-${userId}`,
           type: 'INITIAL_PURCHASE',
           app_user_id: userId,
+          entitlement_ids: ['pro'],
         });
 
         expect(mockDb.query).toHaveBeenCalledWith(
@@ -442,6 +452,7 @@ describe('SubscriptionService', () => {
         id: 'evt-special',
         type: 'INITIAL_PURCHASE',
         app_user_id: specialUserId,
+        entitlement_ids: ['pro'],
       });
 
       expect(result.processed).toBe(true);
@@ -461,6 +472,7 @@ describe('SubscriptionService', () => {
           id: 'evt-err',
           type: 'INITIAL_PURCHASE',
           app_user_id: 'user-err',
+          entitlement_ids: ['pro'],
         })
       ).rejects.toThrow('Database connection failed');
     });
@@ -473,6 +485,7 @@ describe('SubscriptionService', () => {
           id: 'evt-err',
           type: 'INITIAL_PURCHASE',
           app_user_id: 'user-err',
+          entitlement_ids: ['pro'],
         })
       ).rejects.toThrow('Query timeout');
     });
@@ -488,6 +501,7 @@ describe('SubscriptionService', () => {
           id: 'evt-err',
           type: 'INITIAL_PURCHASE',
           app_user_id: 'user-err',
+          entitlement_ids: ['pro'],
         })
       ).rejects.toThrow('Insert failed');
     });

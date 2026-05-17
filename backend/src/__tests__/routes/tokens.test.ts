@@ -85,22 +85,25 @@ describe('Token Routes', () => {
 
   describe('POST /api/tokens/refresh', () => {
     it('should refresh tokens successfully with valid refresh token', async () => {
-      mockQuery.mockResolvedValueOnce({
-        rows: [{ id: 'tid', user_id: mockUser.id, token_hash: validTokenHash }],
-        rowCount: 1,
-      });
-
-      mockFindById.mockResolvedValueOnce(mockUser);
-
       mockClientQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] }) // BEGIN
         .mockResolvedValueOnce({
           rows: [{ id: 'tid', token_hash: validTokenHash, user_id: mockUser.id }],
           rowCount: 1,
         })
+        .mockResolvedValueOnce({ rows: [{ user_id: mockUser.id }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: mockUser.id,
+              email: mockUser.email,
+              username: mockUser.username,
+              is_active: true,
+            },
+          ],
+        })
         .mockResolvedValueOnce({ rows: [], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [] });
+        .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
       const response = await request(app)
         .post('/api/tokens/refresh')
@@ -132,10 +135,10 @@ describe('Token Routes', () => {
     });
 
     it('should return 401 when refresh token is invalid or expired', async () => {
-      mockQuery.mockResolvedValueOnce({
-        rows: [],
-        rowCount: 0,
-      });
+      mockClientQuery
+        .mockResolvedValueOnce({ rows: [] }) // BEGIN
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
       const response = await request(app)
         .post('/api/tokens/refresh')
@@ -146,12 +149,15 @@ describe('Token Routes', () => {
     });
 
     it('should return 401 when user not found', async () => {
-      mockQuery.mockResolvedValueOnce({
-        rows: [{ id: 'tid', user_id: mockUser.id, token_hash: validTokenHash }],
-        rowCount: 1,
-      });
-
-      mockFindById.mockResolvedValueOnce(null);
+      mockClientQuery
+        .mockResolvedValueOnce({ rows: [] }) // BEGIN
+        .mockResolvedValueOnce({
+          rows: [{ id: 'tid', user_id: mockUser.id, token_hash: validTokenHash }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [{ user_id: mockUser.id }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
       const response = await request(app)
         .post('/api/tokens/refresh')
@@ -162,12 +168,24 @@ describe('Token Routes', () => {
     });
 
     it('should return 401 when user is inactive', async () => {
-      mockQuery.mockResolvedValueOnce({
-        rows: [{ id: 'tid', user_id: mockUser.id, token_hash: validTokenHash }],
-        rowCount: 1,
-      });
-
-      mockFindById.mockResolvedValueOnce({ ...mockUser, isActive: false });
+      mockClientQuery
+        .mockResolvedValueOnce({ rows: [] }) // BEGIN
+        .mockResolvedValueOnce({
+          rows: [{ id: 'tid', user_id: mockUser.id, token_hash: validTokenHash }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [{ user_id: mockUser.id }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: mockUser.id,
+              email: mockUser.email,
+              username: mockUser.username,
+              is_active: false,
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
       const response = await request(app)
         .post('/api/tokens/refresh')
@@ -178,13 +196,6 @@ describe('Token Routes', () => {
     });
 
     it('should rollback transaction on error and return 500', async () => {
-      mockQuery.mockResolvedValueOnce({
-        rows: [{ id: 'tid', user_id: mockUser.id, token_hash: validTokenHash }],
-        rowCount: 1,
-      });
-
-      mockFindById.mockResolvedValueOnce(mockUser);
-
       mockClientQuery.mockResolvedValueOnce({ rows: [] });
       mockClientQuery.mockRejectedValueOnce(new Error('Database error'));
       mockClientQuery.mockResolvedValueOnce({ rows: [] });
@@ -201,7 +212,7 @@ describe('Token Routes', () => {
     });
 
     it('should handle general errors gracefully', async () => {
-      mockQuery.mockRejectedValueOnce(new Error('Connection error'));
+      mockGetClient.mockRejectedValueOnce(new Error('Connection error'));
 
       const response = await request(app)
         .post('/api/tokens/refresh')
@@ -281,22 +292,25 @@ describe('Token Routes', () => {
         release: mockClientRelease,
       });
 
-      mockQuery.mockResolvedValueOnce({
-        rows: [{ id: 'tid', user_id: mockUser.id, token_hash: validTokenHash }],
-        rowCount: 1,
-      });
-
-      mockFindById.mockResolvedValueOnce(mockUser);
-
       mockClientQuery
-        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] }) // BEGIN
         .mockResolvedValueOnce({
           rows: [{ id: 'tid', token_hash: validTokenHash, user_id: mockUser.id }],
           rowCount: 1,
         })
+        .mockResolvedValueOnce({ rows: [{ user_id: mockUser.id }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: mockUser.id,
+              email: mockUser.email,
+              username: mockUser.username,
+              is_active: true,
+            },
+          ],
+        })
         .mockResolvedValueOnce({ rows: [], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [] });
+        .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
       const response = await request(app)
         .post('/api/tokens/refresh')
@@ -316,13 +330,6 @@ describe('Token Routes', () => {
         query: mockClientQuery,
         release: mockClientRelease,
       });
-
-      mockQuery.mockResolvedValueOnce({
-        rows: [{ id: 'tid', user_id: mockUser.id, token_hash: validTokenHash }],
-        rowCount: 1,
-      });
-
-      mockFindById.mockResolvedValueOnce(mockUser);
 
       mockClientQuery
         .mockResolvedValueOnce({ rows: [] })

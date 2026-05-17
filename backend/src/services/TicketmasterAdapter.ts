@@ -255,7 +255,6 @@ export class TicketmasterAdapter {
       const response = await this.performTicketmasterRequest<TicketmasterEvent>(() =>
         this.client.get<TicketmasterEvent>(`/events/${eventId}.json`)
       );
-      await this.incrementDailyCount();
       return response.data;
     } catch (error) {
       const axiosErr = error as AxiosError;
@@ -263,6 +262,8 @@ export class TicketmasterAdapter {
         return null;
       }
       throw error;
+    } finally {
+      await this.incrementDailyCount();
     }
   }
 

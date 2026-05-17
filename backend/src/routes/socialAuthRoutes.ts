@@ -33,26 +33,30 @@ const appleAuthSchema = z.object({
  * GET /api/auth/social/state
  * Returns a one-time CSRF state (stored in Redis, 5 min TTL). Required for Google/Apple sign-in.
  */
-router.get('/state', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  try {
-    const state = await socialAuthService.generateOAuthState();
-    const response: ApiResponse = {
-      success: true,
-      data: { state },
-    };
-    res.status(200).json(response);
-  } catch (error) {
-    if (error instanceof OAuthStateError) {
+router.get(
+  '/state',
+  rateLimit(15 * 60 * 1000, 30),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const state = await socialAuthService.generateOAuthState();
       const response: ApiResponse = {
-        success: false,
-        error: error.message,
+        success: true,
+        data: { state },
       };
-      res.status(503).json(response);
-      return;
+      res.status(200).json(response);
+    } catch (error) {
+      if (error instanceof OAuthStateError) {
+        const response: ApiResponse = {
+          success: false,
+          error: error.message,
+        };
+        res.status(503).json(response);
+        return;
+      }
+      next(error);
     }
-    next(error);
   }
-});
+);
 
 /**
  * POST /api/auth/social/google

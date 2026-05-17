@@ -84,13 +84,12 @@ Map<String, dynamic> _sentMessage(String raw) {
 }
 
 void main() {
-  test('buildUri appends a URL-encoded token to the wsBaseUrl', () {
+  test('buildUri does not place bearer tokens in the URL', () {
     final uri = WebSocketService.buildUri('jwt with spaces+/=');
 
     expect(uri.scheme, anyOf('ws', 'wss'));
-    expect(uri.queryParameters['token'], 'jwt with spaces+/=');
-    expect(uri.toString(), contains('token='));
-    expect(uri.toString(), contains('jwt+with+spaces%2B%2F%3D'));
+    expect(uri.queryParameters.containsKey('token'), isFalse);
+    expect(uri.toString(), isNot(contains('jwt')));
   });
 
   test(
@@ -98,18 +97,20 @@ void main() {
     () async {
       final channel = _FakeWebSocketChannel();
       Uri? connectedUri;
+      String? connectedToken;
       final service = WebSocketService(
-        uriBuilder: (token) =>
-            Uri.parse('wss://example.test/socket?token=$token'),
-        channelFactory: (uri) {
+        uriBuilder: (_) => Uri.parse('wss://example.test/socket'),
+        channelFactory: (uri, {authToken}) {
           connectedUri = uri;
+          connectedToken = authToken;
           return channel;
         },
       );
 
       await service.connect(authToken: 'abc123', userId: 'user-1');
 
-      expect(connectedUri.toString(), 'wss://example.test/socket?token=abc123');
+      expect(connectedUri.toString(), 'wss://example.test/socket');
+      expect(connectedToken, 'abc123');
       expect(channel.sentMessages, isEmpty);
 
       service.dispose();
@@ -121,8 +122,8 @@ void main() {
     () async {
       final channel = _FakeWebSocketChannel();
       final service = WebSocketService(
-        uriBuilder: (_) => Uri.parse('wss://example.test/socket?token=abc123'),
-        channelFactory: (_) => channel,
+        uriBuilder: (_) => Uri.parse('wss://example.test/socket'),
+        channelFactory: (_, {authToken}) => channel,
       );
 
       service.joinCheckinRoom('checkin-1');
@@ -154,8 +155,8 @@ void main() {
     () async {
       final channels = <_FakeWebSocketChannel>[];
       final service = WebSocketService(
-        uriBuilder: (_) => Uri.parse('wss://example.test/socket?token=abc123'),
-        channelFactory: (_) {
+        uriBuilder: (_) => Uri.parse('wss://example.test/socket'),
+        channelFactory: (_, {authToken}) {
           final channel = _FakeWebSocketChannel();
           channels.add(channel);
           return channel;

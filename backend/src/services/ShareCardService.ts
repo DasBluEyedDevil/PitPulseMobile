@@ -77,9 +77,8 @@ export class ShareCardService {
       throw err;
     }
 
-    const ts = Date.now();
-    const ogKey = `cards/checkin/${checkinId}-${ts}-og.png`;
-    const storiesKey = `cards/checkin/${checkinId}-${ts}-stories.png`;
+    const ogKey = `cards/checkin/${checkinId}-og.png`;
+    const storiesKey = `cards/checkin/${checkinId}-stories.png`;
 
     const [ogUrl, storiesUrl] = await Promise.all([
       this.renderAndUpload(checkinCardOG(data), 1200, 630, ogKey),
@@ -110,9 +109,8 @@ export class ShareCardService {
       throw err;
     }
 
-    const ts = Date.now();
-    const ogKey = `cards/badge/${badgeAwardId}-${ts}-og.png`;
-    const storiesKey = `cards/badge/${badgeAwardId}-${ts}-stories.png`;
+    const ogKey = `cards/badge/${badgeAwardId}-og.png`;
+    const storiesKey = `cards/badge/${badgeAwardId}-stories.png`;
 
     const [ogUrl, storiesUrl] = await Promise.all([
       this.renderAndUpload(badgeCardOG(data), 1200, 630, ogKey),
@@ -193,6 +191,11 @@ export class ShareCardService {
     height: number,
     key: string
   ): Promise<string> {
+    const existing = await r2Service.headObject(key);
+    if (existing.exists) {
+      return r2Service.getPublicUrl(key);
+    }
+
     // Convert Node Buffer to ArrayBuffer for satori
     // Use Uint8Array.from to ensure a clean ArrayBuffer copy
     const fontUint8 = new Uint8Array(fontData);

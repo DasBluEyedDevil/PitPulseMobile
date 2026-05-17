@@ -94,7 +94,18 @@ export class ClaimService {
   /**
    * Get a single claim by ID with entity and user details.
    */
-  async getClaimById(claimId: string): Promise<VerificationClaim> {
+  async getClaimById(
+    claimId: string,
+    options: { requestingUserId?: string; isAdmin?: boolean } = {}
+  ): Promise<VerificationClaim> {
+    const values: any[] = [claimId];
+    let ownershipFilter = '';
+
+    if (options.requestingUserId && !options.isAdmin) {
+      values.push(options.requestingUserId);
+      ownershipFilter = ' AND vc.user_id = $2';
+    }
+
     const result = await this.db.query(
       `SELECT vc.*,
               CASE vc.entity_type
@@ -107,8 +118,8 @@ export class ClaimService {
        LEFT JOIN venues v ON vc.entity_type = 'venue' AND vc.entity_id = v.id
        LEFT JOIN bands b ON vc.entity_type = 'band' AND vc.entity_id = b.id
        LEFT JOIN users u ON vc.user_id = u.id
-       WHERE vc.id = $1`,
-      [claimId]
+       WHERE vc.id = $1${ownershipFilter}`,
+      values
     );
     if (result.rows.length === 0) {
       throw new NotFoundError('Claim not found');

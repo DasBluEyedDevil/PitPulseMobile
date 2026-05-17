@@ -31,6 +31,7 @@ import { Server } from 'http';
 import { AuthUtils } from './auth';
 import WebSocket, { WebSocketServer as WsServer } from 'ws';
 import IORedis from 'ioredis';
+import Database from '../config/database';
 import { createPubSubConnection } from '../config/redis';
 import winstonLogger from './logger';
 import {
@@ -60,6 +61,7 @@ class WebSocketServer {
   private rooms: Map<string, Set<string>> = new Map();
   private heartbeatInterval?: ReturnType<typeof setInterval>;
   private subscriber: IORedis | null = null;
+  private db = Database.getInstance();
 
   init(server: Server): void {
     if (!process.env.ENABLE_WEBSOCKET || process.env.ENABLE_WEBSOCKET !== 'true') {
@@ -137,7 +139,7 @@ class WebSocketServer {
       ws.on('message', (message: string) => {
         try {
           const data = JSON.parse(message.toString());
-          this.handleMessage(clientId, data);
+          void this.handleMessage(clientId, data);
         } catch (error) {
           winstonLogger.error('Invalid WebSocket message', {
             error: error instanceof Error ? error.message : String(error),
@@ -282,7 +284,7 @@ class WebSocketServer {
     return 0;
   }
 
-  private handleMessage(clientId: string, data: any): void {
+  private async handleMessage(clientId: string, data: any): Promise<void> {
     const client = this.clients.get(clientId);
     if (!client) return;
 
@@ -318,7 +320,7 @@ class WebSocketServer {
         break;
 
       case 'join_room':
-        this.joinRoom(clientId, payload.room);
+        await this.joinRoom(clientId, payload.room);
         break;
 
       case 'leave_room':
@@ -366,11 +368,11 @@ class WebSocketServer {
     }
   }
 
-  private joinRoom(clientId: string, room: string): void {
+  private async joinRoom(clientId: string, room: string): Promise<void> {
     const client = this.clients.get(clientId);
     if (!client || !client.userId) return;
 
-    const validation = this.validateRoom(room, client.userId);
+    const validation = await this.validateRoom(room, client.userId);
     if (!validation.valid) {
       this.send(clientId, 'error', { message: validation.message });
       return;
@@ -387,7 +389,10 @@ class WebSocketServer {
     winstonLogger.info(`Client ${clientId} joined room: ${room}`);
   }
 
-  private validateRoom(room: unknown, authenticatedUserId: string): { valid: boolean; message: string } {
+  private async validateRoom(
+    room: unknown,
+    authenticatedUserId: string
+  ): Promise<{ valid: boolean; message: string }> {
     if (typeof room !== 'string' || room.length === 0) {
       return { valid: false, message: 'Invalid room name' };
     }
@@ -412,7 +417,94 @@ class WebSocketServer {
       return { valid: false, message: "Cannot join another user's room" };
     }
 
+    if (prefix === 'user') {
+      return { valid: true, message: 'Valid room' };
+    }
+
+    try {
+      const allowed = await this.hasRoomAccess(prefix, id, authenticatedUserId);
+      if (!allowed) {
+        return { valid: false, message: 'Not authorized for this room' };
+      }
+    } catch (error) {
+      winstonLogger.error('WebSocket room access check failed', {
+        room,
+        userId: authenticatedUserId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return { valid: false, message: 'Room access check failed' };
+    }
+
     return { valid: true, message: 'Valid room' };
+  }
+
+  private async hasRoomAccess(
+    prefix: string,
+    resourceId: string,
+    authenticatedUserId: string
+  ): Promise<boolean> {
+    if (prefix === 'event') {
+      const result = await this.db.query(
+        `SELECT 1
+         FROM event_rsvps
+         WHERE user_id = $1 AND event_id = $2
+         UNION
+         SELECT 1
+         FROM checkins
+         WHERE user_id = $1 AND event_id = $2
+         LIMIT 1`,
+        [authenticatedUserId, resourceId]
+      );
+      return result.rows.length > 0;
+    }
+
+    if (prefix === 'venue') {
+      const result = await this.db.query(
+        `SELECT 1
+         FROM checkins
+         WHERE user_id = $1 AND venue_id = $2
+         UNION
+         SELECT 1
+         FROM event_rsvps er
+         INNER JOIN events e ON e.id = er.event_id
+         WHERE er.user_id = $1 AND e.venue_id = $2
+         LIMIT 1`,
+        [authenticatedUserId, resourceId]
+      );
+      return result.rows.length > 0;
+    }
+
+    if (prefix === 'checkin') {
+      const result = await this.db.query(
+        `SELECT 1
+         FROM checkins c
+         WHERE c.id = $2
+           AND (
+             c.user_id = $1
+             OR EXISTS (
+               SELECT 1 FROM user_followers uf
+               WHERE uf.follower_id = $1 AND uf.following_id = c.user_id
+             )
+             OR (
+               c.event_id IS NOT NULL
+               AND EXISTS (
+                 SELECT 1 FROM event_rsvps er
+                 WHERE er.user_id = $1 AND er.event_id = c.event_id
+               )
+             )
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM user_blocks ub
+             WHERE (ub.blocker_id = $1 AND ub.blocked_id = c.user_id)
+                OR (ub.blocker_id = c.user_id AND ub.blocked_id = $1)
+           )
+         LIMIT 1`,
+        [authenticatedUserId, resourceId]
+      );
+      return result.rows.length > 0;
+    }
+
+    return false;
   }
 
   private leaveRoom(clientId: string, room: string): void {

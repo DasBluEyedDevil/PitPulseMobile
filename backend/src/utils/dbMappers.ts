@@ -1,4 +1,4 @@
-import { User, Report, ModerationItem, UserBlock } from '../types';
+import { User, PublicUser, Report, ModerationItem, UserBlock } from '../types';
 
 /**
  * Strip server-only fields before sending user data to clients.
@@ -34,6 +34,21 @@ export function mapDbUserToUser(row: any): User {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+/**
+ * Map rows for public user lists. These responses must never expose private
+ * account fields such as email, date of birth, admin state, or premium state.
+ */
+export function mapDbUserToPublicUser(row: any): PublicUser {
+  const {
+    email: _email,
+    dateOfBirth: _dateOfBirth,
+    isAdmin: _isAdmin,
+    isPremium: _isPremium,
+    ...publicUser
+  } = mapDbUserToUser(row);
+  return publicUser;
 }
 
 /**

@@ -13,6 +13,7 @@ import { EventService } from '../services/EventService';
 import { CreateVenueRequest, SearchQuery, ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
 import { UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError } from '../utils/errors';
+import { parseBoundedFloat, parseBoundedInt } from '../utils/queryBounds';
 
 export class VenueController {
   private venueService = new VenueService();
@@ -53,8 +54,8 @@ export class VenueController {
       city: req.query.city as string,
       venueType: req.query.venueType as any,
       rating: req.query.rating ? parseFloat(req.query.rating as string) : undefined,
-      page: req.query.page ? parseInt(req.query.page as string) : 1,
-      limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+      page: parseBoundedInt(req.query.page, 1, { min: 1, max: 10000 }),
+      limit: parseBoundedInt(req.query.limit, 20, { min: 1, max: 100 }),
       sort: req.query.sort as string,
       order: req.query.order as 'asc' | 'desc',
     };
@@ -163,7 +164,7 @@ export class VenueController {
    * GET /api/venues/popular
    */
   getPopularVenues = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+    const limit = parseBoundedInt(req.query.limit, 10, { min: 1, max: 100 });
     const venues = await this.venueService.getPopularVenues(limit);
 
     const response: ApiResponse = {
@@ -181,8 +182,8 @@ export class VenueController {
   getVenuesNear = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const latitude = parseFloat(req.query.lat as string);
     const longitude = parseFloat(req.query.lng as string);
-    const radius = req.query.radius ? parseFloat(req.query.radius as string) : 50;
-    const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+    const radius = parseBoundedFloat(req.query.radius, 50, { min: 0.1, max: 500 });
+    const limit = parseBoundedInt(req.query.limit, 20, { min: 1, max: 100 });
 
     if (isNaN(latitude) || isNaN(longitude)) {
       throw new BadRequestError('Valid latitude and longitude are required');

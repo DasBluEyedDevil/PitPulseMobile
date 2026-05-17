@@ -108,11 +108,6 @@ export class DataRetentionService {
       cancelledAt: row.cancelled_at || undefined,
     };
 
-    // Deactivate the user account immediately
-    await this.db.query('UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1', [
-      userId,
-    ]);
-
     return {
       success: true,
       deletionRequest,
@@ -374,10 +369,19 @@ export class DataRetentionService {
 
     for (const deletion of pendingDeletions) {
       try {
-        // Mark as processing
-        await this.db.query(`UPDATE deletion_requests SET status = 'processing' WHERE id = $1`, [
-          deletion.id,
-        ]);
+        // Mark as processing only if the request is still pending. This prevents
+        // a concurrent cancellation from being overwritten by the cleanup job.
+        const claimed = await this.db.query(
+          `UPDATE deletion_requests
+           SET status = 'processing'
+           WHERE id = $1 AND status = 'pending'
+           RETURNING id`,
+          [deletion.id]
+        );
+
+        if (claimed.rows.length === 0) {
+          continue;
+        }
 
         // Execute deletion
         await this.executeAccountDeletion(deletion.userId);
@@ -387,10 +391,14 @@ export class DataRetentionService {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         errors.push({ userId: deletion.userId, error: errorMessage });
 
-        // Revert status to pending on failure
-        await this.db.query(`UPDATE deletion_requests SET status = 'pending' WHERE id = $1`, [
-          deletion.id,
-        ]);
+        // Revert only the request we claimed. Do not resurrect a request that
+        // was cancelled while execution was failing.
+        await this.db.query(
+          `UPDATE deletion_requests
+           SET status = 'pending'
+           WHERE id = $1 AND status = 'processing'`,
+          [deletion.id]
+        );
 
         logger.error(`Failed to process deletion for user ${deletion.userId}`, {
           error: error instanceof Error ? error.message : String(error),

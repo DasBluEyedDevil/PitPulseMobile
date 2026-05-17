@@ -5,10 +5,15 @@ interface WebhookEvent {
   id: string;
   type: string;
   app_user_id: string;
+  entitlement_ids?: string[];
+  environment?: string;
+  expiration_at_ms?: number | null;
 }
 
 export class SubscriptionService {
   private db = Database.getInstance();
+  private premiumEntitlementId = process.env.REVENUECAT_ENTITLEMENT_ID || 'pro';
+  private expectedEnvironment = process.env.REVENUECAT_WEBHOOK_ENVIRONMENT;
 
   /**
    * Process a RevenueCat webhook event idempotently.
@@ -22,6 +27,33 @@ export class SubscriptionService {
     );
     if (existing.rows.length > 0) {
       return { processed: false, reason: 'Already processed' };
+    }
+
+    if (event.type === 'TEST') {
+      logger.info(`SubscriptionService: Received TEST event ${event.id}`);
+      await this.markEventProcessed(event);
+      return { processed: true, reason: 'OK' };
+    }
+
+    if (!this.targetsPremiumEntitlement(event)) {
+      logger.warn('SubscriptionService: Ignoring RevenueCat event for non-premium entitlement', {
+        eventId: event.id,
+        eventType: event.type,
+        entitlementIds: event.entitlement_ids,
+      });
+      await this.markEventProcessed(event);
+      return { processed: true, reason: 'Ignored non-premium entitlement' };
+    }
+
+    if (!this.matchesExpectedEnvironment(event)) {
+      logger.warn('SubscriptionService: Ignoring RevenueCat event for unexpected environment', {
+        eventId: event.id,
+        eventType: event.type,
+        environment: event.environment,
+        expectedEnvironment: this.expectedEnvironment,
+      });
+      await this.markEventProcessed(event);
+      return { processed: true, reason: 'Ignored unexpected environment' };
     }
 
     // 2. Resolve user by app_user_id (set via Purchases.logIn(userId) on mobile)
@@ -38,18 +70,29 @@ export class SubscriptionService {
       case 'INITIAL_PURCHASE':
       case 'RENEWAL':
       case 'UNCANCELLATION':
+        if (this.isExpired(event)) {
+          logger.warn('SubscriptionService: Ignoring expired premium grant event', {
+            eventId: event.id,
+            eventType: event.type,
+            expirationAtMs: event.expiration_at_ms,
+          });
+          break;
+        }
         await this.setUserPremium(event.app_user_id, true);
         break;
       case 'EXPIRATION':
+        if (!this.isExpired(event)) {
+          logger.warn('SubscriptionService: Ignoring expiration event without elapsed expiration', {
+            eventId: event.id,
+            expirationAtMs: event.expiration_at_ms,
+          });
+          break;
+        }
         await this.setUserPremium(event.app_user_id, false);
         break;
       case 'CANCELLATION':
         // User still has access until expiration_at_ms
         // Don't revoke immediately -- wait for EXPIRATION event
-        break;
-      case 'TEST':
-        // RevenueCat test event -- just log and mark processed
-        logger.info(`SubscriptionService: Received TEST event ${event.id}`);
         break;
       default:
         // Unknown event type -- log but don't fail
@@ -57,13 +100,41 @@ export class SubscriptionService {
     }
 
     // 4. Mark event as processed (ON CONFLICT for race condition safety)
+    await this.markEventProcessed(event);
+
+    return { processed: true, reason: 'OK' };
+  }
+
+  private targetsPremiumEntitlement(event: WebhookEvent): boolean {
+    if (!Array.isArray(event.entitlement_ids) || event.entitlement_ids.length === 0) {
+      return false;
+    }
+
+    return event.entitlement_ids.includes(this.premiumEntitlementId);
+  }
+
+  private matchesExpectedEnvironment(event: WebhookEvent): boolean {
+    if (!this.expectedEnvironment) {
+      return true;
+    }
+
+    return event.environment === this.expectedEnvironment;
+  }
+
+  private isExpired(event: WebhookEvent): boolean {
+    return (
+      typeof event.expiration_at_ms === 'number' &&
+      Number.isFinite(event.expiration_at_ms) &&
+      event.expiration_at_ms <= Date.now()
+    );
+  }
+
+  private async markEventProcessed(event: WebhookEvent): Promise<void> {
     await this.db.query(
       `INSERT INTO processed_webhook_events (event_id, event_type, app_user_id)
        VALUES ($1, $2, $3) ON CONFLICT (event_id) DO NOTHING`,
       [event.id, event.type, event.app_user_id]
     );
-
-    return { processed: true, reason: 'OK' };
   }
 
   /**

@@ -258,6 +258,59 @@ export async function verifyRefreshToken(
 }
 
 /**
+ * Verify and revoke a refresh token in one transaction-safe operation.
+ * The row lock makes refresh-token rotation single-use even when two refresh
+ * requests race with the same token.
+ */
+export async function consumeRefreshToken(
+  token: string,
+  client: QueryExecutor
+): Promise<{ valid: boolean; userId?: string }> {
+  const parts = token.split('.');
+  if (parts.length !== 2) {
+    return { valid: false };
+  }
+  const [selector, verifier] = parts;
+  if (!selector || !verifier || selector.length !== 32) {
+    return { valid: false };
+  }
+
+  const result = await client.query(
+    `SELECT id, user_id, token_hash FROM refresh_tokens
+     WHERE selector = $1
+       AND revoked_at IS NULL
+       AND expires_at > NOW()
+     FOR UPDATE`,
+    [selector]
+  );
+
+  const row = result.rows[0];
+  if (!row) {
+    return { valid: false };
+  }
+
+  const ok = await verifyRefreshTokenHash(verifier, row.token_hash);
+  if (!ok) {
+    await revokeAllUserTokens(row.user_id, client);
+    return { valid: false };
+  }
+
+  const revoked = await client.query(
+    `UPDATE refresh_tokens
+     SET revoked_at = NOW()
+     WHERE id = $1 AND revoked_at IS NULL
+     RETURNING user_id`,
+    [row.id]
+  );
+
+  if (revoked.rows.length === 0) {
+    return { valid: false };
+  }
+
+  return { valid: true, userId: row.user_id };
+}
+
+/**
  * Revoke a specific refresh token.
  * Used during token rotation and logout.
  *
@@ -293,11 +346,14 @@ export async function revokeRefreshToken(token: string, client?: QueryExecutor):
 
   const ok = await verifyRefreshTokenHash(verifier, row.token_hash);
   if (!ok) {
-    await revokeAllUserTokens(row.user_id);
+    await revokeAllUserTokens(row.user_id, executor);
     return;
   }
 
-  await executor.query(`UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1`, [row.id]);
+  await executor.query(
+    `UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1 AND revoked_at IS NULL`,
+    [row.id]
+  );
 }
 
 /**
@@ -306,8 +362,8 @@ export async function revokeRefreshToken(token: string, client?: QueryExecutor):
  *
  * @param userId - The user ID whose tokens should be revoked
  */
-export async function revokeAllUserTokens(userId: string): Promise<void> {
-  const db = Database.getInstance();
+export async function revokeAllUserTokens(userId: string, client?: QueryExecutor): Promise<void> {
+  const db = client || Database.getInstance();
 
   await db.query(
     `UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL`,

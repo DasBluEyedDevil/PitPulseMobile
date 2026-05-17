@@ -14,7 +14,7 @@
 
 import { Router } from 'express';
 import { ShareController } from '../controllers/ShareController';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken, rateLimit } from '../middleware/auth';
 import { createPerUserRateLimit, RateLimitPresets } from '../middleware/perUserRateLimit';
 
 const shareController = new ShareController();
@@ -49,10 +49,10 @@ apiRouter.post(
 const publicRouter = Router();
 
 // GET /share/c/:checkinId -- Public check-in landing page
-publicRouter.get('/c/:checkinId', shareController.renderCheckinLanding);
+publicRouter.get('/c/:checkinId', rateLimit(15 * 60 * 1000, 60), shareController.renderCheckinLanding);
 
 // GET /share/b/:badgeAwardId -- Public badge landing page
-publicRouter.get('/b/:badgeAwardId', shareController.renderBadgeLanding);
+publicRouter.get('/b/:badgeAwardId', rateLimit(15 * 60 * 1000, 60), shareController.renderBadgeLanding);
 
 // ============================================
 // Export both routers

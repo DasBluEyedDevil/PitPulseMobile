@@ -184,14 +184,20 @@ const CRITICAL_ENDPOINTS = [
   '/auth/login',
   '/auth/register',
   '/auth/refresh',
+  '/auth/revoke',
   '/auth/social/google',
   '/auth/social/apple',
   '/upload',
   '/api/auth/login',
   '/api/auth/register',
   '/api/auth/refresh',
+  '/api/auth/revoke',
   '/api/auth/social/google',
   '/api/auth/social/apple',
+  '/api/users/login',
+  '/api/users/register',
+  '/api/tokens/refresh',
+  '/api/tokens/revoke',
   '/api/upload',
 ];
 
@@ -200,6 +206,11 @@ const CRITICAL_ENDPOINTS = [
  */
 function isCriticalEndpoint(path: string): boolean {
   return CRITICAL_ENDPOINTS.some((endpoint) => path.startsWith(endpoint));
+}
+
+function requestPathForRateLimit(req: Request): string {
+  const rawPath = req.originalUrl || req.path || '';
+  return rawPath.split('?')[0] || req.path;
 }
 
 /**
@@ -249,7 +260,8 @@ function checkInMemoryRateLimit(
 export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number = 100) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const clientIP = req.ip || req.socket.remoteAddress || 'unknown';
-    const isCritical = isCriticalEndpoint(req.path);
+    const requestPath = requestPathForRateLimit(req);
+    const isCritical = isCriticalEndpoint(requestPath) || isCriticalEndpoint(req.path);
 
     try {
       // Try Redis first
@@ -279,7 +291,7 @@ export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number
       if (isCritical) {
         // CRITICAL ENDPOINTS: Fail closed (block requests)
         logger.error('Rate limiting unavailable for critical endpoint, failing closed', {
-          path: req.path,
+          path: requestPath,
           clientIP,
         });
         const response: ApiResponse = {
@@ -324,7 +336,7 @@ export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number
 
       // Non-critical endpoints: Allow through (fail-open with warning)
       logger.warn('Rate limiting failed for non-critical endpoint, allowing request', {
-        path: req.path,
+        path: requestPath,
       });
       next();
     }

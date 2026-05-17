@@ -38,12 +38,14 @@ type R2ProviderError = Error & {
 // Allowed content types for photo uploads
 // ============================================
 
-const ALLOWED_IMAGE_TYPES: Record<string, string> = {
+export const ALLOWED_IMAGE_TYPES: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
   'image/heic': 'heic',
 };
+
+export const MAX_UPLOAD_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 // ============================================
 // R2Service -- Cloudflare R2 presigned URL generation
@@ -108,9 +110,6 @@ export class R2Service {
     const randomId = crypto.randomBytes(16).toString('hex');
     const objectKey = `${prefix}/${randomId}.${ext}`;
 
-    // API-059: Enforce max file size (10 MB) via ContentLength condition
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-
     // Generate presigned PUT URL with 10-minute expiry
     const uploadUrl = await getSignedUrl(
       this.s3,
@@ -118,7 +117,6 @@ export class R2Service {
         Bucket: this.bucket,
         Key: objectKey,
         ContentType: contentType,
-        ContentLength: MAX_FILE_SIZE,
       }),
       { expiresIn: 600 }
     );
@@ -152,7 +150,11 @@ export class R2Service {
       })
     );
 
-    return `${this.publicUrl}/${key}`;
+    return this.getPublicUrl(key);
+  }
+
+  getPublicUrl(objectKey: string): string {
+    return `${this.publicUrl}/${objectKey}`;
   }
 
   /**

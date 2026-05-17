@@ -16,6 +16,7 @@ jest.mock('../../config/database', () => ({
 }));
 
 import {
+  consumeRefreshToken,
   generateRefreshToken,
   verifyRefreshToken,
   revokeRefreshToken,
@@ -214,6 +215,29 @@ describe('Refresh Token System', () => {
       await revokeRefreshToken(token, mockClient);
 
       expect(mockClient.query).toHaveBeenCalledTimes(2);
+    });
+
+    test('consumeRefreshToken locks and revokes the token in one transaction', async () => {
+      const selector = crypto.randomBytes(16).toString('hex');
+      const verifier = crypto.randomBytes(32).toString('hex');
+      const token = `${selector}.${verifier}`;
+      const tokenHash = await bcrypt.hash(verifier, 10);
+      const mockClient = {
+        query: jest
+          .fn()
+          .mockResolvedValueOnce({
+            rows: [{ id: 'id1', token_hash: tokenHash, user_id: 'u1' }],
+            rowCount: 1,
+          })
+          .mockResolvedValueOnce({ rows: [{ user_id: 'u1' }], rowCount: 1 }),
+      };
+
+      const result = await consumeRefreshToken(token, mockClient);
+
+      expect(result).toEqual({ valid: true, userId: 'u1' });
+      expect(mockClient.query.mock.calls[0][0]).toContain('FOR UPDATE');
+      expect(mockClient.query.mock.calls[1][0]).toContain('RETURNING user_id');
+      expect(mockQuery).not.toHaveBeenCalled();
     });
   });
 });
