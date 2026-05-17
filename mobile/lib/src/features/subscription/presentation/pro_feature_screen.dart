@@ -61,6 +61,7 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
         final hasPro = customerInfo.entitlements.all['pro']?.isActive ?? false;
         if (hasPro) {
           ref.read(isPremiumProvider.notifier).set(true);
+          ref.invalidate(serverSubscriptionStatusProvider);
           AnalyticsService.logEvent(name: 'subscription_started');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Welcome to SoundCheck Pro!')),
@@ -88,6 +89,7 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
               customerInfo.entitlements.all['pro']?.isActive ?? false;
           if (hasPro) {
             ref.read(isPremiumProvider.notifier).set(true);
+            ref.invalidate(serverSubscriptionStatusProvider);
             AnalyticsService.logEvent(name: 'subscription_restored');
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Purchases restored!')),
@@ -111,6 +113,11 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
   @override
   Widget build(BuildContext context) {
     final isPremium = ref.watch(isPremiumProvider);
+    final serverSubscriptionStatus = ref.watch(
+      serverSubscriptionStatusProvider,
+    );
+    final serverIsPremium = serverSubscriptionStatus.asData?.value.isPremium;
+    final isSyncingPremium = isPremium && serverIsPremium != true;
     final packagesAsync = ref.watch(packagesProvider);
 
     return Scaffold(
@@ -137,7 +144,9 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
             const SizedBox(height: 8),
             Text(
               isPremium
-                  ? "You're a Pro member!"
+                  ? isSyncingPremium
+                        ? 'Your purchase is syncing. Pro access may take a moment.'
+                        : "You're a Pro member!"
                   : 'Unlock the full concert experience',
               style: const TextStyle(
                 color: AppTheme.textSecondary,
@@ -206,8 +215,9 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
                             onSelected: _isPurchasing
                                 ? null
                                 : (_) => setState(() => _selectedPackage = p),
-                            selectedColor:
-                                AppTheme.voltLime.withValues(alpha: 0.35),
+                            selectedColor: AppTheme.voltLime.withValues(
+                              alpha: 0.35,
+                            ),
                             checkmarkColor: AppTheme.voltLime,
                           );
                         }).toList(),
@@ -225,8 +235,9 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Theme.of(context)
-                                        .scaffoldBackgroundColor,
+                                    color: Theme.of(
+                                      context,
+                                    ).scaffoldBackgroundColor,
                                   ),
                                 )
                               : const Text('Subscribe'),
@@ -259,15 +270,23 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
                 ),
               ),
             ] else ...[
-              const Icon(
+              Icon(
                 Icons.check_circle,
-                color: AppTheme.voltLime,
+                color: isSyncingPremium
+                    ? AppTheme.textSecondary
+                    : AppTheme.voltLime,
                 size: 48,
               ),
               const SizedBox(height: 8),
-              const Text(
-                'All Pro features are unlocked',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+              Text(
+                isSyncingPremium
+                    ? 'Waiting for backend confirmation before unlocking server-gated features.'
+                    : 'All Pro features are unlocked',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 14,
+                ),
               ),
             ],
             const SizedBox(height: 24),

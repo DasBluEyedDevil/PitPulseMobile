@@ -730,7 +730,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                                 child: Image.network(
                                   venue.imageUrl!,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => const Icon(
+                                  errorBuilder: (_, _, _) => const Icon(
                                     Icons.location_city,
                                     color: Colors.white,
                                     size: 30,
@@ -989,7 +989,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           SizedBox(height: 24),
         ],
       ),
-      error: (_, __) => const SizedBox.shrink(), // Hide on error
+      error: (_, _) => const SizedBox.shrink(), // Hide on error
     );
   }
 
@@ -1581,7 +1581,7 @@ class _EventCard extends ConsumerWidget {
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
                       ),
                     ),
                   // Date badge
@@ -1756,7 +1756,7 @@ class _TrendingEventCard extends StatelessWidget {
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
                       ),
                     ),
                   // Check-in count badge
@@ -1919,7 +1919,7 @@ class _ForYouCard extends StatelessWidget {
                         fit: BoxFit.cover,
                         width: double.infinity,
                         height: double.infinity,
-                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
                       ),
                     ),
                   // Date badge (voltLime)

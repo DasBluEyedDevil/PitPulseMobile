@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ApiResponse } from '../types';
 import logger from '../utils/logger';
 import { getRedis } from '../utils/redisRateLimiter';
+import { buildErrorResponseForStatus } from './validate';
 
 /**
  * Per-user rate limiting middleware
@@ -64,6 +65,7 @@ class PerUserRateLimiter {
       },
       5 * 60 * 1000
     );
+    this.cleanupInterval.unref?.();
   }
 
   private cleanup(): void {
@@ -168,12 +170,18 @@ class PerUserRateLimiter {
 
     if (redis) {
       try {
-        // Find and delete all Redis keys for this user
         const pattern = `ratelimit:user:${key}:*`;
-        const keys = await redis.keys(pattern);
-        if (keys.length > 0) {
-          await redis.del(...keys);
-        }
+        let cursor = '0';
+        do {
+          const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+          cursor = nextCursor;
+          for (let i = 0; i < keys.length; i += 100) {
+            const batch = keys.slice(i, i + 100);
+            if (batch.length > 0) {
+              await redis.unlink(...batch);
+            }
+          }
+        } while (cursor !== '0');
       } catch (error) {
         logger.error('Error resetting Redis rate limit', {
           error: error instanceof Error ? error.message : String(error),
@@ -219,8 +227,10 @@ export function createPerUserRateLimit(config: RateLimitConfig) {
 
     if (!result.allowed) {
       const response: ApiResponse = {
-        success: false,
-        error: config.message || 'Too many requests. Please try again later.',
+        ...buildErrorResponseForStatus(
+          429,
+          config.message || 'Too many requests. Please try again later.'
+        ),
       };
 
       res.status(429).json(response);

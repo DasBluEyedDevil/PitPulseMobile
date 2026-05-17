@@ -4,18 +4,19 @@ publish_to: 'none'
 version: 0.1.0+1
 
 environment:
-  sdk: '>=3.2.0 <4.0.0'
+  sdk: '>=3.11.0 <4.0.0'
+  flutter: '>=3.41.0'
 
 dependencies:
   flutter:
     sdk: flutter
   
   # State Management
-  flutter_riverpod: ^3.1.0
-  riverpod_annotation: ^4.0.0
+  flutter_riverpod: 3.3.1
+  riverpod_annotation: 4.0.2
   
   # Navigation
-  go_router: ^17.0.1
+  go_router: 17.2.3
   
   # Networking
   dio: ^5.4.3+1
@@ -23,17 +24,17 @@ dependencies:
   
   # Data Models
   freezed_annotation: ^3.1.0
-  json_annotation: ^4.9.0
+  json_annotation: 4.11.0
   
   # Secure Storage
-  flutter_secure_storage: ^10.0.0
+  flutter_secure_storage: 10.2.0
   
   # UI
   cupertino_icons: ^1.0.8
   intl: ^0.20.2
   cached_network_image: ^3.4.0
   url_launcher: ^6.3.0
-  image_picker: ^1.1.2
+  image_picker: 1.2.2
   shimmer: ^3.0.0
   flutter_rating_bar: ^4.0.1
 
@@ -51,54 +52,54 @@ dependencies:
 
   # Haptic Feedback
   vibration: ^3.1.5
-  google_fonts: ^7.0.2
+  google_fonts: ^8.1.0
 
   # App Info
-  package_info_plus: ^9.0.0
+  package_info_plus: 9.0.1
 
   # Sharing
-  share_plus: ^12.0.1
+  share_plus: 12.0.2
 
   # Maps
-  flutter_map: ^8.2.2
-  latlong2: ^0.9.0
+  flutter_map: 8.3.0
+  latlong2: 0.9.1
 
   # Social Sign-In
   google_sign_in: ^7.2.0
-  sign_in_with_apple: ^7.0.1
+  sign_in_with_apple: ^8.0.0
 
   # Crash Reporting
-  sentry_flutter: ^9.9.2
+  sentry_flutter: 9.20.0
 
   # Analytics
-  firebase_core: ^4.3.0
-  firebase_analytics: ^12.1.0
+  firebase_core: 4.9.0
+  firebase_analytics: 12.4.1
   percent_indicator: ^4.2.5
-  firebase_messaging: ^16.1.1
-  flutter_local_notifications: ^20.0.0
-  purchases_flutter: ^9.12.3
+  firebase_messaging: 16.2.2
+  flutter_local_notifications: ^21.0.0
+  purchases_flutter: ^10.1.0
 
   # Functional Programming
   dartz: ^0.10.1
 
   # Hooks
-  flutter_hooks: ^0.20.5
+  flutter_hooks: ^0.21.3+1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   
   # Code Generation
-  build_runner: ^2.4.14
-  freezed: ^3.2.3
-  json_serializable: ^6.9.5
-  riverpod_generator: ^4.0.0
+  build_runner: 2.15.0
+  freezed: 3.2.5
+  json_serializable: 6.13.0
+  riverpod_generator: 4.0.3
   
   # Testing
-  mockito: ^5.4.6
+  mockito: 5.6.4
   
   # Linting
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true

@@ -7,6 +7,9 @@ import 'package:web_socket_channel/status.dart' as status;
 import '../api/api_config.dart';
 import 'log_service.dart';
 
+typedef WebSocketChannelFactory = WebSocketChannel Function(Uri uri);
+typedef WebSocketUriBuilder = Uri Function(String? authToken);
+
 /// WebSocket event types matching backend
 class WebSocketEvents {
   static const String connected = 'connected';
@@ -35,10 +38,7 @@ class WebSocketMessage {
   final String type;
   final Map<String, dynamic> payload;
 
-  WebSocketMessage({
-    required this.type,
-    required this.payload,
-  });
+  WebSocketMessage({required this.type, required this.payload});
 
   factory WebSocketMessage.fromJson(Map<String, dynamic> json) {
     return WebSocketMessage(
@@ -47,14 +47,20 @@ class WebSocketMessage {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'type': type,
-        'payload': payload,
-      };
+  Map<String, dynamic> toJson() => {'type': type, 'payload': payload};
 }
 
 /// WebSocket service for real-time communication
 class WebSocketService {
+  WebSocketService({
+    WebSocketChannelFactory? channelFactory,
+    WebSocketUriBuilder? uriBuilder,
+  }) : _channelFactory = channelFactory ?? WebSocketChannel.connect,
+       _uriBuilder = uriBuilder ?? buildUri;
+
+  final WebSocketChannelFactory _channelFactory;
+  final WebSocketUriBuilder _uriBuilder;
+
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   Timer? _pingTimer;
@@ -62,6 +68,7 @@ class WebSocketService {
 
   bool _isConnected = false;
   bool _isAuthenticated = false;
+  bool _intentionalDisconnect = false;
   String? _clientId;
   String? _authToken;
   int _reconnectAttempts = 0;
@@ -69,6 +76,18 @@ class WebSocketService {
   String? _userId;
 
   final Set<String> _joinedRooms = {};
+  final Set<String> _desiredRooms = {};
+
+  static Uri buildUri(String? authToken) {
+    final uri = Uri.parse(ApiConfig.wsBaseUrl);
+    if (authToken == null || authToken.isEmpty) {
+      return uri;
+    }
+
+    return uri.replace(
+      queryParameters: {...uri.queryParameters, 'token': authToken},
+    );
+  }
 
   // Event streams
   final _messageController = StreamController<WebSocketMessage>.broadcast();
@@ -106,18 +125,6 @@ class WebSocketService {
   /// Whether the WebSocket is authenticated
   bool get isAuthenticated => _isAuthenticated;
 
-  /// Get WebSocket URL based on environment
-  String get _wsUrl {
-    final baseUrl = ApiConfig.baseUrl;
-    // Convert http(s) URL to ws(s) URL
-    final wsProtocol = baseUrl.startsWith('https') ? 'wss' : 'ws';
-    final host = baseUrl
-        .replaceFirst('https://', '')
-        .replaceFirst('http://', '')
-        .replaceFirst('/api', '');
-    return '$wsProtocol://$host';
-  }
-
   /// Connect to WebSocket server
   Future<void> connect({String? authToken, String? userId}) async {
     if (_isConnected) {
@@ -127,11 +134,13 @@ class WebSocketService {
 
     _authToken = authToken;
     _userId = userId;
+    _intentionalDisconnect = false;
 
     try {
-      LogService.i('Connecting to WebSocket: $_wsUrl');
+      final uri = _uriBuilder(_authToken);
+      LogService.i('Connecting to WebSocket');
 
-      _channel = WebSocketChannel.connect(Uri.parse(_wsUrl));
+      _channel = _channelFactory(uri);
 
       // Wait for connection to be ready
       await _channel!.ready;
@@ -151,10 +160,8 @@ class WebSocketService {
       // Start ping timer to keep connection alive
       _startPingTimer();
 
-      // Authenticate if we have credentials
-      if (_authToken != null && _userId != null) {
-        authenticate(_userId!, _authToken!);
-      }
+      // Initial auth happens during upgrade via the token query parameter.
+      // authenticate() remains available for compatibility with older servers.
     } catch (e, stack) {
       LogService.e('WebSocket connection failed', e, stack);
       _isConnected = false;
@@ -164,9 +171,10 @@ class WebSocketService {
   }
 
   /// Disconnect from WebSocket server
-  void disconnect() {
+  void disconnect({bool clearCredentials = true}) {
     LogService.i('Disconnecting WebSocket');
 
+    _intentionalDisconnect = true;
     _pingTimer?.cancel();
     _reconnectTimer?.cancel();
     _subscription?.cancel();
@@ -176,7 +184,12 @@ class WebSocketService {
     _isConnected = false;
     _isAuthenticated = false;
     _clientId = null;
-    _joinedRooms.clear();
+    if (clearCredentials) {
+      _authToken = null;
+      _userId = null;
+      _joinedRooms.clear();
+      _desiredRooms.clear();
+    }
 
     _connectionController.add(false);
   }
@@ -194,44 +207,34 @@ class WebSocketService {
     _send(
       WebSocketMessage(
         type: 'auth',
-        payload: {
-          'userId': userId,
-          'token': token,
-        },
+        payload: {'userId': userId, 'token': token},
       ),
     );
   }
 
   /// Join a room for targeted messages
   void joinRoom(String room) {
+    _desiredRooms.add(room);
+
     if (!_isConnected) {
-      LogService.w('Cannot join room: not connected');
       return;
     }
 
-    _send(
-      WebSocketMessage(
-        type: 'join_room',
-        payload: {'room': room},
-      ),
-    );
+    _send(WebSocketMessage(type: 'join_room', payload: {'room': room}));
 
     _joinedRooms.add(room);
   }
 
   /// Leave a room
   void leaveRoom(String room) {
+    _desiredRooms.remove(room);
+
     if (!_isConnected) {
-      LogService.w('Cannot leave room: not connected');
+      _joinedRooms.remove(room);
       return;
     }
 
-    _send(
-      WebSocketMessage(
-        type: 'leave_room',
-        payload: {'room': room},
-      ),
-    );
+    _send(WebSocketMessage(type: 'leave_room', payload: {'room': room}));
 
     _joinedRooms.remove(room);
   }
@@ -244,6 +247,16 @@ class WebSocketService {
   /// Leave a check-in room
   void leaveCheckinRoom(String checkinId) {
     leaveRoom('checkin:$checkinId');
+  }
+
+  /// Join an event attendance room for same-event realtime alerts.
+  void joinEventRoom(String eventId) {
+    joinRoom('event:$eventId');
+  }
+
+  /// Leave an event attendance room.
+  void leaveEventRoom(String eventId) {
+    leaveRoom('event:$eventId');
   }
 
   /// Send a raw message
@@ -279,16 +292,24 @@ class WebSocketService {
 
         case WebSocketEvents.authenticated:
           _isAuthenticated = true;
-          // Keep _authToken so reconnect can re-authenticate (B-MOB-6)
           LogService.i('WebSocket authenticated');
-          // Re-join previously joined rooms
-          for (final room in _joinedRooms) {
-            _send(
-              WebSocketMessage(
-                type: 'join_room',
-                payload: {'room': room},
-              ),
-            );
+          // Re-join desired rooms after authenticated reconnects.
+          for (final room in _desiredRooms) {
+            _send(WebSocketMessage(type: 'join_room', payload: {'room': room}));
+          }
+          break;
+
+        case WebSocketEvents.joinedRoom:
+          final room = message.payload['room'] as String?;
+          if (room != null) {
+            _joinedRooms.add(room);
+          }
+          break;
+
+        case WebSocketEvents.leftRoom:
+          final room = message.payload['room'] as String?;
+          if (room != null) {
+            _joinedRooms.remove(room);
           }
           break;
 
@@ -332,6 +353,7 @@ class WebSocketService {
     LogService.e('WebSocket error', error);
     _isConnected = false;
     _isAuthenticated = false;
+    _pingTimer?.cancel();
     _connectionController.add(false);
     _scheduleReconnect();
   }
@@ -341,6 +363,7 @@ class WebSocketService {
     LogService.w('WebSocket disconnected');
     _isConnected = false;
     _isAuthenticated = false;
+    _pingTimer?.cancel();
     _connectionController.add(false);
     _scheduleReconnect();
   }
@@ -350,12 +373,7 @@ class WebSocketService {
     _pingTimer?.cancel();
     _pingTimer = Timer.periodic(const Duration(seconds: 25), (_) {
       if (_isConnected) {
-        _send(
-          WebSocketMessage(
-            type: 'ping',
-            payload: {},
-          ),
-        );
+        _send(WebSocketMessage(type: 'ping', payload: {}));
       }
     });
   }
@@ -363,6 +381,11 @@ class WebSocketService {
   /// Schedule a reconnection attempt with exponential backoff
   void _scheduleReconnect() {
     _reconnectTimer?.cancel();
+
+    if (_intentionalDisconnect || _authToken == null || _userId == null) {
+      LogService.i('WebSocket reconnect suppressed');
+      return;
+    }
 
     if (_reconnectAttempts >= _maxReconnectAttempts) {
       LogService.w(
@@ -376,7 +399,10 @@ class WebSocketService {
     _reconnectAttempts++;
 
     _reconnectTimer = Timer(delay, () {
-      if (!_isConnected && _authToken != null) {
+      if (!_isConnected &&
+          !_intentionalDisconnect &&
+          _authToken != null &&
+          _userId != null) {
         LogService.i(
           'Attempting WebSocket reconnection (attempt $_reconnectAttempts/$_maxReconnectAttempts)...',
         );

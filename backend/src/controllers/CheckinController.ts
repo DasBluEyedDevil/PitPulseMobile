@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import { CheckinService } from '../services/CheckinService';
 import { AuditService } from '../services/AuditService';
 import { ApiResponse } from '../types';
 import { UnauthorizedError, BadRequestError } from '../utils/errors';
 import { asyncHandler } from '../utils/asyncHandler';
 import { broadcastToRoom, sendToUser, WebSocketEvents } from '../utils/websocket';
+import { realtimePublisher } from '../services/RealtimePublisher';
 
 export class CheckinController {
   private checkinService = new CheckinService();
@@ -94,7 +96,7 @@ export class CheckinController {
    * GET /api/checkins/:id
    */
   getCheckinById = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params;
+    const { id } = routeParams(req);
     const userId = req.user?.id;
 
     const checkin = await this.checkinService.getCheckinById(id, userId);
@@ -154,28 +156,45 @@ export class CheckinController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     const result = await this.checkinService.toastCheckin(userId, id);
 
-    // Broadcast real-time notification to check-in room
-    broadcastToRoom(`checkin:${id}`, WebSocketEvents.NEW_TOAST, {
+    const roomPayload = {
       checkinId: id,
       userId,
       username,
       toastCount: result?.toastCount,
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    // Publish real-time notification to check-in room across backend instances.
+    const roomPublished = await realtimePublisher.publishToRoom(
+      `checkin:${id}`,
+      WebSocketEvents.NEW_TOAST,
+      roomPayload
+    );
+    if (!roomPublished) {
+      broadcastToRoom(`checkin:${id}`, WebSocketEvents.NEW_TOAST, roomPayload);
+    }
 
     // Notify check-in owner if different from toaster
     if (result?.ownerId && result.ownerId !== userId) {
-      sendToUser(result.ownerId, WebSocketEvents.NEW_TOAST, {
+      const userPayload = {
         checkinId: id,
         userId,
         username,
         message: `${username || 'Someone'} toasted your check-in!`,
         timestamp: new Date().toISOString(),
-      });
+      };
+      const userPublished = await realtimePublisher.publishToUser(
+        result.ownerId,
+        WebSocketEvents.NEW_TOAST,
+        userPayload
+      );
+      if (!userPublished) {
+        sendToUser(result.ownerId, WebSocketEvents.NEW_TOAST, userPayload);
+      }
     }
 
     const response: ApiResponse = {
@@ -197,7 +216,7 @@ export class CheckinController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     await this.checkinService.untoastCheckin(userId, id);
 
@@ -222,7 +241,7 @@ export class CheckinController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
     const { commentText } = req.body;
 
     if (!commentText || commentText.trim() === '') {
@@ -236,26 +255,43 @@ export class CheckinController {
 
     const comment = await this.checkinService.addComment(userId, id, commentText);
 
-    // Broadcast real-time notification to check-in room
-    broadcastToRoom(`checkin:${id}`, WebSocketEvents.NEW_COMMENT, {
+    const roomPayload = {
       checkinId: id,
       comment: {
         ...comment,
         username,
       },
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    // Publish real-time notification to check-in room across backend instances.
+    const roomPublished = await realtimePublisher.publishToRoom(
+      `checkin:${id}`,
+      WebSocketEvents.NEW_COMMENT,
+      roomPayload
+    );
+    if (!roomPublished) {
+      broadcastToRoom(`checkin:${id}`, WebSocketEvents.NEW_COMMENT, roomPayload);
+    }
 
     // Notify check-in owner if different from commenter
     if (comment?.ownerId && comment.ownerId !== userId) {
-      sendToUser(comment.ownerId, WebSocketEvents.NEW_COMMENT, {
+      const userPayload = {
         checkinId: id,
         userId,
         username,
         message: `${username || 'Someone'} commented on your check-in!`,
         preview: commentText.substring(0, 50),
         timestamp: new Date().toISOString(),
-      });
+      };
+      const userPublished = await realtimePublisher.publishToUser(
+        comment.ownerId,
+        WebSocketEvents.NEW_COMMENT,
+        userPayload
+      );
+      if (!userPublished) {
+        sendToUser(comment.ownerId, WebSocketEvents.NEW_COMMENT, userPayload);
+      }
     }
 
     const response: ApiResponse = {
@@ -272,7 +308,7 @@ export class CheckinController {
    * GET /api/checkins/:id/comments
    */
   getComments = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     const comments = await this.checkinService.getComments(id);
 
@@ -295,7 +331,7 @@ export class CheckinController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     await this.checkinService.deleteCheckin(userId, id);
 
@@ -354,7 +390,7 @@ export class CheckinController {
    * GET /api/checkins/:id/toasts
    */
   getToasts = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     const toasts = await this.checkinService.getToasts(id);
 
@@ -377,7 +413,7 @@ export class CheckinController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id, commentId } = req.params;
+    const { id, commentId } = routeParams(req);
 
     await this.checkinService.deleteComment(userId, id, commentId);
 
@@ -404,7 +440,7 @@ export class CheckinController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
     const { contentTypes } = req.body;
 
     // Validate contentTypes
@@ -452,7 +488,7 @@ export class CheckinController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
     const { photoKeys } = req.body;
 
     // Validate photoKeys
@@ -490,7 +526,7 @@ export class CheckinController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
     const { bandRatings, venueRating } = req.body;
 
     // Validate: at least one rating type must be present

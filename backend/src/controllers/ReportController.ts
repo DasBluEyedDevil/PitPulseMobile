@@ -14,6 +14,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import { ReportService } from '../services/ReportService';
 import { ModerationService } from '../services/ModerationService';
 import { ApiResponse } from '../types';
@@ -101,7 +102,7 @@ export class ReportController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { itemId } = req.params;
+    const { itemId } = routeParams(req);
     const { action } = req.body;
 
     const item = await this.moderationService.reviewItem(itemId, adminId, action);

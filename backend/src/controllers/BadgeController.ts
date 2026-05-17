@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import { BadgeService } from '../services/BadgeService';
 import { ApiResponse } from '../types';
 import logger from '../utils/logger';
@@ -41,7 +42,7 @@ export class BadgeController {
    */
   getUserBadges = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { userId } = req.params;
+      const { userId } = routeParams(req);
 
       const userBadges = await this.badgeService.getUserBadges(userId);
 
@@ -253,7 +254,7 @@ export class BadgeController {
    */
   getBadgeById = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
+      const { id } = routeParams(req);
 
       const badge = await this.badgeService.getBadgeById(id);
 

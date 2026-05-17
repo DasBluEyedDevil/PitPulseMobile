@@ -39,15 +39,12 @@ class GlobalFeedNotifier extends _$GlobalFeedNotifier {
   Future<List<FeedItem>> _fetchPage() async {
     final repo = ref.read(feedRepositoryProvider);
     final result = await repo.getGlobalFeed(cursor: _nextCursor);
-    return result.fold(
-      (failure) => throw _failureToError(failure),
-      (page) {
-        _nextCursor = page.nextCursor;
-        _hasMore = page.hasMore;
-        _items = [..._items, ...page.items];
-        return _items;
-      },
-    );
+    return result.fold((failure) => throw _failureToError(failure), (page) {
+      _nextCursor = page.nextCursor;
+      _hasMore = page.hasMore;
+      _items = [..._items, ...page.items];
+      return _items;
+    });
   }
 
   Future<void> loadMore() async {
@@ -80,15 +77,12 @@ class FriendsFeedNotifier extends _$FriendsFeedNotifier {
   Future<List<FeedItem>> _fetchPage() async {
     final repo = ref.read(feedRepositoryProvider);
     final result = await repo.getFriendsFeed(cursor: _nextCursor);
-    return result.fold(
-      (failure) => throw _failureToError(failure),
-      (page) {
-        _nextCursor = page.nextCursor;
-        _hasMore = page.hasMore;
-        _items = [..._items, ...page.items];
-        return _items;
-      },
-    );
+    return result.fold((failure) => throw _failureToError(failure), (page) {
+      _nextCursor = page.nextCursor;
+      _hasMore = page.hasMore;
+      _items = [..._items, ...page.items];
+      return _items;
+    });
   }
 
   Future<void> loadMore() async {
@@ -126,15 +120,12 @@ class EventFeedNotifier extends _$EventFeedNotifier {
   Future<List<FeedItem>> _fetchPage(String eventId) async {
     final repo = ref.read(feedRepositoryProvider);
     final result = await repo.getEventFeed(eventId, cursor: _nextCursor);
-    return result.fold(
-      (failure) => throw _failureToError(failure),
-      (page) {
-        _nextCursor = page.nextCursor;
-        _hasMore = page.hasMore;
-        _items = [..._items, ...page.items];
-        return _items;
-      },
-    );
+    return result.fold((failure) => throw _failureToError(failure), (page) {
+      _nextCursor = page.nextCursor;
+      _hasMore = page.hasMore;
+      _items = [..._items, ...page.items];
+      return _items;
+    });
   }
 
   Future<void> loadMore() async {
@@ -168,15 +159,12 @@ class EventsFeedNotifier extends _$EventsFeedNotifier {
   Future<List<FeedItem>> _fetchPage() async {
     final repo = ref.read(feedRepositoryProvider);
     final result = await repo.getEventsFeed(cursor: _nextCursor);
-    return result.fold(
-      (failure) => throw _failureToError(failure),
-      (page) {
-        _nextCursor = page.nextCursor;
-        _hasMore = page.hasMore;
-        _items = [..._items, ...page.items];
-        return _items;
-      },
-    );
+    return result.fold((failure) => throw _failureToError(failure), (page) {
+      _nextCursor = page.nextCursor;
+      _hasMore = page.hasMore;
+      _items = [..._items, ...page.items];
+      return _items;
+    });
   }
 
   Future<void> loadMore() async {
@@ -227,17 +215,37 @@ class NewCheckinCount extends _$NewCheckinCount {
 @riverpod
 class ActiveEventIds extends _$ActiveEventIds {
   @override
-  Set<String> build() => {};
+  Set<String> build() {
+    ref.onDispose(() {
+      final wsService = ref.read(webSocketServiceProvider);
+      for (final eventId in state) {
+        wsService.leaveEventRoom(eventId);
+      }
+    });
+    return {};
+  }
 
   void addEventId(String eventId) {
-    state = {...state, eventId};
+    setEventIds({...state, eventId});
   }
 
   void setEventIds(Set<String> ids) {
+    final previousIds = state;
     state = ids;
+    _reconcileEventRooms(previousIds, ids);
   }
 
   bool isAtEvent(String eventId) => state.contains(eventId);
+
+  void _reconcileEventRooms(Set<String> previousIds, Set<String> nextIds) {
+    final wsService = ref.read(webSocketServiceProvider);
+    for (final eventId in nextIds.difference(previousIds)) {
+      wsService.joinEventRoom(eventId);
+    }
+    for (final eventId in previousIds.difference(nextIds)) {
+      wsService.leaveEventRoom(eventId);
+    }
+  }
 }
 
 /// Mixin for feed screens that need WebSocket listeners
@@ -287,11 +295,7 @@ mixin FeedWebSocketListenerMixin<T extends ConsumerStatefulWidget>
       SnackBar(
         content: Row(
           children: [
-            const Icon(
-              Icons.celebration,
-              color: AppTheme.toastGold,
-              size: 24,
-            ),
+            const Icon(Icons.celebration, color: AppTheme.toastGold, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -309,10 +313,7 @@ mixin FeedWebSocketListenerMixin<T extends ConsumerStatefulWidget>
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(
-            color: AppTheme.toastGold,
-            width: 1.5,
-          ),
+          side: const BorderSide(color: AppTheme.toastGold, width: 1.5),
         ),
         duration: const Duration(seconds: 4),
         margin: const EdgeInsets.all(16),

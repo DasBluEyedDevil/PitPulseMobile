@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParam, routeParams } from '../utils/requestParams';
 import fs from 'fs';
 import path from 'path';
 import { WrappedService } from '../services/WrappedService';
@@ -25,7 +26,7 @@ export class WrappedController {
     if (!userId) {
       throw new UnauthorizedError('Authentication required');
     }
-    const year = parseInt(req.params.year, 10);
+    const year = parseInt(routeParam(req, 'year'), 10);
     if (isNaN(year) || year < 2020 || year > new Date().getFullYear()) {
       throw new BadRequestError('Invalid year');
     }
@@ -38,7 +39,7 @@ export class WrappedController {
     if (!userId) {
       throw new UnauthorizedError('Authentication required');
     }
-    const year = parseInt(req.params.year, 10);
+    const year = parseInt(routeParam(req, 'year'), 10);
     if (isNaN(year) || year < 2020 || year > new Date().getFullYear()) {
       throw new BadRequestError('Invalid year');
     }
@@ -52,7 +53,7 @@ export class WrappedController {
     if (!userId) {
       throw new UnauthorizedError('Authentication required');
     }
-    const year = parseInt(req.params.year, 10);
+    const year = parseInt(routeParam(req, 'year'), 10);
     if (isNaN(year)) {
       throw new BadRequestError('Invalid year');
     }
@@ -82,8 +83,8 @@ export class WrappedController {
     if (!userId) {
       throw new UnauthorizedError('Authentication required');
     }
-    const year = parseInt(req.params.year, 10);
-    const statType = req.params.statType as 'top-artist' | 'top-venue' | 'top-genre';
+    const year = parseInt(routeParam(req, 'year'), 10);
+    const statType = routeParam(req, 'statType') as 'top-artist' | 'top-venue' | 'top-genre';
 
     if (!['top-artist', 'top-venue', 'top-genre'].includes(statType)) {
       throw new BadRequestError('Invalid stat type');
@@ -127,7 +128,7 @@ export class WrappedController {
   });
 
   renderWrappedLanding = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { userId, year } = req.params;
+    const { userId, year } = routeParams(req);
 
     // API-027: Validate UUID and year to prevent injection
     if (!isValidUUID(userId)) {

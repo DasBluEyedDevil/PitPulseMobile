@@ -38,6 +38,63 @@ export function getCacheKey(key: string): string {
 
 // In-memory fallback cache
 const memoryCache = new Map<string, { value: any; expiresAt: number }>();
+const memoryCacheVersions = new Map<string, number>();
+
+function getCacheVersionKey(scope: string): string {
+  return `cache:version:${scope}`;
+}
+
+/**
+ * Get cache version for a scope. Missing versions start at 1.
+ */
+export async function getCacheVersion(scope: string): Promise<number> {
+  const redis = getRedis();
+  const versionKey = getCacheVersionKey(scope);
+
+  if (redis) {
+    try {
+      const value = await redis.get(versionKey);
+      const version = value ? Number.parseInt(value, 10) : 1;
+      return Number.isFinite(version) && version > 0 ? version : 1;
+    } catch (error) {
+      logger.error('Redis cache version get error', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        scope,
+      });
+      // Fall through to memory version fallback
+    }
+  }
+
+  return memoryCacheVersions.get(scope) ?? 1;
+}
+
+/**
+ * Increment cache version for a scope. Missing versions advance from 1 to 2.
+ */
+export async function incrementCacheVersion(scope: string): Promise<number> {
+  const redis = getRedis();
+  const versionKey = getCacheVersionKey(scope);
+
+  if (redis) {
+    try {
+      await redis.set(versionKey, '1', 'NX');
+      const version = await redis.incr(versionKey);
+      return typeof version === 'number' && version > 0 ? version : 2;
+    } catch (error) {
+      logger.error('Redis cache version increment error', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        scope,
+      });
+      // Fall through to memory version fallback
+    }
+  }
+
+  const nextVersion = (memoryCacheVersions.get(scope) ?? 1) + 1;
+  memoryCacheVersions.set(scope, nextVersion);
+  return nextVersion;
+}
 
 /**
  * Get value from cache (Redis or memory fallback)
@@ -202,6 +259,7 @@ class CacheService {
     }
 
     memoryCache.clear();
+    memoryCacheVersions.clear();
   }
 
   /**

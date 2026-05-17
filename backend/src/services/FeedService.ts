@@ -1,6 +1,11 @@
 import Database from '../config/database';
-import { getCache, setCache, cache, CacheTTL } from '../utils/cache';
-import { getRedis } from '../utils/redisRateLimiter';
+import {
+  getCache,
+  setCache,
+  incrementCacheVersion,
+  getCacheVersion,
+  CacheTTL,
+} from '../utils/cache';
 import { BlockService } from './BlockService';
 import logger from '../utils/logger';
 
@@ -72,12 +77,29 @@ export class FeedService {
   private db = Database.getInstance();
   private blockService = new BlockService();
 
+  private getUserFeedVersionScope(userId: string): string {
+    return `feed:friends:${userId}`;
+  }
+
+  private getHappeningVersionScope(userId: string): string {
+    return `feed:happening:${userId}`;
+  }
+
+  private getEventFeedVersionScope(eventId: string): string {
+    return `feed:event:${eventId}`;
+  }
+
+  private getGlobalFeedVersionScope(): string {
+    return 'feed:global';
+  }
+
   /**
    * Get friends feed: check-ins from followed users with cursor pagination.
    * Uses cache-aside pattern with Redis (60s TTL).
    */
   async getFriendsFeed(userId: string, cursor?: string, limit: number = 20): Promise<FeedPage> {
-    const cacheKey = `feed:friends:${userId}:${cursor || 'head'}`;
+    const version = await getCacheVersion(this.getUserFeedVersionScope(userId));
+    const cacheKey = `feed:friends:${userId}:v${version}:${cursor || 'head'}`;
 
     const cached = await getCache<FeedPage>(cacheKey);
     if (cached) return cached;
@@ -162,9 +184,10 @@ export class FeedService {
     cursor?: string,
     limit: number = 20
   ): Promise<FeedPage> {
+    const version = await getCacheVersion(this.getEventFeedVersionScope(eventId));
     const cacheKey = userId
-      ? `feed:event:${eventId}:${userId}:${cursor || 'head'}`
-      : `feed:event:${eventId}:${cursor || 'head'}`;
+      ? `feed:event:${eventId}:v${version}:${userId}:${cursor || 'head'}`
+      : `feed:event:${eventId}:v${version}:${cursor || 'head'}`;
 
     const cached = await getCache<FeedPage>(cacheKey);
     if (cached) return cached;
@@ -260,7 +283,8 @@ export class FeedService {
    * Uses cache-aside pattern with Redis (60s TTL, keyed per user due to block filter).
    */
   async getGlobalFeed(userId: string, cursor?: string, limit: number = 20): Promise<FeedPage> {
-    const cacheKey = `feed:global:${userId}:${cursor || 'head'}`;
+    const version = await getCacheVersion(this.getGlobalFeedVersionScope());
+    const cacheKey = `feed:global:v${version}:${userId}:${cursor || 'head'}`;
 
     const cached = await getCache<FeedPage>(cacheKey);
     if (cached) return cached;
@@ -339,7 +363,8 @@ export class FeedService {
    * for expiry. Cache 30s TTL (shorter for live data).
    */
   async getHappeningNow(userId: string): Promise<HappeningNowGroup[]> {
-    const cacheKey = `feed:happening:${userId}`;
+    const version = await getCacheVersion(this.getHappeningVersionScope(userId));
+    const cacheKey = `feed:happening:${userId}:v${version}`;
 
     const cached = await getCache<HappeningNowGroup[]>(cacheKey);
     if (cached) return cached;
@@ -479,8 +504,8 @@ export class FeedService {
    */
   async invalidateUserFeedCache(userId: string): Promise<void> {
     try {
-      await cache.delPattern(`feed:friends:${userId}:*`);
-      await cache.del(`feed:happening:${userId}`);
+      await incrementCacheVersion(this.getUserFeedVersionScope(userId));
+      await incrementCacheVersion(this.getHappeningVersionScope(userId));
     } catch (error) {
       logger.error('Feed cache invalidation error (user)', {
         error: error instanceof Error ? error.message : String(error),
@@ -495,7 +520,7 @@ export class FeedService {
    */
   async invalidateEventFeedCache(eventId: string): Promise<void> {
     try {
-      await cache.delPattern(`feed:event:${eventId}:*`);
+      await incrementCacheVersion(this.getEventFeedVersionScope(eventId));
     } catch (error) {
       logger.error('Feed cache invalidation error (event)', {
         error: error instanceof Error ? error.message : String(error),
@@ -507,46 +532,11 @@ export class FeedService {
   /**
    * Invalidate global feed cache for all users.
    * Called when a new check-in is created.
-   * Uses Redis pipelining for efficient bulk deletion.
+   * Bumps a global version so old keys expire naturally.
    */
   async invalidateGlobalFeedCache(): Promise<void> {
-    const redis = getRedis();
-    if (!redis) {
-      // Fallback to non-pipelined pattern delete for memory cache
-      try {
-        await cache.delPattern('feed:global:*');
-      } catch (error) {
-        logger.error('Feed cache invalidation error (global)', {
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-        });
-      }
-      return;
-    }
-
     try {
-      const stream = redis.scanStream({ match: 'feed:global:*' });
-      const pipeline = redis.pipeline();
-      let keyCount = 0;
-
-      stream.on('data', (keys: string[]) => {
-        if (keys.length) {
-          keys.forEach(key => {
-            pipeline.unlink(key);
-            keyCount++;
-          });
-        }
-      });
-
-      await new Promise((resolve, reject) => {
-        stream.on('end', resolve);
-        stream.on('error', reject);
-      });
-
-      if (keyCount > 0) {
-        await pipeline.exec();
-        logger.debug(`Invalidated ${keyCount} global feed cache keys via pipeline`);
-      }
+      await incrementCacheVersion(this.getGlobalFeedVersionScope());
     } catch (error) {
       logger.error('Feed cache invalidation error (global)', {
         error: error instanceof Error ? error.message : String(error),

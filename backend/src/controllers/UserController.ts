@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import { UserService } from '../services/UserService';
 import { StatsService } from '../services/StatsService';
 import { AuditService } from '../services/AuditService';
@@ -126,7 +127,7 @@ export class UserController {
    * GET /api/users/:username
    */
   getUserByUsername = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { username } = req.params;
+    const { username } = routeParams(req);
 
     const user = await this.userService.findByUsername(username);
 
@@ -192,7 +193,7 @@ export class UserController {
    * while still allowing legitimate username availability checks.
    */
   checkUsername = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { username } = req.params;
+    const { username } = routeParams(req);
 
     const existingUser = await this.userService.findByUsername(username);
     const isAvailable = !existingUser;
@@ -243,7 +244,7 @@ export class UserController {
    * GET /api/users/:userId/stats
    */
   getUserStats = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { userId } = req.params;
+    const { userId } = routeParams(req);
 
     // Validate UUID format
     if (!UUID_REGEX.test(userId)) {
@@ -271,7 +272,7 @@ export class UserController {
    * GET /api/users/:userId/concert-cred
    */
   getConcertCred = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { userId } = req.params;
+    const { userId } = routeParams(req);
 
     // Validate UUID format
     if (!UUID_REGEX.test(userId)) {

@@ -12,6 +12,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import fs from 'fs';
 import path from 'path';
 import { ShareCardService } from '../services/ShareCardService';
@@ -82,7 +83,7 @@ export class ShareController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { checkinId } = req.params;
+    const { checkinId } = routeParams(req);
 
     // Fetch full checkin data
     const checkin = await this.checkinService.getCheckinById(checkinId, userId);
@@ -127,7 +128,7 @@ export class ShareController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { badgeAwardId } = req.params;
+    const { badgeAwardId } = routeParams(req);
 
     // Look up the badge award in user_badges
     const userBadges = await this.badgeService.getUserBadges(userId);
@@ -169,7 +170,7 @@ export class ShareController {
    * for social platform crawlers, plus store CTAs for human visitors.
    */
   renderCheckinLanding = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { checkinId } = req.params;
+    const { checkinId } = routeParams(req);
 
     // Fetch checkin data (no user context for public page)
     const checkin = await this.checkinService.getCheckinById(checkinId);
@@ -235,7 +236,7 @@ export class ShareController {
    * No authentication required. Serves HTML with OG meta tags.
    */
   renderBadgeLanding = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { badgeAwardId } = req.params;
+    const { badgeAwardId } = routeParams(req);
 
     // Look up badge award by ID (need a direct query since BadgeService
     // requires userId for getUserBadges)

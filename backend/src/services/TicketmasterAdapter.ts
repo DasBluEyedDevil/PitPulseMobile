@@ -6,7 +6,7 @@
  * Follows the same adapter pattern as MusicBrainzService.
  *
  * Rate limits:
- * - 5 requests/second (enforced via 200ms delay between calls)
+ * - <5 requests/second (enforced by a shared process-local limiter)
  * - 5000 requests/day (tracked in-memory, refuse calls at 4900)
  *
  * @see https://developer.ticketmaster.com/products-and-docs/apis/discovery-api/v2/
@@ -38,7 +38,38 @@ const DAILY_QUOTA_WARN = 4500;
 const DAILY_QUOTA_HARD_LIMIT = 4900;
 
 /** Delay between API calls in ms (stay under 5/sec) */
-const INTER_REQUEST_DELAY_MS = 200;
+const INTER_REQUEST_DELAY_MS = 220;
+
+/** Maximum recursive date-range subdivision depth */
+const MAX_RECURSION_DEPTH = 8;
+
+/** Minimum date window before subdivision stops */
+const MIN_SUBDIVISION_WINDOW_MS = 60 * 60 * 1000;
+
+/** Maximum retries for provider throttling responses */
+const MAX_THROTTLE_RETRIES = 3;
+
+/** Base backoff used when Retry-After is not provided */
+const THROTTLE_BACKOFF_BASE_MS = 500;
+
+/** Cap exponential backoff when Retry-After is not provided */
+const THROTTLE_BACKOFF_MAX_MS = 5000;
+
+interface FetchAllEventsOptions {
+  depth?: number;
+  maxDepth?: number;
+  minWindowMs?: number;
+}
+
+interface TicketmasterRequestLimiter {
+  nextRequestAt: number;
+  queue: Promise<void>;
+}
+
+const ticketmasterRequestLimiter: TicketmasterRequestLimiter = {
+  nextRequestAt: 0,
+  queue: Promise.resolve(),
+};
 
 export class TicketmasterAdapter {
   private client: AxiosInstance;
@@ -77,19 +108,21 @@ export class TicketmasterAdapter {
   }> {
     await this.checkDailyQuota();
 
-    const response = await this.client.get<TicketmasterSearchResponse>('/events.json', {
-      params: {
-        latlong: params.latlong,
-        radius: params.radius,
-        unit: 'miles',
-        startDateTime: params.startDateTime,
-        endDateTime: params.endDateTime,
-        classificationName: 'music',
-        size: params.size || 200,
-        page: params.page || 0,
-        sort: 'date,asc',
-      },
-    });
+    const response = await this.performTicketmasterRequest<TicketmasterSearchResponse>(() =>
+      this.client.get<TicketmasterSearchResponse>('/events.json', {
+        params: {
+          latlong: params.latlong,
+          radius: params.radius,
+          unit: 'miles',
+          startDateTime: params.startDateTime,
+          endDateTime: params.endDateTime,
+          classificationName: 'music',
+          size: params.size || 200,
+          page: params.page || 0,
+          sort: 'date,asc',
+        },
+      })
+    );
 
     await this.incrementDailyCount();
 
@@ -113,8 +146,12 @@ export class TicketmasterAdapter {
     latlong: string,
     radius: number,
     startDate: string,
-    endDate: string
+    endDate: string,
+    options: FetchAllEventsOptions = {}
   ): Promise<NormalizedEvent[]> {
+    const depth = options.depth ?? 0;
+    const maxDepth = options.maxDepth ?? MAX_RECURSION_DEPTH;
+    const minWindowMs = options.minWindowMs ?? MIN_SUBDIVISION_WINDOW_MS;
     const allNormalized: NormalizedEvent[] = [];
 
     // First page to check total count
@@ -137,18 +174,56 @@ export class TicketmasterAdapter {
 
     // If more than 1000 total items, subdivide date range
     if (firstResult.page.totalElements > MAX_DEEP_PAGING_ITEMS) {
+      const midDate = this.getMidpointDate(startDate, endDate);
+      const truncationReason = this.getSubdivisionTruncationReason({
+        startDate,
+        endDate,
+        midDate,
+        depth,
+        maxDepth,
+        minWindowMs,
+      });
+
+      if (truncationReason) {
+        this.logTruncatedRange({
+          reason: truncationReason,
+          latlong,
+          radius,
+          startDate,
+          endDate,
+          totalElements: firstResult.page.totalElements,
+          depth,
+        });
+
+        await this.fetchRemainingPages(latlong, radius, startDate, endDate, firstResult, allNormalized);
+        return allNormalized;
+      }
+
       logger.info('[TicketmasterAdapter] Result set exceeds 1000 items, subdividing date range', {
         totalElements: firstResult.page.totalElements,
         startDate,
         endDate,
+        depth,
       });
 
       // Clear first page results and recurse with subdivided ranges
       allNormalized.length = 0;
 
-      const midDate = this.getMidpointDate(startDate, endDate);
-      const firstHalf = await this.fetchAllEventsForRegion(latlong, radius, startDate, midDate);
-      const secondHalf = await this.fetchAllEventsForRegion(latlong, radius, midDate, endDate);
+      const nextOptions = { ...options, depth: depth + 1, maxDepth, minWindowMs };
+      const firstHalf = await this.fetchAllEventsForRegion(
+        latlong,
+        radius,
+        startDate,
+        midDate,
+        nextOptions
+      );
+      const secondHalf = await this.fetchAllEventsForRegion(
+        latlong,
+        radius,
+        midDate,
+        endDate,
+        nextOptions
+      );
 
       allNormalized.push(...firstHalf, ...secondHalf);
 
@@ -164,29 +239,7 @@ export class TicketmasterAdapter {
       return deduplicated;
     }
 
-    // Paginate through remaining pages (max 5 pages total)
-    // Use parallel requests with Promise.all for better performance
-    const totalPages = Math.min(firstResult.page.totalPages, MAX_PAGES);
-    const pageNumbers: number[] = [];
-    for (let page = 1; page < totalPages; page++) {
-      pageNumbers.push(page);
-    }
-
-    if (pageNumbers.length > 0) {
-      const pagePromises = pageNumbers.map(page =>
-        this.fetchPageWithDelay(latlong, radius, startDate, endDate, page)
-      );
-      const pages = await Promise.all(pagePromises);
-
-      for (const pageResult of pages) {
-        for (const tmEvent of pageResult.events) {
-          const normalized = this.normalizeEvent(tmEvent);
-          if (normalized) {
-            allNormalized.push(normalized);
-          }
-        }
-      }
-    }
+    await this.fetchRemainingPages(latlong, radius, startDate, endDate, firstResult, allNormalized);
 
     return allNormalized;
   }
@@ -199,7 +252,9 @@ export class TicketmasterAdapter {
     await this.checkDailyQuota();
 
     try {
-      const response = await this.client.get<TicketmasterEvent>(`/events/${eventId}.json`);
+      const response = await this.performTicketmasterRequest<TicketmasterEvent>(() =>
+        this.client.get<TicketmasterEvent>(`/events/${eventId}.json`)
+      );
       await this.incrementDailyCount();
       return response.data;
     } catch (error) {
@@ -320,6 +375,56 @@ export class TicketmasterAdapter {
     return mid.toISOString().replace(/\.\d{3}Z$/, 'Z');
   }
 
+  private getSubdivisionTruncationReason(params: {
+    startDate: string;
+    endDate: string;
+    midDate: string;
+    depth: number;
+    maxDepth: number;
+    minWindowMs: number;
+  }): string | null {
+    const startMs = new Date(params.startDate).getTime();
+    const endMs = new Date(params.endDate).getTime();
+
+    if (params.depth >= params.maxDepth) {
+      return 'max_depth';
+    }
+
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+      return 'invalid_window';
+    }
+
+    if (endMs - startMs <= params.minWindowMs) {
+      return 'min_window';
+    }
+
+    if (params.midDate === params.startDate || params.midDate === params.endDate) {
+      return 'midpoint_boundary';
+    }
+
+    return null;
+  }
+
+  private logTruncatedRange(params: {
+    reason: string;
+    latlong: string;
+    radius: number;
+    startDate: string;
+    endDate: string;
+    totalElements: number;
+    depth: number;
+  }): void {
+    logger.warn('[TicketmasterAdapter] Truncated Ticketmaster result range', {
+      reason: params.reason,
+      latlong: params.latlong,
+      radius: params.radius,
+      start: params.startDate,
+      end: params.endDate,
+      totalElements: params.totalElements,
+      depth: params.depth,
+    });
+  }
+
   /**
    * Check if we are within the daily API call quota.
    * Throws if quota is exhausted.
@@ -418,32 +523,112 @@ export class TicketmasterAdapter {
     return tomorrow.getTime();
   }
 
-  /**
-   * Simple delay for rate limiting between API calls.
-   */
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  /**
-   * Fetch a page with built-in rate limiting delay.
-   * Used for parallel page fetching with staggered delays.
-   */
-  private async fetchPageWithDelay(
+  private async withRequestLimit(): Promise<void> {
+    const waitForTurn = ticketmasterRequestLimiter.queue.then(async () => {
+      const now = Date.now();
+      const delayMs = Math.max(0, ticketmasterRequestLimiter.nextRequestAt - now);
+      if (delayMs > 0) {
+        await this.delay(delayMs);
+      }
+      ticketmasterRequestLimiter.nextRequestAt = Date.now() + INTER_REQUEST_DELAY_MS;
+    });
+
+    ticketmasterRequestLimiter.queue = waitForTurn.catch(() => undefined);
+    await waitForTurn;
+  }
+
+  private async performTicketmasterRequest<T>(
+    request: () => ReturnType<AxiosInstance['get']>,
+    attempt = 0
+  ): Promise<{ data: T }> {
+    await this.withRequestLimit();
+
+    try {
+      return (await request()) as { data: T };
+    } catch (error) {
+      const axiosErr = error as AxiosError;
+      if (axiosErr.response?.status !== 429) {
+        throw error;
+      }
+
+      if (attempt >= MAX_THROTTLE_RETRIES) {
+        logger.warn('[TicketmasterAdapter] Provider throttling retries exhausted', {
+          status: 429,
+          attempts: attempt + 1,
+          maxRetries: MAX_THROTTLE_RETRIES,
+        });
+        throw error;
+      }
+
+      const retryAfterMs = this.getRetryAfterMs(axiosErr.response.headers?.['retry-after']);
+      const backoffMs = retryAfterMs ?? this.getThrottleBackoffMs(attempt);
+
+      logger.warn('[TicketmasterAdapter] Provider throttled request', {
+        status: 429,
+        attempt: attempt + 1,
+        maxRetries: MAX_THROTTLE_RETRIES,
+        retryAfterMs: backoffMs,
+        usedRetryAfter: retryAfterMs !== null,
+      });
+
+      await this.delay(backoffMs);
+      return this.performTicketmasterRequest<T>(request, attempt + 1);
+    }
+  }
+
+  private getRetryAfterMs(header: unknown): number | null {
+    const retryAfter = Array.isArray(header) ? header[0] : header;
+    if (typeof retryAfter !== 'string') {
+      return null;
+    }
+
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return seconds * 1000;
+    }
+
+    const retryAt = new Date(retryAfter).getTime();
+    if (Number.isFinite(retryAt)) {
+      return Math.max(0, retryAt - Date.now());
+    }
+
+    return null;
+  }
+
+  private getThrottleBackoffMs(attempt: number): number {
+    return Math.min(THROTTLE_BACKOFF_BASE_MS * 2 ** attempt, THROTTLE_BACKOFF_MAX_MS);
+  }
+
+  private async fetchRemainingPages(
     latlong: string,
     radius: number,
     startDate: string,
     endDate: string,
-    page: number
-  ): Promise<{ events: TicketmasterEvent[] }> {
-    await this.delay(page * INTER_REQUEST_DELAY_MS);
-    return this.searchMusicEvents({
-      latlong,
-      radius,
-      startDateTime: startDate,
-      endDateTime: endDate,
-      size: 200,
-      page,
-    });
+    firstResult: { page: { totalPages: number } },
+    allNormalized: NormalizedEvent[]
+  ): Promise<void> {
+    const totalPages = Math.min(firstResult.page.totalPages, MAX_PAGES);
+
+    for (let page = 1; page < totalPages; page++) {
+      const pageResult = await this.searchMusicEvents({
+        latlong,
+        radius,
+        startDateTime: startDate,
+        endDateTime: endDate,
+        size: 200,
+        page,
+      });
+
+      for (const tmEvent of pageResult.events) {
+        const normalized = this.normalizeEvent(tmEvent);
+        if (normalized) {
+          allNormalized.push(normalized);
+        }
+      }
+    }
   }
 }

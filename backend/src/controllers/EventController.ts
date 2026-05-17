@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import { EventService } from '../services/EventService';
 import { EventSyncService } from '../services/EventSyncService';
 import { TicketmasterAdapter } from '../services/TicketmasterAdapter';
@@ -114,7 +115,7 @@ export class EventController {
    * GET /api/events/:id
    */
   getEventById = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     const event = await this.eventService.getEventById(id);
 
@@ -131,7 +132,7 @@ export class EventController {
    * GET /api/venues/:id/events?upcoming=true&limit=50
    */
   getEventsByVenue = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params;
+    const { id } = routeParams(req);
     const upcoming = req.query.upcoming === 'true';
     // API-014: Bounded parseInt with NaN handling
     const rawLimit = parseInt(req.query.limit as string, 10);
@@ -152,7 +153,7 @@ export class EventController {
    * GET /api/bands/:id/events?upcoming=true&limit=50
    */
   getEventsByBand = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params;
+    const { id } = routeParams(req);
     const upcoming = req.query.upcoming === 'true';
     const rawLimit2 = parseInt(req.query.limit as string, 10);
     const limit = isNaN(rawLimit2) ? 50 : Math.max(1, Math.min(200, rawLimit2));
@@ -242,7 +243,7 @@ export class EventController {
    * endpoint fetches and ingests it on demand.
    */
   lookupEvent = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { ticketmasterId } = req.params;
+    const { ticketmasterId } = routeParams(req);
 
     // Guard: if TICKETMASTER_API_KEY not configured, lookup is unavailable
     if (!process.env.TICKETMASTER_API_KEY) {
@@ -358,7 +359,7 @@ export class EventController {
    * GET /api/events/genre/:genre?limit=20&offset=0
    */
   getByGenre = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { genre } = req.params;
+    const { genre } = routeParams(req);
 
     if (!genre) {
       throw new BadRequestError('genre parameter is required');
@@ -448,7 +449,7 @@ export class EventController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     // Fetch event to check ownership
     let event: any;

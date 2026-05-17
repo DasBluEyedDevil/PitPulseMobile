@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import { WishlistService } from '../services/WishlistService';
 import { ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -70,7 +71,7 @@ export class WishlistController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { wishlistId } = req.params;
+    const { wishlistId } = routeParams(req);
 
     // Validate UUID format
     if (!UUID_REGEX.test(wishlistId)) {
@@ -194,7 +195,7 @@ export class WishlistController {
         throw new UnauthorizedError('Authentication required');
       }
 
-      const { bandId } = req.params;
+      const { bandId } = routeParams(req);
       const { notifyWhenNearby } = req.body;
 
       // Validate UUID format

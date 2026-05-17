@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../../firebase_options.dart';
@@ -24,10 +26,17 @@ class PushNotificationService {
       FlutterLocalNotificationsPlugin();
 
   String? _currentToken;
+  bool _initialized = false;
+  bool _initialMessageHandled = false;
+  int _sessionGeneration = 0;
+  Future<void>? _initializationFuture;
+  StreamSubscription<String>? _tokenRefreshSubscription;
+  StreamSubscription<RemoteMessage>? _onMessageSubscription;
+  StreamSubscription<RemoteMessage>? _onMessageOpenedAppSubscription;
   final _notificationTapController = StreamController<String>.broadcast();
 
   /// Whether push notifications have been initialized
-  bool get isInitialized => _currentToken != null;
+  bool get isInitialized => _initialized;
 
   /// Current FCM device token
   String? get currentToken => _currentToken;
@@ -36,16 +45,29 @@ class PushNotificationService {
   Stream<String> get onNotificationTap => _notificationTapController.stream;
 
   PushNotificationService({FeedRepository? feedRepository})
-      : _feedRepository = feedRepository;
+    : _feedRepository = feedRepository;
 
   /// Initialize push notification service
   /// Requests permission, gets FCM token, sets up handlers
   Future<void> initialize() async {
+    if (_initialized) return;
+    final inFlight = _initializationFuture;
+    if (inFlight != null) return inFlight;
+
+    final future = _initialize();
+    _initializationFuture = future;
+    try {
+      await future;
+    } finally {
+      _initializationFuture = null;
+    }
+  }
+
+  Future<void> _initialize() async {
+    final generation = _sessionGeneration;
     try {
       // Set background message handler
-      FirebaseMessaging.onBackgroundMessage(
-        firebaseMessagingBackgroundHandler,
-      );
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
       // Request notification permission
       final settings = await FirebaseMessaging.instance.requestPermission(
@@ -66,9 +88,11 @@ class PushNotificationService {
 
       // Initialize local notifications for foreground display
       await _initializeLocalNotifications();
+      if (generation != _sessionGeneration) return;
 
       // Get FCM token
       final token = await FirebaseMessaging.instance.getToken();
+      if (generation != _sessionGeneration) return;
       if (token != null) {
         _currentToken = token;
         await _sendTokenToBackend(token);
@@ -76,24 +100,43 @@ class PushNotificationService {
       }
 
       // Listen for token refresh
-      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
-        _currentToken = newToken;
-        await _sendTokenToBackend(newToken);
-        LogService.i('FCM token refreshed');
-      });
+      await _tokenRefreshSubscription?.cancel();
+      if (generation != _sessionGeneration) return;
+      _tokenRefreshSubscription = FirebaseMessaging.instance.onTokenRefresh
+          .listen((newToken) async {
+            _currentToken = newToken;
+            await _sendTokenToBackend(newToken);
+            LogService.i('FCM token refreshed');
+          });
 
       // Handle foreground messages -- show local notification
-      FirebaseMessaging.onMessage.listen(_showLocalNotification);
+      await _onMessageSubscription?.cancel();
+      if (generation != _sessionGeneration) return;
+      _onMessageSubscription = FirebaseMessaging.onMessage.listen(
+        _showLocalNotification,
+      );
 
       // Handle notification tap when app is in background
-      FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+      await _onMessageOpenedAppSubscription?.cancel();
+      if (generation != _sessionGeneration) return;
+      _onMessageOpenedAppSubscription = FirebaseMessaging.onMessageOpenedApp
+          .listen(_handleNotificationTap);
 
       // Handle notification tap when app was terminated
-      final initialMessage =
-          await FirebaseMessaging.instance.getInitialMessage();
-      if (initialMessage != null) {
-        _handleNotificationTap(initialMessage);
+      if (!_initialMessageHandled) {
+        _initialMessageHandled = true;
+        final initialMessage = await FirebaseMessaging.instance
+            .getInitialMessage();
+        if (generation != _sessionGeneration) {
+          await _cancelSessionSubscriptions();
+          return;
+        }
+        if (initialMessage != null) {
+          _handleNotificationTap(initialMessage);
+        }
       }
+
+      _initialized = true;
     } catch (e, stack) {
       LogService.e('Failed to initialize push notifications', e, stack);
     }
@@ -101,8 +144,9 @@ class PushNotificationService {
 
   /// Initialize flutter_local_notifications plugin
   Future<void> _initializeLocalNotifications() async {
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
@@ -117,8 +161,8 @@ class PushNotificationService {
     await _localNotifications.initialize(
       settings: initSettings,
       onDidReceiveNotificationResponse: (response) {
-        // Handle notification tap from local notifications
         LogService.d('Local notification tapped: ${response.payload}');
+        _handleLocalNotificationTap(response.payload);
       },
     );
 
@@ -132,7 +176,8 @@ class PushNotificationService {
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(androidChannel);
   }
 
@@ -166,7 +211,7 @@ class PushNotificationService {
       title: notification.title,
       body: notification.body,
       notificationDetails: details,
-      payload: message.data['checkinId'],
+      payload: _buildRoutePayload(message.data),
     );
   }
 
@@ -175,50 +220,126 @@ class PushNotificationService {
     LogService.d('Notification tapped: ${message.data}');
 
     // Parse deep link from notification data
-    final deepLink = _parseDeepLink(message.data);
+    final deepLink = parseDeepLink(message.data);
+    if (deepLink != null) {
+      _notificationTapController.add(deepLink);
+    }
+  }
+
+  void _handleLocalNotificationTap(String? payload) {
+    if (payload == null || payload.isEmpty) return;
+
+    String? deepLink;
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map<String, dynamic>) {
+        deepLink = parseDeepLink(decoded);
+      } else if (decoded is String) {
+        deepLink = _sanitizeInternalRoute(decoded);
+      }
+    } catch (_) {
+      deepLink = _sanitizeInternalRoute(payload);
+    }
+
     if (deepLink != null) {
       _notificationTapController.add(deepLink);
     }
   }
 
   /// Parse deep link from notification payload
-  String? _parseDeepLink(Map<String, dynamic> data) {
+  @visibleForTesting
+  String? parseDeepLink(Map<String, dynamic> data) {
     // Check for explicit deep link
     if (data['deepLink'] != null) {
-      return data['deepLink'] as String;
+      return _sanitizeInternalRoute(data['deepLink'].toString());
     }
 
     // Check for notification ID (to show notification detail)
     if (data['notificationId'] != null) {
-      return '/notifications/${data['notificationId']}';
+      return _sanitizeInternalRoute('/notifications/${data['notificationId']}');
     }
 
     // Check for check-in ID
     if (data['checkinId'] != null) {
-      return '/checkins/${data['checkinId']}';
+      return _sanitizeInternalRoute('/checkins/${data['checkinId']}');
     }
 
     // Check for band ID
     if (data['bandId'] != null) {
-      return '/bands/${data['bandId']}';
+      return _sanitizeInternalRoute('/bands/${data['bandId']}');
     }
 
     // Check for venue ID
     if (data['venueId'] != null) {
-      return '/venues/${data['venueId']}';
+      return _sanitizeInternalRoute('/venues/${data['venueId']}');
     }
 
     // Check for user ID (profile)
     if (data['userId'] != null) {
-      return '/users/${data['userId']}';
+      return _sanitizeInternalRoute('/users/${data['userId']}');
     }
 
-    // Check for show ID
+    // Check for event/show ID
+    if (data['eventId'] != null) {
+      return _sanitizeInternalRoute('/events/${data['eventId']}');
+    }
     if (data['showId'] != null) {
-      return '/events/${data['showId']}';
+      return _sanitizeInternalRoute('/events/${data['showId']}');
     }
 
     return null;
+  }
+
+  String? _buildRoutePayload(Map<String, dynamic> data) {
+    final deepLink = parseDeepLink(data);
+    if (deepLink == null) return null;
+    return jsonEncode({'deepLink': deepLink});
+  }
+
+  String? _sanitizeInternalRoute(String route) {
+    final trimmed = route.trim();
+    final uri = Uri.tryParse(trimmed);
+    if (trimmed.isEmpty || uri == null || uri.hasScheme || uri.hasAuthority) {
+      LogService.w('Rejected external push deep link: $route');
+      return null;
+    }
+
+    if (!trimmed.startsWith('/') || trimmed.startsWith('//')) {
+      LogService.w('Rejected malformed push deep link: $route');
+      return null;
+    }
+
+    const allowedExactRoutes = {
+      '/badges',
+      '/checkin',
+      '/discover',
+      '/discover/users',
+      '/feed',
+      '/notifications',
+      '/profile',
+      '/pro',
+      '/search',
+    };
+    const allowedPrefixes = {
+      '/bands/',
+      '/checkins/',
+      '/events/',
+      '/notifications/',
+      '/users/',
+      '/venues/',
+      '/wrapped/',
+    };
+
+    final path = uri.path;
+    final isAllowed =
+        allowedExactRoutes.contains(path) ||
+        allowedPrefixes.any(path.startsWith);
+    if (!isAllowed) {
+      LogService.w('Rejected unknown push deep link: $route');
+      return null;
+    }
+
+    return uri.toString();
   }
 
   /// Send FCM token to backend for push notification targeting
@@ -230,5 +351,31 @@ class PushNotificationService {
       LogService.e('Failed to send FCM token to backend', e);
       // Non-fatal: token registration failure shouldn't block app usage
     }
+  }
+
+  /// Cancel session-scoped Firebase subscriptions while preserving tap stream
+  /// listeners owned by app/router lifecycle.
+  Future<void> resetForLogout() async {
+    _sessionGeneration++;
+    await _cancelSessionSubscriptions();
+    _currentToken = null;
+    _initialized = false;
+    _initializationFuture = null;
+  }
+
+  Future<void> disposeSession() => resetForLogout();
+
+  Future<void> dispose() async {
+    await resetForLogout();
+    await _notificationTapController.close();
+  }
+
+  Future<void> _cancelSessionSubscriptions() async {
+    await _tokenRefreshSubscription?.cancel();
+    await _onMessageSubscription?.cancel();
+    await _onMessageOpenedAppSubscription?.cancel();
+    _tokenRefreshSubscription = null;
+    _onMessageSubscription = null;
+    _onMessageOpenedAppSubscription = null;
   }
 }

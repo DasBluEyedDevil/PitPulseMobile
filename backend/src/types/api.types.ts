@@ -1,11 +1,17 @@
 // API Response types and general utilities
 
+export interface ApiErrorObject {
+  code: string;
+  message: string;
+  details?: any;
+}
+
 // API Response types
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
   message?: string;
-  error?: string;
+  error?: string | ApiErrorObject;
   retryAfter?: number; // Seconds to wait before retry (for 503/429 responses)
   pagination?: {
     limit: number;

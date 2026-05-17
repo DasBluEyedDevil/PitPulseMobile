@@ -19,6 +19,7 @@ import { evaluatorRegistry, EvalResult } from './BadgeEvaluators';
 import { NotificationService } from './NotificationService';
 import { AuditService } from './AuditService';
 import { sendToUser } from '../utils/websocket';
+import { realtimePublisher } from './RealtimePublisher';
 import logger from '../utils/logger';
 
 export class BadgeService {
@@ -193,12 +194,16 @@ export class BadgeService {
 
         // b) Send real-time WebSocket event for in-app toast
         try {
-          sendToUser(userId, 'badge_earned', {
+          const payload = {
             badgeId: badge.id,
             badgeName: badge.name,
             badgeColor: badge.color,
             badgeIconUrl: badge.iconUrl,
-          });
+          };
+          const published = await realtimePublisher.publishToUser(userId, 'badge_earned', payload);
+          if (!published) {
+            sendToUser(userId, 'badge_earned', payload);
+          }
         } catch (err) {
           logger.error(`[BadgeService] WebSocket send failed for badge ${badge.id}`, {
             error: err instanceof Error ? err.message : String(err),

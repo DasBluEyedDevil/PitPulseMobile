@@ -125,9 +125,7 @@ class FeedRepository {
       final response = await _dioClient.get('/feed/unseen');
 
       return Right(
-        UnseenCounts.fromJson(
-          response.data['data'] as Map<String, dynamic>,
-        ),
+        UnseenCounts.fromJson(response.data['data'] as Map<String, dynamic>),
       );
     } catch (e) {
       return Left(_mapErrorToFailure(e));
@@ -166,11 +164,19 @@ class FeedRepository {
     try {
       await _dioClient.post(
         '/users/device-token',
-        data: {
-          'token': token,
-          'platform': platform,
-        },
+        data: {'token': token, 'platform': platform},
       );
+      return const Right(null);
+    } catch (e) {
+      return Left(_mapErrorToFailure(e));
+    }
+  }
+
+  /// Unregister a device token for push notifications
+  /// DELETE /users/device-token
+  Future<Either<Failure, void>> unregisterDeviceToken(String token) async {
+    try {
+      await _dioClient.delete('/users/device-token', data: {'token': token});
       return const Right(null);
     } catch (e) {
       return Left(_mapErrorToFailure(e));

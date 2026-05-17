@@ -57,9 +57,7 @@ const requestPhotoUploadSchema = z.object({
   body: z.object({
     contentTypes: z
       .array(
-        z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/heic'], {
-          invalid_type_error: 'Invalid content type',
-        })
+        z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/heic'], 'Invalid content type')
       )
       .min(1, 'contentTypes must be a non-empty array')
       .max(4, 'Maximum 4 photos per request'),

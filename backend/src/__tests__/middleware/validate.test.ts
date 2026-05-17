@@ -1,6 +1,7 @@
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { validate } from '../../middleware/validate';
+import { statusToErrorCode, validate } from '../../middleware/validate';
 import {
   createUserSchema,
   loginUserSchema,
@@ -12,9 +13,9 @@ import {
 describe('Validation Middleware', () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
-  let mockNext: jest.MockedFunction<NextFunction>;
-  let mockJson: jest.Mock;
-  let mockStatus: jest.Mock;
+  let mockNext: any;
+  let mockJson: any;
+  let mockStatus: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -130,10 +131,8 @@ describe('Validation Middleware', () => {
 
     it('should return 500 on unexpected non-Zod errors', async () => {
       const schema = {
-        parseAsync: jest.fn().mockRejectedValue(new Error('Unexpected error')),
-      } as unknown as z.AnyZodObject;
-
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+        parseAsync: jest.fn<() => Promise<unknown>>().mockRejectedValue(new Error('Unexpected error')),
+      } as unknown as z.ZodType<unknown>;
 
       const middleware = validate(schema);
       await middleware(mockRequest as Request, mockResponse as Response, mockNext);
@@ -144,8 +143,18 @@ describe('Validation Middleware', () => {
       expect(responseData.error.code).toBe('INTERNAL_ERROR');
       expect(responseData.error.message).toBe('Internal server error');
       expect(mockNext).not.toHaveBeenCalled();
+    });
 
-      consoleSpy.mockRestore();
+    it('maps HTTP statuses to canonical error codes', () => {
+      expect(statusToErrorCode(400)).toBe('BAD_REQUEST');
+      expect(statusToErrorCode(401)).toBe('UNAUTHORIZED');
+      expect(statusToErrorCode(403)).toBe('FORBIDDEN');
+      expect(statusToErrorCode(404)).toBe('NOT_FOUND');
+      expect(statusToErrorCode(409)).toBe('CONFLICT');
+      expect(statusToErrorCode(422)).toBe('VALIDATION_ERROR');
+      expect(statusToErrorCode(429)).toBe('RATE_LIMITED');
+      expect(statusToErrorCode(500)).toBe('INTERNAL_ERROR');
+      expect(statusToErrorCode(503)).toBe('SERVICE_UNAVAILABLE');
     });
   });
 

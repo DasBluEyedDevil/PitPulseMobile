@@ -29,10 +29,14 @@
 
 import { Server } from 'http';
 import { AuthUtils } from './auth';
-import WebSocket from 'ws';
+import WebSocket, { WebSocketServer as WsServer } from 'ws';
 import IORedis from 'ioredis';
 import { createPubSubConnection } from '../config/redis';
 import winstonLogger from './logger';
+import {
+  REALTIME_DELIVERY_CHANNEL,
+  RealtimeDeliveryEnvelope,
+} from '../services/RealtimePublisher';
 
 interface Client {
   ws: WebSocket;
@@ -47,9 +51,10 @@ interface Client {
 // from connection floods. At beta scale (~2,000 users) with multiple
 // tabs/devices, 1,000 connections provides generous headroom.
 const MAX_CONNECTIONS = parseInt(process.env.WS_MAX_CONNECTIONS || '1000', 10);
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 class WebSocketServer {
-  private wss?: WebSocket.Server;
+  private wss?: WsServer;
   private clients: Map<string, Client> = new Map();
   private userClients: Map<string, Set<string>> = new Map(); // userId -> clientIds index for O(1) sendToUser
   private rooms: Map<string, Set<string>> = new Map();
@@ -62,9 +67,9 @@ class WebSocketServer {
       return;
     }
 
-    this.wss = new WebSocket.Server({
+    this.wss = new WsServer({
       server,
-      verifyClient: (info, callback) => {
+      verifyClient: (info: any, callback: any) => {
         try {
           // Extract token from query string or Authorization header
           const url = new URL(info.req.url || '', `http://${info.req.headers.host}`);
@@ -95,7 +100,7 @@ class WebSocketServer {
       },
     });
 
-    this.wss.on('connection', (ws: WebSocket, req) => {
+    this.wss.on('connection', (ws: WebSocket, req: any) => {
       // Enforce connection limit to prevent resource exhaustion
       if (this.clients.size >= MAX_CONNECTIONS) {
         winstonLogger.warn(
@@ -154,8 +159,12 @@ class WebSocketServer {
         this.handleDisconnect(clientId);
       });
 
-      // Send welcome message
+      // Send welcome/auth messages. The connection was already JWT-validated
+      // in verifyClient, so clients do not need a post-connect auth message.
       this.send(clientId, 'connected', { clientId });
+      if (userId) {
+        this.send(clientId, 'authenticated', { userId });
+      }
     });
 
     // Start heartbeat
@@ -164,12 +173,12 @@ class WebSocketServer {
     // Subscribe to Redis Pub/Sub for multi-instance fan-out
     try {
       this.subscriber = createPubSubConnection();
-      this.subscriber.subscribe('checkin:new');
+      this.subscriber.subscribe('checkin:new', REALTIME_DELIVERY_CHANNEL);
 
       // API-064: Re-subscribe on Redis reconnection to ensure no messages are lost
       this.subscriber.on('ready', () => {
         winstonLogger.info('Redis Pub/Sub reconnected, re-subscribing');
-        this.subscriber?.subscribe('checkin:new');
+        this.subscriber?.subscribe('checkin:new', REALTIME_DELIVERY_CHANNEL);
       });
 
       this.subscriber.on('message', (channel: string, message: string) => {
@@ -178,6 +187,18 @@ class WebSocketServer {
             this.handleCheckinPubSub(JSON.parse(message));
           } catch (err) {
             winstonLogger.error('Error handling checkin Pub/Sub message', {
+              error: err instanceof Error ? err.message : String(err),
+              stack: err instanceof Error ? err.stack : undefined,
+            });
+          }
+          return;
+        }
+
+        if (channel === REALTIME_DELIVERY_CHANNEL) {
+          try {
+            this.handleRealtimeDelivery(JSON.parse(message));
+          } catch (err) {
+            winstonLogger.error('Error handling realtime delivery Pub/Sub message', {
               error: err instanceof Error ? err.message : String(err),
               stack: err instanceof Error ? err.stack : undefined,
             });
@@ -227,6 +248,38 @@ class WebSocketServer {
     if (followerIds.length > 0) {
       winstonLogger.debug(`Fan-out new_checkin to ${followerIds.length} followers`);
     }
+  }
+
+  handleRealtimeDelivery(envelope: RealtimeDeliveryEnvelope): number {
+    if (!envelope || typeof envelope !== 'object') {
+      winstonLogger.warn('Invalid realtime delivery envelope');
+      return 0;
+    }
+
+    if (envelope.target === 'user') {
+      const delivered = this.sendToUser(envelope.userId, envelope.type, envelope.payload);
+      winstonLogger.debug('Delivered realtime envelope to user clients', {
+        target: 'user',
+        type: envelope.type,
+        delivered,
+      });
+      return delivered;
+    }
+
+    if (envelope.target === 'room') {
+      const delivered = this.broadcastToRoom(envelope.room, envelope.type, envelope.payload);
+      winstonLogger.debug('Delivered realtime envelope to room clients', {
+        target: 'room',
+        type: envelope.type,
+        delivered,
+      });
+      return delivered;
+    }
+
+    winstonLogger.warn('Unsupported realtime delivery envelope target', {
+      target: (envelope as any).target,
+    });
+    return 0;
   }
 
   private handleMessage(clientId: string, data: any): void {
@@ -317,17 +370,9 @@ class WebSocketServer {
     const client = this.clients.get(clientId);
     if (!client || !client.userId) return;
 
-    // Validate room name format and authorize access
-    const validRoomPrefixes = ['event:', 'venue:', 'user:'];
-    const isValidRoom = validRoomPrefixes.some((prefix) => room.startsWith(prefix));
-    if (!isValidRoom) {
-      this.send(clientId, 'error', { message: 'Invalid room name' });
-      return;
-    }
-
-    // User-specific rooms: only allow joining own room
-    if (room.startsWith('user:') && room !== `user:${client.userId}`) {
-      this.send(clientId, 'error', { message: "Cannot join another user's room" });
+    const validation = this.validateRoom(room, client.userId);
+    if (!validation.valid) {
+      this.send(clientId, 'error', { message: validation.message });
       return;
     }
 
@@ -340,6 +385,34 @@ class WebSocketServer {
 
     this.send(clientId, 'joined_room', { room });
     winstonLogger.info(`Client ${clientId} joined room: ${room}`);
+  }
+
+  private validateRoom(room: unknown, authenticatedUserId: string): { valid: boolean; message: string } {
+    if (typeof room !== 'string' || room.length === 0) {
+      return { valid: false, message: 'Invalid room name' };
+    }
+
+    const separatorIndex = room.indexOf(':');
+    if (separatorIndex <= 0 || separatorIndex !== room.lastIndexOf(':')) {
+      return { valid: false, message: 'Invalid room name' };
+    }
+
+    const prefix = room.substring(0, separatorIndex);
+    const id = room.substring(separatorIndex + 1);
+
+    if (!['event', 'venue', 'user', 'checkin'].includes(prefix)) {
+      return { valid: false, message: 'Invalid room name' };
+    }
+
+    if (!UUID_PATTERN.test(id)) {
+      return { valid: false, message: `Invalid ${prefix} room id` };
+    }
+
+    if (prefix === 'user' && id !== authenticatedUserId) {
+      return { valid: false, message: "Cannot join another user's room" };
+    }
+
+    return { valid: true, message: 'Valid room' };
   }
 
   private leaveRoom(clientId: string, room: string): void {
@@ -405,12 +478,15 @@ class WebSocketServer {
    * Send message to specific user (all their connections).
    * Uses O(1) userId index instead of O(N) client iteration.
    */
-  sendToUser(userId: string, type: string, payload: any): void {
+  sendToUser(userId: string, type: string, payload: any): number {
     const clientIds = this.userClients.get(userId);
-    if (!clientIds) return;
+    if (!clientIds) return 0;
+    let delivered = 0;
     for (const clientId of clientIds) {
       this.send(clientId, type, payload);
+      delivered++;
     }
+    return delivered;
   }
 
   /**
@@ -425,13 +501,16 @@ class WebSocketServer {
   /**
    * Broadcast message to all clients in a room
    */
-  broadcastToRoom(room: string, type: string, payload: any): void {
+  broadcastToRoom(room: string, type: string, payload: any): number {
     const roomClients = this.rooms.get(room);
-    if (!roomClients) return;
+    if (!roomClients) return 0;
 
+    let delivered = 0;
     for (const clientId of roomClients) {
       this.send(clientId, type, payload);
+      delivered++;
     }
+    return delivered;
   }
 
   /**

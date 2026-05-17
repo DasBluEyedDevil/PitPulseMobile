@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import { FeedService, decodeCursor } from '../services/FeedService';
 import { ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -72,7 +73,7 @@ export class FeedController {
    * GET /api/feed/events/:eventId?cursor=X&limit=N
    */
   getEventFeed = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { eventId } = req.params;
+    const { eventId } = routeParams(req);
 
     if (!eventId) {
       throw new BadRequestError('Event ID is required');

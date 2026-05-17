@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import { VenueService } from '../services/VenueService';
 import { SetlistFmService } from '../services/SetlistFmService';
 import { DiscoveryService } from '../services/DiscoveryService';
@@ -73,7 +74,7 @@ export class VenueController {
    * GET /api/venues/:id
    */
   getVenueById = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     const venue = await this.venueService.getVenueById(id);
 
@@ -105,7 +106,7 @@ export class VenueController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     // Authorization: admin or claimed owner
     const isAdmin = !!req.user.isAdmin;
@@ -137,7 +138,7 @@ export class VenueController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     // Authorization: admin or claimed owner
     const isAdmin = !!req.user.isAdmin;

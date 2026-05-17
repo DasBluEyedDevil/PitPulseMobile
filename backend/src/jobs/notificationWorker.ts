@@ -25,6 +25,114 @@ import logger from '../utils/logger';
 
 let notificationWorker: Worker | null = null;
 
+type BatchCheckin = {
+  username?: string;
+  eventName?: string;
+  venueName?: string;
+  checkinId?: string;
+  eventId?: string | null;
+  deepLink?: string;
+};
+
+function compactData(data: Record<string, string | undefined>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(data).filter(([, value]) => value !== undefined)
+  ) as Record<string, string>;
+}
+
+export async function processNotificationBatch(job: Pick<Job, 'id' | 'data'>) {
+  const { userId } = job.data as { userId?: string };
+  logger.info('Processing notification batch', { jobId: job.id, userId });
+
+  if (!userId || typeof userId !== 'string') {
+    logger.warn('Notification batch job missing userId', { jobId: job.id });
+    return { sent: false, reason: 'missing_user_id' };
+  }
+
+  const redis = getRedis();
+  if (!redis) {
+    logger.warn('Redis not available, skipping notification batch', { userId });
+    return { sent: false, reason: 'redis_unavailable' };
+  }
+
+  const listKey = `notif:batch:${userId}`;
+  const markerKey = `notif:batch:marker:${userId}`;
+
+  const multi = redis.multi();
+  multi.lrange(listKey, 0, -1);
+  multi.del(listKey, markerKey);
+  const results = await multi.exec();
+  const items = (results && results[0] && results[0][1]) as string[] | null;
+
+  if (!items || items.length === 0) {
+    logger.info('Notification batch empty', { userId });
+    return { sent: false, reason: 'empty_batch' };
+  }
+
+  const checkins: BatchCheckin[] = [];
+  for (const item of items) {
+    try {
+      const parsed = JSON.parse(item) as BatchCheckin;
+      if (!parsed || typeof parsed !== 'object' || !parsed.username) {
+        logger.warn('Notification batch malformed item', { userId });
+        continue;
+      }
+      checkins.push(parsed);
+    } catch (err) {
+      logger.warn('Notification batch parse error', {
+        userId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  if (checkins.length === 0) {
+    logger.info('Notification batch parse error: no valid items', {
+      userId,
+      itemCount: items.length,
+    });
+    return { sent: false, reason: 'parse_error' };
+  }
+
+  if (!pushNotificationService.isAvailable) {
+    logger.debug('Push notifications disabled (Firebase not configured). Skipping batch send.', {
+      userId,
+      count: checkins.length,
+    });
+    return { sent: false, reason: 'fcm_disabled', count: checkins.length };
+  }
+
+  if (checkins.length === 1) {
+    const checkin = checkins[0];
+    await pushNotificationService.sendToUser(userId, {
+      title: `${checkin.username || 'Someone'} checked in!`,
+      body: `At ${checkin.eventName || 'a show'} @ ${checkin.venueName || ''}`,
+      data: compactData({
+        type: 'friend_checkin',
+        checkinId: checkin.checkinId,
+        eventId: checkin.eventId || undefined,
+        deepLink:
+          checkin.deepLink || (checkin.checkinId ? `/checkins/${checkin.checkinId}` : undefined),
+      }),
+    });
+  } else {
+    const first = checkins[0];
+    const othersCount = checkins.length - 1;
+    await pushNotificationService.sendToUser(userId, {
+      title: `${checkins.length} friends checked in!`,
+      body: `${first.username || 'Someone'} and ${othersCount} ${othersCount === 1 ? 'other' : 'others'} are at shows tonight`,
+      data: {
+        type: 'friend_checkin_batch',
+        count: String(checkins.length),
+        deepLink: '/feed',
+      },
+    });
+  }
+
+  logger.info('Notification batch sent count', { userId, count: checkins.length });
+  return { sent: true, count: checkins.length };
+}
+
 /**
  * Start the BullMQ worker for notification batch jobs.
  *
@@ -39,83 +147,11 @@ export function startNotificationWorker(): Worker | null {
     return null;
   }
 
-  const worker = new Worker(
-    'notification-batch',
-    async (job: Job) => {
-      const { userId } = job.data;
-      logger.info('Processing notification batch', { jobId: job.id, userId });
-
-      // Short-circuit when Firebase is not configured to avoid wasteful Redis reads
-      if (!pushNotificationService.isAvailable) {
-        logger.debug('Push notifications disabled (Firebase not configured). Skipping batch.', {
-          userId,
-        });
-        return { sent: false, reason: 'fcm_disabled' };
-      }
-
-      const redis = getRedis();
-      if (!redis) {
-        logger.warn('Redis not available, skipping notification batch', { userId });
-        return { sent: false, reason: 'redis_unavailable' };
-      }
-
-      const listKey = `notif:batch:${userId}`;
-
-      // Atomically read and delete the batch list using MULTI/EXEC
-      const multi = redis.multi();
-      multi.lrange(listKey, 0, -1);
-      multi.del(listKey);
-      const results = await multi.exec();
-      const items = (results && results[0] && results[0][1]) as string[] | null;
-
-      if (!items || items.length === 0) {
-        logger.info('Empty notification batch (race condition), skipping', { userId });
-        return { sent: false, reason: 'empty_batch' };
-      }
-
-      const checkins = items
-        .map((i) => {
-          try {
-            return JSON.parse(i);
-          } catch {
-            return null;
-          }
-        })
-        .filter(Boolean);
-
-      if (checkins.length === 0) {
-        return { sent: false, reason: 'parse_error' };
-      }
-
-      if (checkins.length === 1) {
-        // Single check-in: direct FOMO notification
-        const { username, eventName, venueName } = checkins[0];
-        await pushNotificationService.sendToUser(userId, {
-          title: `${username} checked in!`,
-          body: `At ${eventName} @ ${venueName}`,
-          data: { type: 'friend_checkin' },
-        });
-        logger.info('Sent single notification', { userId, username });
-      } else {
-        // Multiple check-ins: summary notification
-        const first = checkins[0];
-        const othersCount = checkins.length - 1;
-        await pushNotificationService.sendToUser(userId, {
-          title: `${checkins.length} friends checked in!`,
-          body: `${first.username} and ${othersCount} ${othersCount === 1 ? 'other' : 'others'} are at shows tonight`,
-          data: { type: 'friend_checkin_batch', count: String(checkins.length) },
-        });
-        logger.info('Sent batch notification', { userId, count: checkins.length });
-      }
-
-      return { sent: true, count: checkins.length };
-    },
-    {
-      connection: createBullMQConnection(),
-      concurrency: 5,
-      lockDuration: 30000, // 30s — notification sends are quick
-    }
-  );
+  const worker = new Worker('notification-batch', processNotificationBatch, {
+    connection: createBullMQConnection(),
+    concurrency: 5,
+    lockDuration: 30000, // 30s — notification sends are quick
+  });
 
   // Event listeners for monitoring
   worker.on('completed', (job: Job) => {

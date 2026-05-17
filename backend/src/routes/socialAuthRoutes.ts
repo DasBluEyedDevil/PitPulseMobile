@@ -77,7 +77,7 @@ router.post(
       if (!validation.success) {
         const response: ApiResponse = {
           success: false,
-          error: validation.error.errors[0]?.message || 'Invalid request',
+          error: validation.error.issues[0]?.message || 'Invalid request',
         };
         res.status(400).json(response);
         return;
@@ -186,7 +186,7 @@ router.post(
       if (!validation.success) {
         const response: ApiResponse = {
           success: false,
-          error: validation.error.errors[0]?.message || 'Invalid request',
+          error: validation.error.issues[0]?.message || 'Invalid request',
         };
         res.status(400).json(response);
         return;

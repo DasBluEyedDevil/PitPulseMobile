@@ -17,7 +17,7 @@ import { FeedService } from '../FeedService';
 import { badgeEvalQueue } from '../../jobs/badgeQueue';
 import { cache, CacheKeys } from '../../utils/cache';
 import { getRedis } from '../../utils/redisRateLimiter';
-import { notificationQueue } from '../../jobs/notificationQueue';
+import { notificationBatchService } from '../NotificationBatchService';
 import { Checkin, CreateEventCheckinRequest, CreateManualCheckinRequest } from './types';
 import logger from '../../utils/logger';
 
@@ -33,6 +33,23 @@ const VENUE_TYPE_RADIUS_KM: Record<string, number> = {
 };
 
 const DEFAULT_VENUE_RADIUS_KM = 1.0;
+const FEED_INVALIDATION_CONCURRENCY = 10;
+
+async function runWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>
+) {
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const item = items[nextIndex++];
+      await worker(item);
+    }
+  });
+
+  await Promise.all(workers);
+}
 
 export class CheckinCreatorService {
   private db = Database.getInstance();
@@ -441,7 +458,9 @@ export class CheckinCreatorService {
       );
 
       if (del.rowCount === 0) {
-        const exists = await client.query('SELECT user_id FROM checkins WHERE id = $1', [checkinId]);
+        const exists = await client.query('SELECT user_id FROM checkins WHERE id = $1', [
+          checkinId,
+        ]);
         await client.query('ROLLBACK');
         if (exists.rows.length === 0) {
           const err = new Error('Check-in not found');
@@ -689,26 +708,27 @@ export class CheckinCreatorService {
     followerIds: string[]
   ): Promise<void> {
     try {
-      // Invalidate friends feed + happening_now cache for each follower
-      const invalidations: Promise<void>[] = [];
-      for (const followerId of followerIds) {
-        invalidations.push(cache.delPattern(`feed:friends:${followerId}:*`));
-        invalidations.push(cache.del(`feed:happening:${followerId}`));
-      }
+      const startedAt = Date.now();
+      const impactedUserIds = Array.from(new Set([...followerIds, userId]));
+
+      await runWithConcurrency(impactedUserIds, FEED_INVALIDATION_CONCURRENCY, (impactedUserId) =>
+        this.feedService.invalidateUserFeedCache(impactedUserId)
+      );
 
       // Invalidate event feed cache
       if (eventId) {
-        invalidations.push(cache.delPattern(`feed:event:${eventId}:*`));
+        await this.feedService.invalidateEventFeedCache(eventId);
       }
 
-      // Invalidate the creator's own caches (they may see their own check-in in event feed)
-      invalidations.push(cache.delPattern(`feed:friends:${userId}:*`));
-      invalidations.push(cache.del(`feed:happening:${userId}`));
-
       // Invalidate global feed cache so new check-in appears promptly
-      invalidations.push(this.feedService.invalidateGlobalFeedCache());
+      await this.feedService.invalidateGlobalFeedCache();
 
-      await Promise.all(invalidations);
+      logger.debug('Feed cache versions invalidated for check-in', {
+        impactedUserCount: impactedUserIds.length,
+        followerCount: followerIds.length,
+        hasEvent: !!eventId,
+        durationMs: Date.now() - startedAt,
+      });
     } catch (error) {
       logger.error('Feed cache invalidation error', {
         error: error instanceof Error ? error.message : String(error),
@@ -780,29 +800,18 @@ export class CheckinCreatorService {
       await redis.publish('checkin:new', JSON.stringify(pubSubPayload));
 
       // 2. Enqueue batched push notifications for each follower
-      const notifData = JSON.stringify({
+      const notifData = {
         username: username || 'Someone',
         eventName: eventName || 'a show',
         venueName: venueName || '',
-      });
+        checkinId,
+        eventId,
+        deepLink: `/checkins/${checkinId}`,
+      };
 
       for (const followerId of followerIds) {
         try {
-          const listKey = `notif:batch:${followerId}`;
-          await redis.rpush(listKey, notifData);
-          await redis.expire(listKey, 300); // 5-minute safety TTL
-
-          // Enqueue delayed job with dedup (one per user per batching window)
-          if (notificationQueue) {
-            await notificationQueue.add(
-              'send-batch',
-              { userId: followerId },
-              {
-                delay: 120_000, // 2-minute batching window
-                jobId: `notif-batch:${followerId}`, // dedup: one job per user per window
-              }
-            );
-          }
+          await notificationBatchService.appendForUser(followerId, notifData);
         } catch (err) {
           // Non-fatal per follower -- continue with others
           logger.debug(`Warning: notification enqueue failed for follower ${followerId}`, {

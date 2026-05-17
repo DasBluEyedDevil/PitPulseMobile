@@ -65,7 +65,7 @@ class BlockedUsersScreen extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing8),
             itemCount: users.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final user = users[index];
               // The blocked user data may be nested under 'blockedUser' or at top level

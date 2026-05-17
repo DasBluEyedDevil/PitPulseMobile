@@ -119,8 +119,8 @@ class AnalyticsService {
       name: 'checkin',
       parameters: {
         'venue_id': venueId,
-        if (bandId != null) 'band_id': bandId,
-        if (rating != null) 'rating': rating,
+        'band_id': ?bandId,
+        'rating': ?rating,
       },
     );
   }
@@ -136,7 +136,7 @@ class AnalyticsService {
       name: 'venue_viewed',
       parameters: {
         'venue_id': venueId,
-        if (venueName != null) 'venue_name': venueName,
+        'venue_name': ?venueName,
       },
     );
   }
@@ -147,7 +147,7 @@ class AnalyticsService {
       name: 'band_viewed',
       parameters: {
         'band_id': bandId,
-        if (bandName != null) 'band_name': bandName,
+        'band_name': ?bandName,
       },
     );
   }
@@ -204,8 +204,8 @@ class AnalyticsService {
       name: 'app_error',
       parameters: {
         'error_type': errorType,
-        if (errorMessage != null) 'error_message': errorMessage,
-        if (errorCode != null) 'error_code': errorCode,
+        'error_message': ?errorMessage,
+        'error_code': ?errorCode,
       },
     );
   }

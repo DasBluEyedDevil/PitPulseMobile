@@ -8,6 +8,7 @@
  */
 
 import { websocket } from '../utils/websocket';
+import { realtimePublisher } from './RealtimePublisher';
 import logger from '../utils/logger';
 
 export interface WebSocketNotificationPayload {
@@ -28,12 +29,16 @@ export class NotificationPublisher {
    * @param userId - Target user ID
    * @param payload - Notification payload
    */
-  publishToUser(userId: string, payload: WebSocketNotificationPayload): void {
+  async publishToUser(userId: string, payload: WebSocketNotificationPayload): Promise<void> {
     try {
-      websocket.sendToUser(userId, 'notification', {
+      const realtimePayload = {
         ...payload,
         timestamp: new Date().toISOString(),
-      });
+      };
+      const published = await realtimePublisher.publishToUser(userId, 'notification', realtimePayload);
+      if (!published) {
+        websocket.sendToUser(userId, 'notification', realtimePayload);
+      }
       logger.debug(`[NotificationPublisher] Published notification to user ${userId}`);
     } catch (error) {
       logger.error(`[NotificationPublisher] Failed to publish to user ${userId}`, {
@@ -47,9 +52,9 @@ export class NotificationPublisher {
    * @param userIds - Array of target user IDs
    * @param payload - Notification payload
    */
-  publishToUsers(userIds: string[], payload: WebSocketNotificationPayload): void {
+  async publishToUsers(userIds: string[], payload: WebSocketNotificationPayload): Promise<void> {
     for (const userId of userIds) {
-      this.publishToUser(userId, payload);
+      await this.publishToUser(userId, payload);
     }
     logger.debug(`[NotificationPublisher] Broadcast notification to ${userIds.length} users`);
   }
@@ -60,8 +65,12 @@ export class NotificationPublisher {
    * @param checkinId - The new check-in ID
    * @param authorUsername - Username of check-in author
    */
-  publishNewCheckin(followerIds: string[], checkinId: string, authorUsername: string): void {
-    this.publishToUsers(followerIds, {
+  async publishNewCheckin(
+    followerIds: string[],
+    checkinId: string,
+    authorUsername: string
+  ): Promise<void> {
+    await this.publishToUsers(followerIds, {
       type: 'new_checkin',
       message: `${authorUsername} checked in to a show`,
       checkinId,
@@ -74,8 +83,8 @@ export class NotificationPublisher {
    * @param badgeId - Badge ID
    * @param badgeName - Badge name for display
    */
-  publishBadgeEarned(userId: string, badgeId: string, badgeName: string): void {
-    this.publishToUser(userId, {
+  async publishBadgeEarned(userId: string, badgeId: string, badgeName: string): Promise<void> {
+    await this.publishToUser(userId, {
       type: 'badge_earned',
       title: 'Badge Earned!',
       message: `You earned the ${badgeName} badge!`,
@@ -95,8 +104,8 @@ export class NotificationPublisher {
     checkinId: string,
     fromUserId: string,
     fromUsername: string
-  ): void {
-    this.publishToUser(userId, {
+  ): Promise<void> {
+    return this.publishToUser(userId, {
       type: 'toast_received',
       title: 'New Toast!',
       message: `${fromUsername} toasted your check-in`,
@@ -119,8 +128,8 @@ export class NotificationPublisher {
     fromUserId: string,
     fromUsername: string,
     commentText?: string
-  ): void {
-    this.publishToUser(userId, {
+  ): Promise<void> {
+    return this.publishToUser(userId, {
       type: 'comment_received',
       title: 'New Comment',
       message: commentText
@@ -137,8 +146,8 @@ export class NotificationPublisher {
    * @param fromUserId - User who followed
    * @param fromUsername - Username of follower
    */
-  publishFollowReceived(userId: string, fromUserId: string, fromUsername: string): void {
-    this.publishToUser(userId, {
+  publishFollowReceived(userId: string, fromUserId: string, fromUsername: string): Promise<void> {
+    return this.publishToUser(userId, {
       type: 'follow_received',
       title: 'New Follower',
       message: `${fromUsername} started following you`,

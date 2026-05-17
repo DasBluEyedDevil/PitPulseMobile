@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -6,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/dio_client.dart';
 import '../services/analytics_service.dart';
+import '../services/log_service.dart';
 import '../services/push_notification_service.dart';
 import '../services/websocket_service.dart';
 import '../../shared/services/location_service.dart';
@@ -58,10 +61,7 @@ DioClient dioClient(Ref ref) {
 AuthRepository authRepository(Ref ref) {
   final dioClient = ref.watch(dioClientProvider);
   final secureStorage = ref.watch(secureStorageProvider);
-  return AuthRepository(
-    dioClient: dioClient,
-    secureStorage: secureStorage,
-  );
+  return AuthRepository(dioClient: dioClient, secureStorage: secureStorage);
 }
 
 @Riverpod(keepAlive: true)
@@ -109,7 +109,9 @@ FeedRepository feedRepository(Ref ref) {
 @Riverpod(keepAlive: true)
 PushNotificationService pushNotificationService(Ref ref) {
   final feed = ref.watch(feedRepositoryProvider);
-  return PushNotificationService(feedRepository: feed);
+  final service = PushNotificationService(feedRepository: feed);
+  ref.onDispose(() => unawaited(service.dispose()));
+  return service;
 }
 
 @Riverpod(keepAlive: true)
@@ -148,14 +150,14 @@ class AuthState extends _$AuthState {
         LoginRequest(email: email, password: password),
       );
 
-      return result.fold(
-        (failure) => throw Exception(failure.message),
-        (authResponse) {
+      return await result.fold<Future<User>>(
+        (failure) async => throw Exception(failure.message),
+        (authResponse) async {
           // Connect WebSocket after successful login
           _connectWebSocket(authResponse.user.id);
 
           // Sync RevenueCat identity and premium state
-          _syncSubscriptionState(authResponse.user.id);
+          await _syncSubscriptionState(authResponse.user.id);
 
           // Sync onboarding genre preferences to backend if saved locally
           ref
@@ -188,14 +190,14 @@ class AuthState extends _$AuthState {
         ),
       );
 
-      return result.fold(
-        (failure) => throw Exception(failure.message),
-        (authResponse) {
+      return await result.fold<Future<User>>(
+        (failure) async => throw Exception(failure.message),
+        (authResponse) async {
           // Connect WebSocket after successful registration
           _connectWebSocket(authResponse.user.id);
 
           // Sync RevenueCat identity and premium state
-          _syncSubscriptionState(authResponse.user.id);
+          await _syncSubscriptionState(authResponse.user.id);
 
           // Sync onboarding genre preferences to backend if saved locally
           ref
@@ -210,15 +212,36 @@ class AuthState extends _$AuthState {
 
   Future<void> logout() async {
     final authRepository = ref.read(authRepositoryProvider);
+    final pushNotificationService = ref.read(pushNotificationServiceProvider);
+    final currentPushToken = pushNotificationService.currentToken;
 
     // Disconnect WebSocket before logout
     final wsService = ref.read(webSocketServiceProvider);
-    wsService.disconnect();
+    wsService.disconnect(clearCredentials: true);
+
+    if (currentPushToken != null) {
+      try {
+        final result = await ref
+            .read(feedRepositoryProvider)
+            .unregisterDeviceToken(currentPushToken);
+        result.fold(
+          (failure) => LogService.w(
+            'Failed to unregister push token during logout: ${failure.message}',
+          ),
+          (_) {},
+        );
+      } catch (e, stack) {
+        LogService.e('Failed to unregister push token during logout', e, stack);
+      }
+    }
+
+    await pushNotificationService.resetForLogout();
 
     // Clear RevenueCat identity and premium state
     try {
       await SubscriptionService.logout();
       ref.read(isPremiumProvider.notifier).set(false);
+      ref.invalidate(serverSubscriptionStatusProvider);
     } catch (_) {}
 
     // Clear all user-scoped data providers to prevent stale data leaking
@@ -298,6 +321,13 @@ class AuthState extends _$AuthState {
       );
     } catch (_) {
       // Subscription sync failure should not prevent login
+    } finally {
+      ref.invalidate(serverSubscriptionStatusProvider);
+      try {
+        await ref.read(serverSubscriptionStatusProvider.future);
+      } catch (_) {
+        // Server subscription status refresh failure should not prevent login
+      }
     }
   }
 
@@ -319,13 +349,7 @@ class AuthState extends _$AuthState {
 }
 
 /// Location permission state
-enum LocationStatus {
-  unknown,
-  denied,
-  deniedForever,
-  granted,
-  serviceDisabled,
-}
+enum LocationStatus { unknown, denied, deniedForever, granted, serviceDisabled }
 
 /// Provider for current user location
 @riverpod

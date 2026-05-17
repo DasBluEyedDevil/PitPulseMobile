@@ -95,7 +95,7 @@ class _BandDetailScreenState extends ConsumerState<BandDetailScreen>
                     CachedNetworkImage(
                       imageUrl: band.coverImageUrl!,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => _buildGradientBg(),
+                      errorWidget: (_, _, _) => _buildGradientBg(),
                     )
                   else
                     _buildGradientBg(),
@@ -301,7 +301,7 @@ class _BandHeader extends StatelessWidget {
                   ? CachedNetworkImage(
                       imageUrl: band.imageUrl!,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => const Icon(
+                      errorWidget: (_, _, _) => const Icon(
                         Icons.music_note,
                         size: 40,
                         color: AppTheme.voltLime,
@@ -1210,7 +1210,7 @@ class _CheckInPreviewCard extends StatelessWidget {
                     ? CachedNetworkImage(
                         imageUrl: userAvatarUrl,
                         fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Center(
+                        errorWidget: (_, _, _) => Center(
                           child: Text(
                             userInitial,
                             style: const TextStyle(

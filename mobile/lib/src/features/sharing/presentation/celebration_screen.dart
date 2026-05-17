@@ -241,7 +241,7 @@ class _CelebrationScreenState extends ConsumerState<CelebrationScreen>
 
     return progressAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (allProgress) {
         // Show badges that are close to being earned (>50% progress, not yet earned)
         final nearCompletion = allProgress.where((bp) {
@@ -315,7 +315,7 @@ class _BadgeEarnedTile extends StatelessWidget {
                       width: 40,
                       height: 40,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(
+                      errorBuilder: (_, _, _) => Icon(
                         Icons.emoji_events,
                         color: color,
                         size: 24,

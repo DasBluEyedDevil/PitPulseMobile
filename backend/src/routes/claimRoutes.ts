@@ -27,10 +27,7 @@ const claimController = new ClaimController();
 
 const submitClaimSchema = z.object({
   body: z.object({
-    entityType: z.enum(['venue', 'band'], {
-      required_error: 'entityType is required',
-      invalid_type_error: 'entityType must be "venue" or "band"',
-    }),
+    entityType: z.enum(['venue', 'band'], 'entityType must be "venue" or "band"'),
     entityId: z.string().uuid('entityId must be a valid UUID'),
     evidenceText: z
       .string()
@@ -49,9 +46,7 @@ const claimIdParamSchema = z.object({
 
 const entityStatsParamSchema = z.object({
   params: z.object({
-    entityType: z.enum(['venue', 'band'], {
-      invalid_type_error: 'entityType must be "venue" or "band"',
-    }),
+    entityType: z.enum(['venue', 'band'], 'entityType must be "venue" or "band"'),
     entityId: z.string().uuid('entityId must be a valid UUID'),
   }),
 });
@@ -61,10 +56,7 @@ const reviewClaimSchema = z.object({
     id: z.string().uuid('Claim ID must be a valid UUID'),
   }),
   body: z.object({
-    status: z.enum(['approved', 'denied'], {
-      required_error: 'Status is required',
-      invalid_type_error: 'Status must be "approved" or "denied"',
-    }),
+    status: z.enum(['approved', 'denied'], 'Status must be "approved" or "denied"'),
     reviewNotes: z.string().max(1000, 'Notes must be 1000 characters or less').optional(),
   }),
 });

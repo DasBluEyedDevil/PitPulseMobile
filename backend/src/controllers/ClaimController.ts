@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParam, routeParams } from '../utils/requestParams';
 import { ClaimService } from '../services/ClaimService';
 import { BandService } from '../services/BandService';
 import { VenueService } from '../services/VenueService';
@@ -59,7 +60,7 @@ export class ClaimController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const claim = await this.claimService.getClaimById(req.params.id);
+    const claim = await this.claimService.getClaimById(routeParam(req, 'id'));
 
     res.status(200).json({ success: true, data: claim } as ApiResponse);
   });
@@ -100,7 +101,7 @@ export class ClaimController {
       throw new BadRequestError('Status must be "approved" or "denied"');
     }
 
-    const claim = await this.claimService.reviewClaim(req.params.id, req.user.id, {
+    const claim = await this.claimService.reviewClaim(routeParam(req, 'id'), req.user.id, {
       status,
       reviewNotes,
     });
@@ -121,7 +122,7 @@ export class ClaimController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { entityType, entityId } = req.params;
+    const { entityType, entityId } = routeParams(req);
 
     if (entityType !== 'venue' && entityType !== 'band') {
       throw new BadRequestError('entityType must be "venue" or "band"');

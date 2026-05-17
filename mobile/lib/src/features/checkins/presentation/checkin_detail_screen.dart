@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,10 +17,7 @@ import 'providers/checkin_providers.dart';
 class CheckInDetailScreen extends ConsumerStatefulWidget {
   final String checkinId;
 
-  const CheckInDetailScreen({
-    required this.checkinId,
-    super.key,
-  });
+  const CheckInDetailScreen({required this.checkinId, super.key});
 
   @override
   ConsumerState<CheckInDetailScreen> createState() =>
@@ -28,12 +27,42 @@ class CheckInDetailScreen extends ConsumerStatefulWidget {
 class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
   final TextEditingController _commentController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  StreamSubscription<Map<String, dynamic>>? _toastSubscription;
+  StreamSubscription<Map<String, dynamic>>? _commentSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    final wsService = ref.read(webSocketServiceProvider);
+    wsService.joinCheckinRoom(widget.checkinId);
+    _toastSubscription = wsService.toastStream.listen((payload) {
+      if (_payloadCheckinId(payload) != widget.checkinId) return;
+      _invalidateRealtimeCheckInState();
+    });
+    _commentSubscription = wsService.commentStream.listen((payload) {
+      if (_payloadCheckinId(payload) != widget.checkinId) return;
+      _invalidateRealtimeCheckInState();
+    });
+  }
 
   @override
   void dispose() {
+    ref.read(webSocketServiceProvider).leaveCheckinRoom(widget.checkinId);
+    _toastSubscription?.cancel();
+    _commentSubscription?.cancel();
     _commentController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  String? _payloadCheckinId(Map<String, dynamic> payload) {
+    return payload['checkinId'] as String? ?? payload['checkInId'] as String?;
+  }
+
+  void _invalidateRealtimeCheckInState() {
+    ref.invalidate(checkInDetailProvider(widget.checkinId));
+    ref.invalidate(checkInCommentsProvider(widget.checkinId));
+    ref.invalidate(checkInToastsProvider(widget.checkinId));
   }
 
   String _getTimeAgo(String createdAt) {
@@ -102,20 +131,18 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
   }
 
   Future<void> _handleToast(CheckIn checkIn) async {
-    await ref.read(toastCheckInProvider.notifier).toggle(
-          checkIn.id,
-          checkIn.hasUserToasted,
-        );
+    await ref
+        .read(toastCheckInProvider.notifier)
+        .toggle(checkIn.id, checkIn.hasUserToasted);
   }
 
   Future<void> _handleSubmitComment() async {
     final comment = _commentController.text.trim();
     if (comment.isEmpty) return;
 
-    final result = await ref.read(addCommentProvider.notifier).submit(
-          widget.checkinId,
-          comment,
-        );
+    final result = await ref
+        .read(addCommentProvider.notifier)
+        .submit(widget.checkinId, comment);
 
     if (result != null && mounted) {
       _commentController.clear();
@@ -273,8 +300,9 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
 
                     // Divider
                     Divider(
-                      color:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       height: 1,
                     ),
 
@@ -326,10 +354,7 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
             const SizedBox(height: 8),
             const Text(
               'Please try again later',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -375,15 +400,16 @@ class _UserHeader extends StatelessWidget {
               height: 48,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient:
-                    profileImageUrl == null ? AppTheme.primaryGradient : null,
+                gradient: profileImageUrl == null
+                    ? AppTheme.primaryGradient
+                    : null,
               ),
               child: ClipOval(
                 child: profileImageUrl != null
                     ? CachedNetworkImage(
                         imageUrl: profileImageUrl,
                         fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => Center(
+                        errorWidget: (_, _, _) => Center(
                           child: Text(
                             userName[0].toUpperCase(),
                             style: const TextStyle(
@@ -504,8 +530,9 @@ class _EventInfoSection extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: ClipRRect(
@@ -514,7 +541,7 @@ class _EventInfoSection extends StatelessWidget {
                         ? CachedNetworkImage(
                             imageUrl: band!.imageUrl!,
                             fit: BoxFit.cover,
-                            errorWidget: (_, __, ___) => const Icon(
+                            errorWidget: (_, _, _) => const Icon(
                               Icons.music_note,
                               color: AppTheme.voltLime,
                             ),
@@ -549,10 +576,7 @@ class _EventInfoSection extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: AppTheme.textTertiary,
-                ),
+                const Icon(Icons.chevron_right, color: AppTheme.textTertiary),
               ],
             ),
           ),
@@ -573,8 +597,9 @@ class _EventInfoSection extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: ClipRRect(
@@ -583,7 +608,7 @@ class _EventInfoSection extends StatelessWidget {
                         ? CachedNetworkImage(
                             imageUrl: venue!.imageUrl!,
                             fit: BoxFit.cover,
-                            errorWidget: (_, __, ___) => const Icon(
+                            errorWidget: (_, _, _) => const Icon(
                               Icons.location_on,
                               color: AppTheme.electricBlue,
                             ),
@@ -609,9 +634,10 @@ class _EventInfoSection extends StatelessWidget {
                       ),
                       if (venue?.city != null || venue?.state != null)
                         Text(
-                          [venue?.city, venue?.state]
-                              .where((s) => s != null)
-                              .join(', '),
+                          [
+                            venue?.city,
+                            venue?.state,
+                          ].where((s) => s != null).join(', '),
                           style: const TextStyle(
                             fontSize: 13,
                             color: AppTheme.textTertiary,
@@ -620,10 +646,7 @@ class _EventInfoSection extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: AppTheme.textTertiary,
-                ),
+                const Icon(Icons.chevron_right, color: AppTheme.textTertiary),
               ],
             ),
           ),
@@ -749,11 +772,7 @@ class _NotesSection extends StatelessWidget {
           children: [
             const Row(
               children: [
-                Icon(
-                  Icons.format_quote,
-                  size: 20,
-                  color: AppTheme.voltLime,
-                ),
+                Icon(Icons.format_quote, size: 20, color: AppTheme.voltLime),
                 SizedBox(width: 8),
                 Text(
                   'Notes',
@@ -786,10 +805,7 @@ class _VibeTagsSection extends StatelessWidget {
   final List vibeTags;
   final IconData Function(String) getVibeIcon;
 
-  const _VibeTagsSection({
-    required this.vibeTags,
-    required this.getVibeIcon,
-  });
+  const _VibeTagsSection({required this.vibeTags, required this.getVibeIcon});
 
   @override
   Widget build(BuildContext context) {
@@ -812,8 +828,10 @@ class _VibeTagsSection extends StatelessWidget {
             runSpacing: 8,
             children: vibeTags.map((vibe) {
               return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(20),
@@ -889,10 +907,10 @@ class _PhotosCarousel extends StatelessWidget {
                 onLongPress: isOwnPhoto
                     ? null
                     : () => showReportBottomSheet(
-                          context,
-                          contentType: 'photo',
-                          contentId: checkinId,
-                        ),
+                        context,
+                        contentType: 'photo',
+                        contentId: checkinId,
+                      ),
                 child: Padding(
                   padding: EdgeInsets.only(
                     right: index < imageUrls.length - 1 ? 8 : 0,
@@ -904,12 +922,12 @@ class _PhotosCarousel extends StatelessWidget {
                       width: 200,
                       height: 200,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
+                      placeholder: (_, _) => Container(
                         width: 200,
                         height: 200,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         child: const Center(
                           child: CircularProgressIndicator(
                             color: AppTheme.voltLime,
@@ -917,12 +935,12 @@ class _PhotosCarousel extends StatelessWidget {
                           ),
                         ),
                       ),
-                      errorWidget: (_, __, ___) => Container(
+                      errorWidget: (_, _, _) => Container(
                         width: 200,
                         height: 200,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         child: const Icon(
                           Icons.broken_image,
                           color: AppTheme.textTertiary,
@@ -1016,8 +1034,9 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        isActive ? (activeColor ?? AppTheme.voltLime) : AppTheme.textTertiary;
+    final color = isActive
+        ? (activeColor ?? AppTheme.voltLime)
+        : AppTheme.textTertiary;
 
     return GestureDetector(
       onTap: onTap,
@@ -1130,7 +1149,7 @@ class _CommentsSection extends StatelessWidget {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: comments.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final comment = comments[index];
                   return _CommentItem(
@@ -1175,10 +1194,10 @@ class _CommentItem extends StatelessWidget {
       onLongPress: isOwnComment
           ? null
           : () => showReportBottomSheet(
-                context,
-                contentType: 'comment',
-                contentId: comment.id,
-              ),
+              context,
+              contentType: 'comment',
+              contentId: comment.id,
+            ),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1196,15 +1215,16 @@ class _CommentItem extends StatelessWidget {
                 height: 36,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient:
-                      profileImageUrl == null ? AppTheme.primaryGradient : null,
+                  gradient: profileImageUrl == null
+                      ? AppTheme.primaryGradient
+                      : null,
                 ),
                 child: ClipOval(
                   child: profileImageUrl != null
                       ? CachedNetworkImage(
                           imageUrl: profileImageUrl,
                           fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => Center(
+                          errorWidget: (_, _, _) => Center(
                             child: Text(
                               userName[0].toUpperCase(),
                               style: const TextStyle(

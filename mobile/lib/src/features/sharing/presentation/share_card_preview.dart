@@ -54,7 +54,7 @@ class ShareCardPreview extends StatelessWidget {
   Widget _buildCardImage(BuildContext context) {
     return cardUrls.when(
       loading: () => _buildShimmer(context),
-      error: (_, __) => _buildErrorState(context),
+      error: (_, _) => _buildErrorState(context),
       data: (urls) => ClipRRect(
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         child: Image.network(
@@ -66,7 +66,7 @@ class ShareCardPreview extends StatelessWidget {
             if (loadingProgress == null) return child;
             return _buildShimmer(context);
           },
-          errorBuilder: (ctx, __, ___) => _buildErrorState(ctx),
+          errorBuilder: (ctx, _, _) => _buildErrorState(ctx),
         ),
       ),
     );

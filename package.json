@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "SoundCheck monorepo - delegates to backend for Railway deployment",
+  "packageManager": "npm@11.14.1",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
   "scripts": {
     "preinstall": "echo 'Installing from backend directory...'",
     "install": "npm install --prefix backend",
@@ -12,7 +17,7 @@
     "test": "npm test --prefix backend",
     "harness:check": "node scripts/check-agent-harness.mjs",
     "check:backend": "npm run lint --prefix backend && npm run typecheck --prefix backend && npm test --prefix backend",
-    "check:mobile": "cd mobile && flutter analyze && flutter test",
+    "check:mobile": "cd mobile && flutter pub run build_runner build --delete-conflicting-outputs && flutter analyze && flutter test",
     "check": "npm run harness:check && npm run check:backend && npm run check:mobile",
     "prepare": "husky"
   },
@@ -26,11 +31,11 @@
     ]
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^8.57.2",
-    "@typescript-eslint/parser": "^8.57.2",
-    "eslint": "^10.1.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.3",
+    "@typescript-eslint/parser": "^8.59.3",
+    "eslint": "^10.4.0",
     "husky": "^9.1.7",
-    "lint-staged": "^16.4.0",
-    "prettier": "^3.8.1"
+    "lint-staged": "^17.0.5",
+    "prettier": "^3.8.3"
   }
 }

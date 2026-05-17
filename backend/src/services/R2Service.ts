@@ -1,4 +1,9 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
 import logger from '../utils/logger';
@@ -12,6 +17,22 @@ interface PresignedUploadResult {
   objectKey: string;
   publicUrl: string;
 }
+
+export interface R2ObjectMetadata {
+  exists: boolean;
+  contentLength?: number;
+  contentType?: string;
+}
+
+type R2ProviderError = Error & {
+  name?: string;
+  Code?: string;
+  code?: string;
+  $metadata?: {
+    httpStatusCode?: number;
+  };
+  statusCode?: number;
+};
 
 // ============================================
 // Allowed content types for photo uploads
@@ -149,6 +170,58 @@ export class R2Service {
         Key: objectKey,
       })
     );
+  }
+
+  /**
+   * Fetch object metadata from R2 without downloading the object body.
+   */
+  async headObject(objectKey: string): Promise<R2ObjectMetadata> {
+    if (!this.isConfigured || !this.s3) {
+      throw new Error('R2 is not configured');
+    }
+
+    try {
+      const result = await this.s3.send(
+        new HeadObjectCommand({
+          Bucket: this.bucket,
+          Key: objectKey,
+        })
+      );
+
+      return {
+        exists: true,
+        contentLength: result.ContentLength,
+        contentType: result.ContentType,
+      };
+    } catch (error) {
+      const providerError = error as R2ProviderError;
+      const statusCode = providerError.$metadata?.httpStatusCode ?? providerError.statusCode;
+      const errorCode = providerError.Code ?? providerError.code ?? providerError.name;
+
+      if (statusCode === 404 || errorCode === 'NotFound' || errorCode === 'NoSuchKey') {
+        return { exists: false };
+      }
+
+      logger.error('R2Service: Failed to HEAD object', {
+        objectKey,
+        statusCode,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      if (error instanceof Error) {
+        providerError.statusCode = statusCode && statusCode >= 500 ? statusCode : 502;
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Check if an R2 object exists.
+   */
+  async objectExists(objectKey: string): Promise<boolean> {
+    const metadata = await this.headObject(objectKey);
+    return metadata.exists;
   }
 
   /**

@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import { RsvpService } from '../services/RsvpService';
 import { ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -32,7 +33,7 @@ export class RsvpController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { eventId } = req.params;
+    const { eventId } = routeParams(req);
 
     const result = await this.rsvpService.toggleRsvp(userId, eventId);
 
@@ -53,7 +54,7 @@ export class RsvpController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { eventId } = req.params;
+    const { eventId } = routeParams(req);
 
     const result = await this.rsvpService.getFriendsGoing(userId, eventId);
 

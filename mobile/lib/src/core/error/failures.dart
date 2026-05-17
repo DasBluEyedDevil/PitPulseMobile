@@ -32,6 +32,10 @@ class RateLimitFailure extends Failure {
   const RateLimitFailure(super.message);
 }
 
+class ConflictFailure extends Failure {
+  const ConflictFailure(super.message);
+}
+
 class ValidationFailure extends Failure {
   const ValidationFailure(super.message);
 }

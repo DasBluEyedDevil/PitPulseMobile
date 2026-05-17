@@ -99,7 +99,7 @@ class _EventContent extends StatelessWidget {
                   CachedNetworkImage(
                     imageUrl: event.bandImageUrl!,
                     fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => _buildGradientBg(),
+                    errorWidget: (_, _, _) => _buildGradientBg(),
                   )
                 else
                   _buildGradientBg(),

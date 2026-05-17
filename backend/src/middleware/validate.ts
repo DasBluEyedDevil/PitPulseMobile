@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AnyZodObject, ZodError } from 'zod';
+import { z, ZodError } from 'zod';
 import logger from '../utils/logger';
 
 /**
@@ -30,10 +30,42 @@ export function buildErrorResponse(code: string, message: string, details?: any)
   return response;
 }
 
+export function statusToErrorCode(status: number): string {
+  switch (status) {
+    case 400:
+      return 'BAD_REQUEST';
+    case 401:
+      return 'UNAUTHORIZED';
+    case 403:
+      return 'FORBIDDEN';
+    case 404:
+      return 'NOT_FOUND';
+    case 409:
+      return 'CONFLICT';
+    case 422:
+      return 'VALIDATION_ERROR';
+    case 429:
+      return 'RATE_LIMITED';
+    case 503:
+      return 'SERVICE_UNAVAILABLE';
+    case 500:
+    default:
+      return 'INTERNAL_ERROR';
+  }
+}
+
+export function buildErrorResponseForStatus(
+  status: number,
+  message: string,
+  details?: any
+): ErrorResponse {
+  return buildErrorResponse(statusToErrorCode(status), message, details);
+}
+
 /**
  * Middleware factory for Zod schema validation
  */
-export const validate = (schema: AnyZodObject) => {
+export const validate = (schema: z.ZodType<unknown>) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const parsed = await schema.parseAsync({
@@ -45,19 +77,22 @@ export const validate = (schema: AnyZodObject) => {
         // Write the Zod-parsed (and potentially coerced/stripped) values back
         // onto the request so downstream handlers see the validated shape.
         //
-        // NOTE: on Express 5+, `req.query` is implemented as a getter-only
-        // accessor and direct assignment throws. When we upgrade, this block
-        // must switch to `Object.defineProperty(req, 'query', { value: ... })`
-        // or to a dedicated `req.validated = { body, query, params }` slot.
         const p = parsed as { body?: unknown; query?: unknown; params?: unknown };
         if ('body' in p) req.body = p.body as Request['body'];
-        if ('query' in p) req.query = p.query as Request['query'];
+        if ('query' in p) {
+          Object.defineProperty(req, 'query', {
+            value: p.query as Request['query'],
+            configurable: true,
+            enumerable: true,
+            writable: true,
+          });
+        }
         if ('params' in p) req.params = p.params as Request['params'];
       }
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        const fieldErrors = error.errors.map((err) => ({
+        const fieldErrors = error.issues.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
         }));

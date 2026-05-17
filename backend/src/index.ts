@@ -24,6 +24,7 @@ import express from 'express';
 import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
+import { corsOptions } from './config/cors';
 import userRoutes from './routes/userRoutes';
 import venueRoutes from './routes/venueRoutes';
 import bandRoutes from './routes/bandRoutes';
@@ -70,10 +71,34 @@ import { Worker } from 'bullmq';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { authenticateToken, requireAdmin } from './middleware/auth';
+import { buildErrorResponseForStatus } from './middleware/validate';
 
 // Read package version for health endpoint
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
 const APP_VERSION = packageJson.version;
+
+type FeatureHealth = {
+  status: 'healthy' | 'degraded' | 'disabled';
+  redisBacked?: boolean;
+  error?: string;
+};
+
+async function getQueueHealth(queue: any, name: string) {
+  if (!queue) {
+    return { queue: name, status: 'disabled' };
+  }
+
+  try {
+    const counts = await queue.getJobCounts();
+    return { queue: name, status: 'healthy', ...counts };
+  } catch (error) {
+    return {
+      queue: name,
+      status: 'degraded',
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
 
 // Validate required environment variables
 // DB_PASSWORD is only required if DATABASE_URL is not set (Railway provides DATABASE_URL)
@@ -129,47 +154,6 @@ app.use(
   })
 );
 
-// CORS configuration - Allow mobile apps and web clients
-const corsOptions = {
-  origin: function (
-    origin: string | undefined,
-    callback: (err: Error | null, allow?: boolean) => void
-  ) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-
-    // In development, allow all origins
-    if (process.env.NODE_ENV === 'development') {
-      return callback(null, true);
-    }
-
-    // In production, require explicit CORS_ORIGIN configuration
-    const corsOrigin = process.env.CORS_ORIGIN;
-    if (!corsOrigin) {
-      logError('CORS: CORS_ORIGIN not configured, rejecting request from:', { origin });
-      return callback(new Error('CORS not configured'), false);
-    }
-    if (corsOrigin === '*') {
-      if (process.env.NODE_ENV === 'production') {
-        logError('CORS: Wildcard origin not allowed in production');
-        return callback(new Error('Wildcard CORS not allowed in production'), false);
-      }
-      return callback(null, true);
-    }
-
-    const allowedOrigins = corsOrigin.split(',').map((o) => o.trim());
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
-    // Reject unknown origins in production
-    logWarn('CORS: Rejected origin:', { origin });
-    callback(new Error('Not allowed by CORS'), false);
-  },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false,
-};
 app.use(cors(corsOptions));
 
 // Body parsing middleware
@@ -222,11 +206,55 @@ app.get('/health', async (req, res) => {
       firebaseConfigured: !!process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
     };
 
+    const queueMetrics = await Promise.all([
+      getQueueHealth(badgeEvalQueue, 'badge-eval'),
+      getQueueHealth(notificationQueue, 'notification-batch'),
+      getQueueHealth(moderationQueue, 'image-moderation'),
+      getQueueHealth(eventSyncQueue, 'event-sync'),
+    ]);
+    const queuesHealthy = queueMetrics.every(
+      (queue) => queue.status === 'healthy' || queue.status === 'disabled'
+    );
+    const redisFeatureHealth: Record<string, FeatureHealth> = {
+      cache: {
+        status: redisHealth.healthy ? 'healthy' : 'degraded',
+        redisBacked: redisHealth.healthy,
+        error: redisHealth.error,
+      },
+      rateLimiting: {
+        status: redisHealth.healthy ? 'healthy' : 'degraded',
+        redisBacked: redisHealth.healthy,
+        error: redisHealth.error,
+      },
+      pubSubRealtimeDelivery: {
+        status:
+          process.env.ENABLE_WEBSOCKET === 'true'
+            ? redisHealth.healthy
+              ? 'healthy'
+              : 'degraded'
+            : 'disabled',
+        redisBacked: redisHealth.healthy,
+        error: process.env.ENABLE_WEBSOCKET === 'true' ? redisHealth.error : undefined,
+      },
+      bullMqQueues: {
+        status: queuesHealthy ? 'healthy' : 'degraded',
+        redisBacked: queueMetrics.some((queue) => queue.status !== 'disabled'),
+      },
+      notificationBatching: {
+        status: notificationQueue ? (redisHealth.healthy ? 'healthy' : 'degraded') : 'disabled',
+        redisBacked: !!notificationQueue && redisHealth.healthy,
+        error: notificationQueue ? redisHealth.error : undefined,
+      },
+    };
+    const redisFeaturesHealthy = Object.values(redisFeatureHealth).every(
+      (feature) => feature.status === 'healthy' || feature.status === 'disabled'
+    );
+
     // B-INF-4: 503 only when Postgres is down; Redis down → 200 with degraded status
     const isPoolExhausted = poolMetrics.waitingCount > 10;
     const status = !dbHealth.healthy
       ? 'unhealthy'
-      : !redisHealth.healthy || isPoolExhausted
+      : !redisFeaturesHealthy || isPoolExhausted
         ? 'degraded'
         : 'healthy';
     const statusCode = dbHealth.healthy ? 200 : 503;
@@ -246,6 +274,8 @@ app.get('/health', async (req, res) => {
           status: redisHealth.healthy ? 'connected' : 'disconnected',
           error: redisHealth.error,
         },
+        redisBackedFeatures: redisFeatureHealth,
+        queues: queueMetrics,
         pushNotifications: pushNotificationHealth,
         websocket: {
           enabled: process.env.ENABLE_WEBSOCKET === 'true',
@@ -266,38 +296,24 @@ app.get('/health', async (req, res) => {
 
 // Queue health/monitoring endpoint
 app.get('/health/queues', async (req, res) => {
-  try {
-    const queueMetrics = await Promise.all([
-      badgeEvalQueue?.getJobCounts().then((counts: any) => ({ queue: 'badge-eval', ...counts })) ??
-        Promise.resolve({ queue: 'badge-eval', status: 'disabled' }),
-      notificationQueue
-        ?.getJobCounts()
-        .then((counts: any) => ({ queue: 'notification-batch', ...counts })) ??
-        Promise.resolve({ queue: 'notification-batch', status: 'disabled' }),
-      moderationQueue
-        ?.getJobCounts()
-        .then((counts: any) => ({ queue: 'image-moderation', ...counts })) ??
-        Promise.resolve({ queue: 'image-moderation', status: 'disabled' }),
-      eventSyncQueue?.getJobCounts().then((counts: any) => ({ queue: 'event-sync', ...counts })) ??
-        Promise.resolve({ queue: 'event-sync', status: 'disabled' }),
-    ]);
+  const queueMetrics = await Promise.all([
+    getQueueHealth(badgeEvalQueue, 'badge-eval'),
+    getQueueHealth(notificationQueue, 'notification-batch'),
+    getQueueHealth(moderationQueue, 'image-moderation'),
+    getQueueHealth(eventSyncQueue, 'event-sync'),
+  ]);
+  const status = queueMetrics.some((queue) => queue.status === 'degraded') ? 'degraded' : 'healthy';
 
-    const response: ApiResponse = {
-      success: true,
-      data: {
-        timestamp: new Date().toISOString(),
-        queues: queueMetrics,
-      },
-    };
+  const response: ApiResponse = {
+    success: true,
+    data: {
+      status,
+      timestamp: new Date().toISOString(),
+      queues: queueMetrics,
+    },
+  };
 
-    res.status(200).json(response);
-  } catch (_error) {
-    const response: ApiResponse = {
-      success: false,
-      error: 'Queue health check failed',
-    };
-    res.status(503).json(response);
-  }
+  res.status(200).json(response);
 });
 
 // API routes
@@ -359,12 +375,8 @@ app.get(
 );
 
 // 404 handler
-app.use('*', (req, res) => {
-  const response: ApiResponse = {
-    success: false,
-    error: `Route ${req.originalUrl} not found`,
-  };
-  res.status(404).json(response);
+app.use((req, res) => {
+  res.status(404).json(buildErrorResponseForStatus(404, `Route ${req.originalUrl} not found`));
 });
 
 // Setup Sentry Express error handler - must be before other error handlers
@@ -374,7 +386,8 @@ setupSentryForExpress(app);
 // Global error handler - catches ALL errors including async
 app.use((error: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   // Determine status code
-  const statusCode = error.statusCode || error.status || 500;
+  const rawStatusCode = error.statusCode || error.status || 500;
+  const statusCode = rawStatusCode >= 400 && rawStatusCode <= 599 ? rawStatusCode : 500;
 
   // Log error with context
   logError(`${error.message} | Path: ${req.path} | Method: ${req.method} | Status: ${statusCode}`, {
@@ -397,15 +410,13 @@ app.use((error: any, req: express.Request, res: express.Response, _next: express
   }
 
   // Build response
-  const response: ApiResponse = {
-    success: false,
-    error:
-      process.env.NODE_ENV === 'development'
-        ? error.message
-        : statusCode >= 500
-          ? 'Internal server error'
-          : error.message || 'Request failed',
-  };
+  const message =
+    process.env.NODE_ENV === 'development'
+      ? error.message
+      : statusCode >= 500
+        ? 'Internal server error'
+        : error.message || 'Request failed';
+  const response: ApiResponse = buildErrorResponseForStatus(statusCode, message, error.details);
 
   // Include stack trace only in development
   if (process.env.NODE_ENV === 'development' && error.stack) {

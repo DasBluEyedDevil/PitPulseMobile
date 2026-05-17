@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import { FollowService } from '../services/FollowService';
 import { ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -31,7 +32,7 @@ export class FollowController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { userId: targetUserId } = req.params;
+    const { userId: targetUserId } = routeParams(req);
 
     // Validate UUID format
     if (!UUID_REGEX.test(targetUserId)) {
@@ -66,7 +67,7 @@ export class FollowController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { userId: targetUserId } = req.params;
+    const { userId: targetUserId } = routeParams(req);
 
     // Validate UUID format
     if (!UUID_REGEX.test(targetUserId)) {
@@ -95,7 +96,7 @@ export class FollowController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { userId: targetUserId } = req.params;
+    const { userId: targetUserId } = routeParams(req);
 
     // Validate UUID format
     if (!UUID_REGEX.test(targetUserId)) {
@@ -120,7 +121,7 @@ export class FollowController {
    * GET /api/users/:userId/followers
    */
   getFollowers = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { userId } = req.params;
+    const { userId } = routeParams(req);
 
     // Validate UUID format
     if (!UUID_REGEX.test(userId)) {
@@ -149,7 +150,7 @@ export class FollowController {
    * GET /api/users/:userId/following
    */
   getFollowing = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { userId } = req.params;
+    const { userId } = routeParams(req);
 
     // Validate UUID format
     if (!UUID_REGEX.test(userId)) {

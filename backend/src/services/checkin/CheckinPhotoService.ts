@@ -30,6 +30,10 @@ export interface PhotoConfirmationRequest {
   photoKeys: string[];
 }
 
+type ServiceError = Error & {
+  statusCode?: number;
+};
+
 export class CheckinPhotoService {
   private db = Database.getInstance();
 
@@ -150,6 +154,23 @@ export class CheckinPhotoService {
           'One or more photo keys are invalid or were not issued for this check-in'
         );
         (err as any).statusCode = 400;
+        throw err;
+      }
+
+      const headResults = await Promise.all(photoKeys.map((key) => r2Service.headObject(key)));
+      const missingPhotoKeys = photoKeys.filter((_, index) => !headResults[index].exists);
+
+      if (missingPhotoKeys.length > 0) {
+        logger.warn('[CheckinPhotoService] Photo confirmation rejected for missing R2 objects', {
+          checkinId,
+          userId,
+          missingCount: missingPhotoKeys.length,
+        });
+
+        const err: ServiceError = new Error(
+          'One or more photos have not finished uploading. Please retry confirmation after upload completes.'
+        );
+        err.statusCode = 409;
         throw err;
       }
 

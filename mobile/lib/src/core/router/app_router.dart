@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../providers/providers.dart';
 import '../services/analytics_service.dart';
+import '../services/log_service.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
@@ -65,8 +68,28 @@ GoRouter goRouter(Ref ref) {
   // Use ref.listen via refreshListenable instead of ref.watch to avoid
   // rebuilding the entire GoRouter on every auth state change (MOB-014).
   final notifier = _AuthStateNotifier(ref);
+  late final GoRouter router;
+  final notificationTapSubscription = ref
+      .read(pushNotificationServiceProvider)
+      .onNotificationTap
+      .listen((route) {
+        try {
+          router.go(route);
+        } catch (e, stack) {
+          LogService.e(
+            'Failed to navigate from push notification tap',
+            e,
+            stack,
+          );
+        }
+      });
 
-  return GoRouter(
+  ref.onDispose(() {
+    notifier.dispose();
+    unawaited(notificationTapSubscription.cancel());
+  });
+
+  router = GoRouter(
     initialLocation: '/splash',
     observers: [
       if (AnalyticsService.observer != null) AnalyticsService.observer!,
@@ -79,12 +102,14 @@ GoRouter goRouter(Ref ref) {
       final isLoading = authState.isLoading;
       final isAuthenticated = authState.hasValue && authState.value != null;
       final isError = authState.hasError;
-      final isOnAuthPage = state.matchedLocation.startsWith('/login') ||
+      final isOnAuthPage =
+          state.matchedLocation.startsWith('/login') ||
           state.matchedLocation.startsWith('/register') ||
           state.matchedLocation.startsWith('/forgot-password') ||
           state.matchedLocation.startsWith('/reset-password');
-      final isOnOnboardingPage =
-          state.matchedLocation.startsWith('/onboarding');
+      final isOnOnboardingPage = state.matchedLocation.startsWith(
+        '/onboarding',
+      );
 
       // Don't redirect if on auth pages during loading or error state
       // This allows the auth screens to show their own loading/error UI
@@ -125,7 +150,12 @@ GoRouter goRouter(Ref ref) {
       if (isAuthenticated &&
           state.matchedLocation.startsWith('/wrapped/') &&
           state.matchedLocation.endsWith('/detail')) {
-        if (!ref.read(isPremiumProvider)) {
+        final serverStatus = ref.read(serverSubscriptionStatusProvider);
+        final serverIsPremium = serverStatus.asData?.value.isPremium;
+        final localIsPremium = ref.read(isPremiumProvider);
+
+        if (serverIsPremium == false ||
+            (serverIsPremium == null && !localIsPremium)) {
           return '/pro';
         }
       }
@@ -137,11 +167,8 @@ GoRouter goRouter(Ref ref) {
       // Splash Route (for loading state)
       GoRoute(
         path: '/splash',
-        builder: (context, state) => const Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(),
-          ),
-        ),
+        builder: (context, state) =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
       ),
 
       // Auth Routes
@@ -166,9 +193,10 @@ GoRouter goRouter(Ref ref) {
             const begin = Offset(1.0, 0.0);
             const end = Offset.zero;
             const curve = Curves.easeInOut;
-            final tween = Tween(begin: begin, end: end).chain(
-              CurveTween(curve: curve),
-            );
+            final tween = Tween(
+              begin: begin,
+              end: end,
+            ).chain(CurveTween(curve: curve));
             return SlideTransition(
               position: animation.drive(tween),
               child: child,
@@ -188,9 +216,10 @@ GoRouter goRouter(Ref ref) {
             const begin = Offset(1.0, 0.0);
             const end = Offset.zero;
             const curve = Curves.easeInOut;
-            final tween = Tween(begin: begin, end: end).chain(
-              CurveTween(curve: curve),
-            );
+            final tween = Tween(
+              begin: begin,
+              end: end,
+            ).chain(CurveTween(curve: curve));
             return SlideTransition(
               position: animation.drive(tween),
               child: child,
@@ -210,17 +239,18 @@ GoRouter goRouter(Ref ref) {
             child: ResetPasswordScreen(token: token),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
@@ -252,9 +282,8 @@ GoRouter goRouter(Ref ref) {
               GoRoute(
                 path: '/feed',
                 name: 'feed',
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: FeedScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: FeedScreen()),
               ),
             ],
           ),
@@ -265,9 +294,8 @@ GoRouter goRouter(Ref ref) {
               GoRoute(
                 path: '/discover',
                 name: 'discover',
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: DiscoverScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: DiscoverScreen()),
               ),
             ],
           ),
@@ -278,9 +306,8 @@ GoRouter goRouter(Ref ref) {
               GoRoute(
                 path: '/profile',
                 name: 'profile',
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: ProfileScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: ProfileScreen()),
                 routes: [
                   GoRoute(
                     path: 'edit',
@@ -291,17 +318,18 @@ GoRouter goRouter(Ref ref) {
                         child: const EditProfileScreen(),
                         transitionsBuilder:
                             (context, animation, secondaryAnimation, child) {
-                          const begin = Offset(1.0, 0.0);
-                          const end = Offset.zero;
-                          const curve = Curves.easeInOut;
-                          final tween = Tween(begin: begin, end: end).chain(
-                            CurveTween(curve: curve),
-                          );
-                          return SlideTransition(
-                            position: animation.drive(tween),
-                            child: child,
-                          );
-                        },
+                              const begin = Offset(1.0, 0.0);
+                              const end = Offset.zero;
+                              const curve = Curves.easeInOut;
+                              final tween = Tween(
+                                begin: begin,
+                                end: end,
+                              ).chain(CurveTween(curve: curve));
+                              return SlideTransition(
+                                position: animation.drive(tween),
+                                child: child,
+                              );
+                            },
                       );
                     },
                   ),
@@ -314,17 +342,18 @@ GoRouter goRouter(Ref ref) {
                         child: const SettingsScreen(),
                         transitionsBuilder:
                             (context, animation, secondaryAnimation, child) {
-                          const begin = Offset(1.0, 0.0);
-                          const end = Offset.zero;
-                          const curve = Curves.easeInOut;
-                          final tween = Tween(begin: begin, end: end).chain(
-                            CurveTween(curve: curve),
-                          );
-                          return SlideTransition(
-                            position: animation.drive(tween),
-                            child: child,
-                          );
-                        },
+                              const begin = Offset(1.0, 0.0);
+                              const end = Offset.zero;
+                              const curve = Curves.easeInOut;
+                              final tween = Tween(
+                                begin: begin,
+                                end: end,
+                              ).chain(CurveTween(curve: curve));
+                              return SlideTransition(
+                                position: animation.drive(tween),
+                                child: child,
+                              );
+                            },
                       );
                     },
                     routes: [
@@ -335,23 +364,25 @@ GoRouter goRouter(Ref ref) {
                           return CustomTransitionPage(
                             key: state.pageKey,
                             child: const BlockedUsersScreen(),
-                            transitionsBuilder: (
-                              context,
-                              animation,
-                              secondaryAnimation,
-                              child,
-                            ) {
-                              const begin = Offset(1.0, 0.0);
-                              const end = Offset.zero;
-                              const curve = Curves.easeInOut;
-                              final tween = Tween(begin: begin, end: end).chain(
-                                CurveTween(curve: curve),
-                              );
-                              return SlideTransition(
-                                position: animation.drive(tween),
-                                child: child,
-                              );
-                            },
+                            transitionsBuilder:
+                                (
+                                  context,
+                                  animation,
+                                  secondaryAnimation,
+                                  child,
+                                ) {
+                                  const begin = Offset(1.0, 0.0);
+                                  const end = Offset.zero;
+                                  const curve = Curves.easeInOut;
+                                  final tween = Tween(
+                                    begin: begin,
+                                    end: end,
+                                  ).chain(CurveTween(curve: curve));
+                                  return SlideTransition(
+                                    position: animation.drive(tween),
+                                    child: child,
+                                  );
+                                },
                           );
                         },
                       ),
@@ -362,23 +393,25 @@ GoRouter goRouter(Ref ref) {
                           return CustomTransitionPage(
                             key: state.pageKey,
                             child: const MyClaimsScreen(),
-                            transitionsBuilder: (
-                              context,
-                              animation,
-                              secondaryAnimation,
-                              child,
-                            ) {
-                              const begin = Offset(1.0, 0.0);
-                              const end = Offset.zero;
-                              const curve = Curves.easeInOut;
-                              final tween = Tween(begin: begin, end: end).chain(
-                                CurveTween(curve: curve),
-                              );
-                              return SlideTransition(
-                                position: animation.drive(tween),
-                                child: child,
-                              );
-                            },
+                            transitionsBuilder:
+                                (
+                                  context,
+                                  animation,
+                                  secondaryAnimation,
+                                  child,
+                                ) {
+                                  const begin = Offset(1.0, 0.0);
+                                  const end = Offset.zero;
+                                  const curve = Curves.easeInOut;
+                                  final tween = Tween(
+                                    begin: begin,
+                                    end: end,
+                                  ).chain(CurveTween(curve: curve));
+                                  return SlideTransition(
+                                    position: animation.drive(tween),
+                                    child: child,
+                                  );
+                                },
                           );
                         },
                       ),
@@ -395,9 +428,8 @@ GoRouter goRouter(Ref ref) {
               GoRoute(
                 path: '/notifications',
                 name: 'notifications',
-                pageBuilder: (context, state) => const NoTransitionPage(
-                  child: NotificationsScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const NoTransitionPage(child: NotificationsScreen()),
               ),
             ],
           ),
@@ -414,17 +446,18 @@ GoRouter goRouter(Ref ref) {
             child: const CheckInScreen(),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(0.0, 1.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(0.0, 1.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
@@ -444,17 +477,18 @@ GoRouter goRouter(Ref ref) {
             child: CelebrationScreen(params: params),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(0.0, 1.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(0.0, 1.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
@@ -469,17 +503,18 @@ GoRouter goRouter(Ref ref) {
             child: const BadgeCollectionScreen(),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
@@ -495,17 +530,18 @@ GoRouter goRouter(Ref ref) {
             child: BandDetailScreen(bandId: bandId),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
@@ -521,17 +557,18 @@ GoRouter goRouter(Ref ref) {
             child: VenueDetailScreen(venueId: venueId),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
@@ -547,17 +584,18 @@ GoRouter goRouter(Ref ref) {
             child: EventDetailScreen(eventId: eventId),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
@@ -573,17 +611,18 @@ GoRouter goRouter(Ref ref) {
             child: UserProfileScreen(userId: userId),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
@@ -605,17 +644,18 @@ GoRouter goRouter(Ref ref) {
             ),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
@@ -631,17 +671,18 @@ GoRouter goRouter(Ref ref) {
             child: CheckInDetailScreen(checkinId: checkinId),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
@@ -666,17 +707,18 @@ GoRouter goRouter(Ref ref) {
             child: const SearchScreen(),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(0.0, 1.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(0.0, 1.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
@@ -686,15 +728,16 @@ GoRouter goRouter(Ref ref) {
         path: '/wrapped/:year',
         name: 'wrapped',
         pageBuilder: (context, state) {
-          final year = int.tryParse(state.pathParameters['year'] ?? '') ??
+          final year =
+              int.tryParse(state.pathParameters['year'] ?? '') ??
               DateTime.now().year;
           return CustomTransitionPage(
             key: state.pageKey,
             child: WrappedStoryScreen(year: year),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
+                  return FadeTransition(opacity: animation, child: child);
+                },
           );
         },
       ),
@@ -704,24 +747,26 @@ GoRouter goRouter(Ref ref) {
         path: '/wrapped/:year/detail',
         name: 'wrapped-detail',
         pageBuilder: (context, state) {
-          final year = int.tryParse(state.pathParameters['year'] ?? '') ??
+          final year =
+              int.tryParse(state.pathParameters['year'] ?? '') ??
               DateTime.now().year;
           return CustomTransitionPage(
             key: state.pageKey,
             child: WrappedDetailScreen(year: year),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
@@ -736,17 +781,18 @@ GoRouter goRouter(Ref ref) {
             child: const DiscoverUsersScreen(),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
@@ -761,20 +807,23 @@ GoRouter goRouter(Ref ref) {
             child: const ProFeatureScreen(),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
-              final tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
+                  const begin = Offset(1.0, 0.0);
+                  const end = Offset.zero;
+                  const curve = Curves.easeInOut;
+                  final tween = Tween(
+                    begin: begin,
+                    end: end,
+                  ).chain(CurveTween(curve: curve));
+                  return SlideTransition(
+                    position: animation.drive(tween),
+                    child: child,
+                  );
+                },
           );
         },
       ),
     ],
   );
+
+  return router;
 }

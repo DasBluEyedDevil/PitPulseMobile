@@ -18,20 +18,20 @@ class DioClient {
   DioClient({
     required FlutterSecureStorage secureStorage,
     VoidCallback? onAuthFailure,
-  })  : _secureStorage = secureStorage,
-        _onAuthFailure = onAuthFailure,
-        _dio = Dio(
-          BaseOptions(
-            baseUrl: ApiConfig.baseUrl,
-            connectTimeout: ApiConfig.connectTimeout,
-            receiveTimeout: ApiConfig.receiveTimeout,
-            sendTimeout: ApiConfig.sendTimeout,
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-          ),
-        ) {
+  }) : _secureStorage = secureStorage,
+       _onAuthFailure = onAuthFailure,
+       _dio = Dio(
+         BaseOptions(
+           baseUrl: ApiConfig.baseUrl,
+           connectTimeout: ApiConfig.connectTimeout,
+           receiveTimeout: ApiConfig.receiveTimeout,
+           sendTimeout: ApiConfig.sendTimeout,
+           headers: {
+             'Content-Type': 'application/json',
+             'Accept': 'application/json',
+           },
+         ),
+       ) {
     _initializeInterceptors();
   }
 
@@ -56,8 +56,9 @@ class DioClient {
             if (refreshed) {
               // Retry the original request with the new token
               try {
-                final token =
-                    await _secureStorage.read(key: ApiConfig.tokenKey);
+                final token = await _secureStorage.read(
+                  key: ApiConfig.tokenKey,
+                );
                 error.requestOptions.headers['Authorization'] = 'Bearer $token';
                 final retryResponse = await _dio.fetch(error.requestOptions);
                 return handler.resolve(retryResponse);
@@ -83,7 +84,8 @@ class DioClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onError: (error, handler) async {
-          final isRetryable = error.requestOptions.method == 'GET' &&
+          final isRetryable =
+              error.requestOptions.method == 'GET' &&
               (error.type == DioExceptionType.connectionTimeout ||
                   error.type == DioExceptionType.receiveTimeout ||
                   error.type == DioExceptionType.connectionError ||
@@ -274,23 +276,7 @@ class DioClient {
       case DioExceptionType.badResponse:
         final statusCode = error.response?.statusCode;
         final data = error.response?.data;
-        String message = 'Request failed';
-
-        // Try to extract error message from various response formats
-        if (data is Map<String, dynamic>) {
-          if (data.containsKey('error')) {
-            message = data['error'].toString();
-          } else if (data.containsKey('message')) {
-            message = data['message'].toString();
-          } else if (data.containsKey('errors') && data['errors'] is List) {
-            // Zod validation errors format: [{message: "...", path: [...]}]
-            final errors = data['errors'] as List;
-            if (errors.isNotEmpty) {
-              message =
-                  errors.map((e) => e['message'] ?? e.toString()).join(', ');
-            }
-          }
-        }
+        final message = _extractErrorMessage(data);
 
         // Log the full response for debugging
         LogService.d('API Error Response: $data');
@@ -305,6 +291,8 @@ class DioClient {
           return ForbiddenFailure('Access denied: $message');
         } else if (statusCode == 404) {
           return NotFoundFailure('Resource not found: $message');
+        } else if (statusCode == 409) {
+          return ConflictFailure(message);
         } else if (statusCode == 422) {
           return ValidationFailure(message);
         } else if (statusCode == 429) {
@@ -331,5 +319,65 @@ class DioClient {
         }
         return const UnknownFailure('An unexpected error occurred.');
     }
+  }
+
+  static String _extractErrorMessage(dynamic data) {
+    if (data is Map) {
+      final error = data['error'];
+      if (error is String && error.trim().isNotEmpty) {
+        return error;
+      }
+      if (error is Map) {
+        final message = _stringValue(error['message']);
+        if (message != null) return message;
+
+        final detailsMessage = _extractErrorsMessage(error['details']);
+        if (detailsMessage != null) return detailsMessage;
+
+        final code = _stringValue(error['code']);
+        if (code != null) return code;
+      }
+
+      final message = _stringValue(data['message']);
+      if (message != null) return message;
+
+      final errorsMessage = _extractErrorsMessage(data['errors']);
+      if (errorsMessage != null) return errorsMessage;
+    }
+
+    return 'Request failed';
+  }
+
+  static String? _extractErrorsMessage(dynamic errors) {
+    if (errors is List && errors.isNotEmpty) {
+      final messages = errors
+          .map((error) {
+            if (error is Map) {
+              return _stringValue(error['message']) ??
+                  _stringValue(error['msg']) ??
+                  _stringValue(error['error']);
+            }
+            return _stringValue(error);
+          })
+          .whereType<String>()
+          .toList();
+
+      if (messages.isNotEmpty) {
+        return messages.join(', ');
+      }
+    }
+
+    if (errors is Map) {
+      return _stringValue(errors['message']) ?? _stringValue(errors['error']);
+    }
+
+    return _stringValue(errors);
+  }
+
+  static String? _stringValue(dynamic value) {
+    if (value is String && value.trim().isNotEmpty) {
+      return value;
+    }
+    return null;
   }
 }

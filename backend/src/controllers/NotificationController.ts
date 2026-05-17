@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import { NotificationService } from '../services/NotificationService';
 import { ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -76,7 +77,7 @@ export class NotificationController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     if (!UUID_REGEX.test(id)) {
       throw new BadRequestError('Invalid notification ID format');
@@ -125,7 +126,7 @@ export class NotificationController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     if (!UUID_REGEX.test(id)) {
       throw new BadRequestError('Invalid notification ID format');

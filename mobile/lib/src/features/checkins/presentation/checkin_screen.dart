@@ -20,6 +20,7 @@ import '../../sharing/presentation/share_providers.dart';
 import '../../badges/presentation/badge_providers.dart';
 import '../../venues/domain/venue.dart';
 import '../../sharing/presentation/celebration_screen.dart';
+import '../../feed/presentation/providers/feed_providers.dart';
 
 /// Check-in Screen - Event-first quick-tap flow
 ///
@@ -109,8 +110,11 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     if (!mounted) return;
 
     if (checkIn != null) {
+      ref.read(activeEventIdsProvider.notifier).addEventId(event.id);
+
       if (!mounted) return;
-      final bandName = event.eventName ??
+      final bandName =
+          event.eventName ??
           event.band?.name ??
           event.lineup?.firstOrNull?.band?.name ??
           'Live show';
@@ -129,7 +133,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       // Check for duplicate check-in (409)
       final error = ref.read(createEventCheckInProvider);
       final errorMsg = error.error?.toString() ?? '';
-      final isDuplicate = errorMsg.contains('already') ||
+      final isDuplicate =
+          errorMsg.contains('already') ||
           errorMsg.contains('duplicate') ||
           errorMsg.contains('409');
 
@@ -337,10 +342,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             const SizedBox(height: 8),
             const Text(
               'Try checking in manually or make sure location services are enabled.',
-              style: TextStyle(
-                color: AppTheme.textTertiary,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: AppTheme.textTertiary, fontSize: 14),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -404,9 +406,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Location error: $e'),
-                      ),
+                      SnackBar(content: Text('Location error: $e')),
                     );
                   }
                 }
@@ -506,7 +506,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
 
     return progressAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
       data: (allProgress) {
         final nearCompletion = allProgress.where((bp) {
           if (bp.isEarned) return false;
@@ -533,8 +533,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             ),
             const SizedBox(height: 8),
             ...nearCompletion.take(3).map((bp) {
-              final pct =
-                  (bp.currentValue / bp.requirementValue).clamp(0.0, 1.0);
+              final pct = (bp.currentValue / bp.requirementValue).clamp(
+                0.0,
+                1.0,
+              );
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
@@ -562,9 +564,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                             child: LinearProgressIndicator(
                               value: pct,
                               minHeight: 6,
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest,
                               valueColor: const AlwaysStoppedAnimation<Color>(
                                 AppTheme.voltLime,
                               ),
@@ -604,7 +606,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
 
   Widget _buildSuccessState() {
     final event = _checkedInEvent;
-    final eventName = event?.eventName ??
+    final eventName =
+        event?.eventName ??
         event?.band?.name ??
         event?.lineup?.firstOrNull?.band?.name ??
         'Event';
@@ -834,8 +837,9 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       bandId: _selectedBandId!,
       venueId: _selectedVenueId!,
       rating: _rating > 0 ? _rating : null,
-      comment:
-          _commentController.text.isNotEmpty ? _commentController.text : null,
+      comment: _commentController.text.isNotEmpty
+          ? _commentController.text
+          : null,
       vibeTagIds: _selectedVibes.isNotEmpty ? _selectedVibes.toList() : null,
       locationLat: position?.latitude,
       locationLon: position?.longitude,
@@ -859,7 +863,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       // Check for duplicate (409)
       final error = ref.read(createManualCheckInProvider);
       final errorMsg = error.error?.toString() ?? '';
-      final isDuplicate = errorMsg.contains('already') ||
+      final isDuplicate =
+          errorMsg.contains('already') ||
           errorMsg.contains('duplicate') ||
           errorMsg.contains('409');
 
@@ -871,8 +876,8 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
             isDuplicate
                 ? "You've already checked in to this band here today"
                 : errorMsg.isNotEmpty
-                    ? errorMsg
-                    : 'Failed to check in. Please try again.',
+                ? errorMsg
+                : 'Failed to check in. Please try again.',
           ),
           backgroundColor: isDuplicate ? AppTheme.warning : AppTheme.error,
         ),
@@ -1108,8 +1113,10 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                   decoration: const InputDecoration(
                     hintText: 'Search for a band...',
                     hintStyle: TextStyle(color: AppTheme.textTertiary),
-                    prefixIcon:
-                        Icon(Icons.search, color: AppTheme.textTertiary),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: AppTheme.textTertiary,
+                    ),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: 16,
@@ -1148,10 +1155,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
               const SizedBox(height: 16),
               const Text(
                 'Search for a band to check in',
-                style: TextStyle(
-                  color: AppTheme.textTertiary,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: AppTheme.textTertiary, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -1206,9 +1210,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
       loading: () => const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
-          child: CircularProgressIndicator(
-            color: AppTheme.voltLime,
-          ),
+          child: CircularProgressIndicator(color: AppTheme.voltLime),
         ),
       ),
       error: (error, stack) {
@@ -1216,9 +1218,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(32),
-              child: CircularProgressIndicator(
-                color: AppTheme.voltLime,
-              ),
+              child: CircularProgressIndicator(color: AppTheme.voltLime),
             ),
           );
         }
@@ -1237,10 +1237,7 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
                 const SizedBox(height: 16),
                 const Text(
                   'Failed to search bands',
-                  style: TextStyle(
-                    color: AppTheme.textTertiary,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: AppTheme.textTertiary, fontSize: 16),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
@@ -1433,7 +1430,8 @@ class _EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final eventName = event.eventName ??
+    final eventName =
+        event.eventName ??
         event.band?.name ??
         event.lineup?.firstOrNull?.band?.name ??
         'Live Music';
@@ -1501,8 +1499,10 @@ class _EventCard extends StatelessWidget {
               // Distance badge
               if (event.distanceKm != null)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.voltLime.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
@@ -1553,11 +1553,14 @@ class _EventCard extends StatelessWidget {
               children: event.lineup!.take(3).map((entry) {
                 final name = entry.band?.name ?? 'TBA';
                 return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
                     border: entry.isHeadliner
                         ? Border.all(
@@ -1572,8 +1575,9 @@ class _EventCard extends StatelessWidget {
                           ? AppTheme.voltLime
                           : AppTheme.textSecondary,
                       fontSize: 12,
-                      fontWeight:
-                          entry.isHeadliner ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: entry.isHeadliner
+                          ? FontWeight.w600
+                          : FontWeight.w500,
                     ),
                   ),
                 );
@@ -1620,8 +1624,9 @@ class _EventCard extends StatelessWidget {
                 onPressed: isCheckingIn ? null : onCheckIn,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.voltLime,
-                  disabledBackgroundColor:
-                      AppTheme.voltLime.withValues(alpha: 0.5),
+                  disabledBackgroundColor: AppTheme.voltLime.withValues(
+                    alpha: 0.5,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1785,10 +1790,7 @@ class _BandSearchResult extends StatelessWidget {
 }
 
 class _SelectedBandCard extends StatelessWidget {
-  const _SelectedBandCard({
-    required this.bandName,
-    required this.onClear,
-  });
+  const _SelectedBandCard({required this.bandName, required this.onClear});
 
   final String bandName;
   final VoidCallback onClear;
@@ -1824,9 +1826,9 @@ class _SelectedBandCard extends StatelessWidget {
                 Text(
                   'Checking in to',
                   style: TextStyle(
-                    color: Theme.of(context)
-                        .scaffoldBackgroundColor
-                        .withValues(alpha: 0.7),
+                    color: Theme.of(
+                      context,
+                    ).scaffoldBackgroundColor.withValues(alpha: 0.7),
                     fontSize: 12,
                   ),
                 ),
@@ -1846,9 +1848,9 @@ class _SelectedBandCard extends StatelessWidget {
             onPressed: onClear,
             icon: Icon(
               Icons.close,
-              color: Theme.of(context)
-                  .scaffoldBackgroundColor
-                  .withValues(alpha: 0.7),
+              color: Theme.of(
+                context,
+              ).scaffoldBackgroundColor.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -1876,10 +1878,7 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _VenueSelector extends StatelessWidget {
-  const _VenueSelector({
-    required this.selectedVenueName,
-    required this.onTap,
-  });
+  const _VenueSelector({required this.selectedVenueName, required this.onTap});
 
   final String? selectedVenueName;
   final VoidCallback onTap;
@@ -1905,10 +1904,7 @@ class _VenueSelector extends StatelessWidget {
                 color: AppTheme.voltLime.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
-                Icons.location_on,
-                color: AppTheme.voltLime,
-              ),
+              child: const Icon(Icons.location_on, color: AppTheme.voltLime),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1934,10 +1930,7 @@ class _VenueSelector extends StatelessWidget {
 }
 
 class _RatingSelector extends StatelessWidget {
-  const _RatingSelector({
-    required this.rating,
-    required this.onChanged,
-  });
+  const _RatingSelector({required this.rating, required this.onChanged});
 
   final double rating;
   final ValueChanged<double> onChanged;
@@ -2008,10 +2001,7 @@ class _PhotoSelector extends StatelessWidget {
                 SizedBox(height: 8),
                 Text(
                   'Tap to add photo',
-                  style: TextStyle(
-                    color: AppTheme.textTertiary,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: AppTheme.textTertiary, fontSize: 14),
                 ),
               ],
             ),
@@ -2128,13 +2118,15 @@ class _VibeSelectorState extends State<_VibeSelector> {
   @override
   Widget build(BuildContext context) {
     // Auto-expand if any hidden vibe is already selected
-    final hasHiddenSelection = widget.vibes.length > _initialCount &&
+    final hasHiddenSelection =
+        widget.vibes.length > _initialCount &&
         widget.vibes
             .skip(_initialCount)
             .any((v) => widget.selectedVibes.contains(v['id']));
     final showAll = _expanded || hasHiddenSelection;
-    final visibleVibes =
-        showAll ? widget.vibes : widget.vibes.take(_initialCount).toList();
+    final visibleVibes = showAll
+        ? widget.vibes
+        : widget.vibes.take(_initialCount).toList();
 
     return Wrap(
       spacing: 8,
@@ -2160,10 +2152,7 @@ class _VibeSelectorState extends State<_VibeSelector> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    vibe['icon']!,
-                    style: const TextStyle(fontSize: 14),
-                  ),
+                  Text(vibe['icon']!, style: const TextStyle(fontSize: 14)),
                   const SizedBox(width: 6),
                   Text(
                     vibe['name']!,
@@ -2171,8 +2160,9 @@ class _VibeSelectorState extends State<_VibeSelector> {
                       color: isSelected
                           ? Theme.of(context).scaffoldBackgroundColor
                           : AppTheme.textSecondary,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w600
+                          : FontWeight.w500,
                       fontSize: 13,
                     ),
                   ),
@@ -2259,11 +2249,7 @@ class _VenueSearchSheetState extends ConsumerState<_VenueSearchSheet> {
       }
       try {
         final repo = ref.read(venueRepositoryProvider);
-        final page = await repo.searchVenues(
-          query: q,
-          page: 1,
-          limit: 25,
-        );
+        final page = await repo.searchVenues(query: q, page: 1, limit: 25);
         if (!mounted) {
           return;
         }

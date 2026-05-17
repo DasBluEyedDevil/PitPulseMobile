@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { routeParam } from '../utils/requestParams';
 import path from 'path';
 import fs from 'fs';
 import { authenticateToken } from '../middleware/auth';
@@ -16,7 +17,7 @@ const router = Router();
  * @security JWT
  */
 router.get('/profiles/:filename', authenticateToken, (req: Request, res: Response) => {
-  const filename = req.params.filename;
+  const filename = routeParam(req, 'filename');
 
   // Sanitize filename to prevent directory traversal attacks
   // path.basename strips directory components, preventing ../../../etc/passwd attacks

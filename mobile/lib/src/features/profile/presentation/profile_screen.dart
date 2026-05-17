@@ -1075,11 +1075,11 @@ class _TopBandCard extends StatelessWidget {
                       child: CachedNetworkImage(
                         imageUrl: band.imageUrl!,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) => const Icon(
+                        placeholder: (_, _) => const Icon(
                           Icons.album,
                           color: AppTheme.hotOrange,
                         ),
-                        errorWidget: (_, __, ___) => const Icon(
+                        errorWidget: (_, _, _) => const Icon(
                           Icons.album,
                           color: AppTheme.hotOrange,
                         ),
@@ -1258,11 +1258,11 @@ class _TopVenueCard extends StatelessWidget {
                       child: CachedNetworkImage(
                         imageUrl: venue.imageUrl!,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) => const Icon(
+                        placeholder: (_, _) => const Icon(
                           Icons.location_on,
                           color: AppTheme.toastGold,
                         ),
-                        errorWidget: (_, __, ___) => const Icon(
+                        errorWidget: (_, _, _) => const Icon(
                           Icons.location_on,
                           color: AppTheme.toastGold,
                         ),
@@ -1476,11 +1476,11 @@ class _CheckinCard extends StatelessWidget {
                             child: CachedNetworkImage(
                               imageUrl: bandImageUrl,
                               fit: BoxFit.cover,
-                              placeholder: (_, __) => const Icon(
+                              placeholder: (_, _) => const Icon(
                                 Icons.album,
                                 color: AppTheme.voltLime,
                               ),
-                              errorWidget: (_, __, ___) => const Icon(
+                              errorWidget: (_, _, _) => const Icon(
                                 Icons.album,
                                 color: AppTheme.voltLime,
                               ),
@@ -1763,12 +1763,12 @@ class _BadgesShowcase extends ConsumerWidget {
                               child: CachedNetworkImage(
                                 imageUrl: badge!.iconUrl!,
                                 fit: BoxFit.cover,
-                                placeholder: (_, __) => Icon(
+                                placeholder: (_, _) => Icon(
                                   badgeIcon,
                                   color: badgeColor,
                                   size: 28,
                                 ),
-                                errorWidget: (_, __, ___) => Icon(
+                                errorWidget: (_, _, _) => Icon(
                                   badgeIcon,
                                   color: badgeColor,
                                   size: 28,

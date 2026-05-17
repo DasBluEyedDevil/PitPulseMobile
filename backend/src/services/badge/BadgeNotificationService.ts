@@ -10,6 +10,7 @@
 
 import { NotificationService } from '../NotificationService';
 import { sendToUser } from '../../utils/websocket';
+import { realtimePublisher } from '../RealtimePublisher';
 import { Badge } from '../../types';
 import logger from '../../utils/logger';
 
@@ -59,12 +60,16 @@ export class BadgeNotificationService {
 
     // b) Send real-time WebSocket event for in-app toast
     try {
-      sendToUser(userId, 'badge_earned', {
+      const payload = {
         badgeId: badge.id,
         badgeName: badge.name,
         badgeColor: badge.color,
         badgeIconUrl: badge.iconUrl,
-      });
+      };
+      const published = await realtimePublisher.publishToUser(userId, 'badge_earned', payload);
+      if (!published) {
+        sendToUser(userId, 'badge_earned', payload);
+      }
       websocketSent = true;
     } catch (err) {
       logger.error(`[BadgeNotificationService] WebSocket send failed for badge ${badge.id}`, {
@@ -103,14 +108,18 @@ export class BadgeNotificationService {
   /**
    * Send WebSocket-only notification (for real-time updates without DB persistence)
    */
-  sendRealtimeNotification(userId: string, badge: Badge): boolean {
+  async sendRealtimeNotification(userId: string, badge: Badge): Promise<boolean> {
     try {
-      sendToUser(userId, 'badge_earned', {
+      const payload = {
         badgeId: badge.id,
         badgeName: badge.name,
         badgeColor: badge.color,
         badgeIconUrl: badge.iconUrl,
-      });
+      };
+      const published = await realtimePublisher.publishToUser(userId, 'badge_earned', payload);
+      if (!published) {
+        sendToUser(userId, 'badge_earned', payload);
+      }
       return true;
     } catch (err) {
       logger.error(`[BadgeNotificationService] Realtime notification failed for badge ${badge.id}`, {

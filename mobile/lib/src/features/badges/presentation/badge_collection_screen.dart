@@ -465,7 +465,7 @@ class _BadgeCard extends ConsumerWidget {
           width: 40,
           height: 40,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) =>
+          errorBuilder: (_, _, _) =>
               _buildLetterIcon(badge.name, fallbackColor),
         ),
       );

@@ -57,9 +57,6 @@ class CrashReportingService {
         // to avoid capturing sensitive user data)
         options.attachScreenshot = !kReleaseMode;
 
-        // Attach view hierarchy
-        options.attachViewHierarchy = true;
-
         // Filter out non-critical errors
         options.beforeSend = (event, hint) {
           // Filter setState errors which are usually Flutter internals

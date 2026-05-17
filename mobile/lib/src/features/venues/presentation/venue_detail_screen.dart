@@ -95,7 +95,7 @@ class _VenueContent extends ConsumerWidget {
                   CachedNetworkImage(
                     imageUrl: venue.coverImageUrl ?? venue.imageUrl!,
                     fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => _buildGradientBg(),
+                    errorWidget: (_, _, _) => _buildGradientBg(),
                   )
                 else
                   _buildGradientBg(),
@@ -826,7 +826,7 @@ class _RecentBandsSection extends ConsumerWidget {
                 ),
               ),
             ),
-            error: (_, __) => const Text(
+            error: (_, _) => const Text(
               'Unable to load',
               style: TextStyle(
                 color: AppTheme.textSecondary,

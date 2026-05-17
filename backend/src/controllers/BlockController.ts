@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParam } from '../utils/requestParams';
 import { BlockService } from '../services/BlockService';
 import { asyncHandler } from '../utils/asyncHandler';
 import { UnauthorizedError } from '../utils/errors';
@@ -26,7 +27,7 @@ export class BlockController {
     if (!blockerId) {
       throw new UnauthorizedError('Authentication required');
     }
-    const blockedId = req.params.userId;
+    const blockedId = routeParam(req, 'userId');
 
     const block = await this.blockService.blockUser(blockerId, blockedId);
 
@@ -42,7 +43,7 @@ export class BlockController {
     if (!blockerId) {
       throw new UnauthorizedError('Authentication required');
     }
-    const blockedId = req.params.userId;
+    const blockedId = routeParam(req, 'userId');
 
     await this.blockService.unblockUser(blockerId, blockedId);
 
@@ -73,7 +74,7 @@ export class BlockController {
     if (!userId) {
       throw new UnauthorizedError('Authentication required');
     }
-    const otherUserId = req.params.userId;
+    const otherUserId = routeParam(req, 'userId');
 
     const blocked = await this.blockService.isBlocked(userId, otherUserId);
 

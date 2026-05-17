@@ -19,10 +19,10 @@ const reportController = new ReportController();
 // Zod validation schema for reviewing a moderation item
 const reviewItemSchema = z.object({
   body: z.object({
-    action: z.enum(['approved', 'removed', 'user_warned'], {
-      required_error: 'Action is required',
-      invalid_type_error: 'Invalid action. Must be: approved, removed, or user_warned',
-    }),
+    action: z.enum(
+      ['approved', 'removed', 'user_warned'],
+      'Invalid action. Must be: approved, removed, or user_warned'
+    ),
     notes: z.string().max(1000, 'Notes must be 1000 characters or less').optional(),
   }),
   params: z.object({

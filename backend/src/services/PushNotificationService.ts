@@ -135,7 +135,8 @@ export class PushNotificationService {
       await this.db.query(
         `INSERT INTO device_tokens (user_id, token, platform)
          VALUES ($1, $2, $3)
-         ON CONFLICT (user_id, token) DO UPDATE SET
+         ON CONFLICT (token) DO UPDATE SET
+           user_id = EXCLUDED.user_id,
            updated_at = CURRENT_TIMESTAMP,
            platform = EXCLUDED.platform`,
         [userId, token, platform]

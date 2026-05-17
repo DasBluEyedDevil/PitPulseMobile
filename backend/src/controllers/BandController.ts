@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import { BandService } from '../services/BandService';
 import { MusicBrainzService } from '../services/MusicBrainzService';
 import { DiscoveryService } from '../services/DiscoveryService';
@@ -72,7 +73,7 @@ export class BandController {
    * GET /api/bands/:id
    */
   getBandById = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     const band = await this.bandService.getBandById(id);
 
@@ -104,7 +105,7 @@ export class BandController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     // Authorization: admin or claimed owner
     const isAdmin = !!req.user.isAdmin;
@@ -136,7 +137,7 @@ export class BandController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { id } = req.params;
+    const { id } = routeParams(req);
 
     // Authorization: admin or claimed owner
     const isAdmin = !!req.user.isAdmin;
@@ -193,7 +194,7 @@ export class BandController {
    * GET /api/bands/genre/:genre
    */
   getBandsByGenre = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { genre } = req.params;
+    const { genre } = routeParams(req);
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
 
     const bands = await this.bandService.getBandsByGenre(genre, limit);

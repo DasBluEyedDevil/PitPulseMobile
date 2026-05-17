@@ -5,6 +5,7 @@
  */
 
 import { Request, Response } from 'express';
+import { routeParams } from '../utils/requestParams';
 import { ConsentService, VALID_PURPOSES } from '../services/ConsentService';
 import { ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -103,7 +104,7 @@ export class ConsentController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const { purpose } = req.params;
+    const { purpose } = routeParams(req);
 
     if (!purpose) {
       throw new BadRequestError('purpose parameter is required');

@@ -3,7 +3,7 @@ import multer from 'multer';
 import { UserController } from '../controllers/UserController';
 import { FollowController } from '../controllers/FollowController';
 import { authenticateToken, rateLimit, addJitter } from '../middleware/auth';
-import { validate } from '../middleware/validate';
+import { buildErrorResponse, validate } from '../middleware/validate';
 import { uploadProfileImage } from '../middleware/upload';
 import { enumerationLimiter } from '../utils/redisRateLimiter';
 import {
@@ -51,6 +51,30 @@ const generalRateLimit = rateLimit(15 * 60 * 1000, 30); // 30 requests per 15 mi
 
 // Enumeration protection: 5 requests per 15 minutes + jitter for timing attack prevention
 const strictEnumerationLimiter = enumerationLimiter.middleware();
+
+const canonicalizeAuthErrors = (_req: Request, res: Response, next: NextFunction): void => {
+  const originalJson = res.json.bind(res);
+  res.json = ((body?: any) => {
+    if (
+      !res.headersSent &&
+      res.statusCode === 401 &&
+      body?.success === false &&
+      typeof body.error === 'string'
+    ) {
+      return originalJson(buildErrorResponse('UNAUTHORIZED', body.error));
+    }
+    if (
+      !res.headersSent &&
+      res.statusCode >= 500 &&
+      body?.success === false &&
+      typeof body.error === 'string'
+    ) {
+      return originalJson(buildErrorResponse('INTERNAL_ERROR', body.error));
+    }
+    return originalJson(body);
+  }) as Response['json'];
+  next();
+};
 
 // Public routes (no authentication required)
 router.post('/register', authRateLimit, validate(createUserSchema), userController.register);
@@ -147,12 +171,13 @@ router.get(
 // Device token management for push notifications - MUST come before /:username
 router.post(
   '/device-token',
+  canonicalizeAuthErrors,
   authenticateToken,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        res.status(401).json({ success: false, error: 'Authentication required' });
+        res.status(401).json(buildErrorResponse('UNAUTHORIZED', 'Authentication required'));
         return;
       }
       const { token, platform } = req.body;
@@ -160,12 +185,19 @@ router.post(
       if (!token || typeof token !== 'string' || token.trim().length === 0) {
         res
           .status(400)
-          .json({ success: false, error: 'Token is required and must be a non-empty string' });
+          .json(
+            buildErrorResponse(
+              'VALIDATION_ERROR',
+              'Token is required and must be a non-empty string'
+            )
+          );
         return;
       }
 
       if (!platform || !['android', 'ios'].includes(platform)) {
-        res.status(400).json({ success: false, error: 'Platform must be "android" or "ios"' });
+        res
+          .status(400)
+          .json(buildErrorResponse('VALIDATION_ERROR', 'Platform must be "android" or "ios"'));
         return;
       }
 
@@ -179,12 +211,13 @@ router.post(
 
 router.delete(
   '/device-token',
+  canonicalizeAuthErrors,
   authenticateToken,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
       if (!userId) {
-        res.status(401).json({ success: false, error: 'Authentication required' });
+        res.status(401).json(buildErrorResponse('UNAUTHORIZED', 'Authentication required'));
         return;
       }
       const { token } = req.body;
@@ -192,7 +225,12 @@ router.delete(
       if (!token || typeof token !== 'string' || token.trim().length === 0) {
         res
           .status(400)
-          .json({ success: false, error: 'Token is required and must be a non-empty string' });
+          .json(
+            buildErrorResponse(
+              'VALIDATION_ERROR',
+              'Token is required and must be a non-empty string'
+            )
+          );
         return;
       }
 
