@@ -1,3 +1,5 @@
+import typography from '@tailwindcss/typography';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}'],
@@ -16,6 +18,7 @@ export default {
         magenta: 'var(--neon-magenta)',
         violet: 'var(--neon-violet)',
         plasma: 'var(--plasma-blue)',
+        'stroke-glass': 'var(--stroke-glass)',
       },
       fontFamily: {
         display: ['Sora', 'system-ui', 'sans-serif'],
@@ -34,5 +37,5 @@ export default {
       },
     },
   },
-  plugins: [require('@tailwindcss/typography')],
+  plugins: [typography],
 };

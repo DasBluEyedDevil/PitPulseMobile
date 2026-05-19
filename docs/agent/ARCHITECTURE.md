@@ -6,7 +6,7 @@ SoundCheck has three shipped surfaces:
 
 - `backend/`: Express API in TypeScript, PostgreSQL for persistence, Redis/BullMQ for caching and jobs, Sentry for errors, Railway/Nixpacks for deployment.
 - `mobile/`: Flutter app using Riverpod, GoRouter, Dio, Freezed/json_serializable, Firebase/Sentry, and platform secure storage.
-- `web/`: React + Vite static website for marketing, support, privacy, and terms pages. It uses local brand assets and syncs legal markdown from the repo root into `web/public/legal/` before dev/build.
+- `web/`: Astro static website for marketing, support, privacy, and terms pages. It uses local brand assets and syncs legal markdown from the repo root into `web/src/content/legal/` before dev/build.
 
 ## Backend Boundaries
 
@@ -36,7 +36,7 @@ Generated Dart files are implementation artifacts. Update the source annotations
 
 ## Web Boundaries
 
-The web app is a static frontend surface. It should not own backend business logic, secrets, or support-ticket processing. Legal content remains sourced from the root markdown files and is copied by `web/scripts/sync-legal.mjs` before Vite runs.
+The web app is a static frontend surface. It should not own backend business logic, secrets, or support-ticket processing. Legal content remains sourced from the root markdown files and is copied by `web/scripts/sync-legal.mjs` before Astro runs.
 
 ## Integration Contracts
 

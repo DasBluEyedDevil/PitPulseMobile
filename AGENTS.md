@@ -16,7 +16,7 @@ This file is a table of contents, not the project encyclopedia. Keep it short an
 
 - `backend/`: Node.js, Express, TypeScript API deployed to Railway.
 - `mobile/`: Flutter app for iOS and Android.
-- `web/`: React, Vite, TypeScript marketing/legal/support website.
+- `web/`: Astro static marketing/legal/support website.
 - `.planning/`: existing Legion-style milestone and execution-plan history.
 - `docs/`: durable, versioned knowledge for humans and agents.
 

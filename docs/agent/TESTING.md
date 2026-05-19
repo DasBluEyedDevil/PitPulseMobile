@@ -68,7 +68,7 @@ Run locally:
 npm run dev:web
 ```
 
-The web build runs TypeScript checking, syncs root legal markdown into `web/public/legal/`, and emits the Vite static bundle.
+The web build runs `astro build`, syncs root legal markdown into `web/src/content/legal/`, and emits the Astro static bundle.
 
 ## Agent Harness
 
