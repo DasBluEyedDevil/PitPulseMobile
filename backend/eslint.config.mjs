@@ -59,6 +59,15 @@ export default [
     },
   },
   {
+    files: ['**/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.es2020,
+      },
+    },
+  },
+  {
     ignores: ['dist/', 'node_modules/', '*.js', '*.d.ts', 'migrations/'],
   },
 ];
