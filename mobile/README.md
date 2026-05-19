@@ -66,8 +66,11 @@ flutter pub run build_runner build --delete-conflicting-outputs
 
 3. Run the app:
 ```bash
-flutter run
+flutter run --dart-define=FIREBASE_ANDROID_API_KEY=your-android-key
 ```
+
+Use `FIREBASE_IOS_API_KEY` instead when running an iOS target. See
+`../docs/FIREBASE_SETUP.md` for Firebase setup and release-build flags.
 
 ## Backend API
 

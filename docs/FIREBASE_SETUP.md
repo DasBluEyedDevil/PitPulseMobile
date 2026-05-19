@@ -61,7 +61,38 @@ This guide walks through setting up Firebase for SoundCheck. Firebase is used fo
 
 ---
 
-## Step 4: Generate Service Account Key (Backend)
+## Step 4: Supply Mobile API Keys At Build Time
+
+Firebase client API keys are required by the mobile app, but they must not be
+committed to `mobile/lib/firebase_options.dart`. The tracked Dart options file
+expects them through Flutter dart defines:
+
+```bash
+# Android
+cd mobile
+flutter run -d android --dart-define=FIREBASE_ANDROID_API_KEY=your-android-key
+
+# iOS
+cd mobile
+flutter run -d ios --dart-define=FIREBASE_IOS_API_KEY=your-ios-key
+```
+
+For release builds, set `FIREBASE_ANDROID_API_KEY` and
+`FIREBASE_IOS_API_KEY` in the CI/release secret store and pass them to
+`flutter build` with the same `--dart-define` flags.
+
+If you rerun `flutterfire configure`, review the generated
+`mobile/lib/firebase_options.dart` before committing. FlutterFire may regenerate
+literal API keys; restore the `String.fromEnvironment` values instead.
+
+> **Security Note**: Firebase client API keys are not service-account secrets,
+> but public repository secret scanning flags them and leaked keys can still be
+> abused if they are unrestricted. Restrict keys in Google Cloud/Firebase to the
+> intended apps and required APIs.
+
+---
+
+## Step 5: Generate Service Account Key (Backend)
 
 The backend uses Firebase Admin SDK for sending push notifications.
 
@@ -87,7 +118,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"your-proje
 
 ---
 
-## Step 5: Enable Cloud Messaging
+## Step 6: Enable Cloud Messaging
 
 1. In Firebase Console, go to **Cloud Messaging**
 2. For iOS, you need to upload APNs authentication key:
@@ -100,7 +131,7 @@ FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"your-proje
 
 ---
 
-## Step 6: Verify Configuration
+## Step 7: Verify Configuration
 
 ### Android
 ```bash
@@ -109,12 +140,24 @@ flutter run -d android
 ```
 Check logcat for: `FirebaseApp initialization successful`
 
+For release-equivalent Android verification, include:
+
+```bash
+flutter build apk --release --dart-define=FIREBASE_ANDROID_API_KEY=your-android-key
+```
+
 ### iOS
 ```bash
 cd mobile
 flutter run -d ios
 ```
 Check console for: `Firebase configured successfully`
+
+For release-equivalent iOS verification, include:
+
+```bash
+flutter build ios --release --dart-define=FIREBASE_IOS_API_KEY=your-ios-key
+```
 
 ### Backend
 ```bash
@@ -156,6 +199,8 @@ If Firebase is not configured, you'll see:
 |------|----------|-----------|
 | `google-services.json` | `mobile/android/app/` | No (gitignored) |
 | `GoogleService-Info.plist` | `mobile/ios/Runner/` | No (gitignored) |
+| Firebase Android API key | `--dart-define=FIREBASE_ANDROID_API_KEY=...` | No |
+| Firebase iOS API key | `--dart-define=FIREBASE_IOS_API_KEY=...` | No |
 | Service Account JSON | Environment variable | No |
 
 ---
