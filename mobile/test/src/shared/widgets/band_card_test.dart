@@ -8,10 +8,11 @@ void main() {
   // Mock the haptic feedback platform channel
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform,
-            (MethodCall methodCall) async {
-      return null;
-    });
+        .setMockMethodCallHandler(SystemChannels.platform, (
+          MethodCall methodCall,
+        ) async {
+          return null;
+        });
   });
 
   tearDown(() {
@@ -35,9 +36,7 @@ void main() {
     testWidgets('displays band name', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: BandCard(band: testBand),
-          ),
+          home: Scaffold(body: BandCard(band: testBand)),
         ),
       );
 
@@ -47,9 +46,7 @@ void main() {
     testWidgets('displays genre', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: BandCard(band: testBand),
-          ),
+          home: Scaffold(body: BandCard(band: testBand)),
         ),
       );
 
@@ -59,38 +56,36 @@ void main() {
     testWidgets('displays total check-ins count', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: BandCard(band: testBand),
-          ),
+          home: Scaffold(body: BandCard(band: testBand)),
         ),
       );
 
       expect(find.text('150 check-ins'), findsOneWidget);
     });
 
-    testWidgets('shows music icon for genre', (WidgetTester tester) async {
+    testWidgets('shows waveform icon for genre', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: BandCard(band: testBand),
-          ),
+          home: Scaffold(body: BandCard(band: testBand)),
         ),
       );
 
-      expect(find.byIcon(Icons.music_note), findsOneWidget);
+      expect(find.byIcon(Icons.graphic_eq), findsOneWidget);
     });
 
-    testWidgets('displays placeholder when no image URL',
-        (WidgetTester tester) async {
+    testWidgets('displays placeholder when no image URL', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: BandCard(band: testBand),
-          ),
+          home: Scaffold(body: BandCard(band: testBand)),
         ),
       );
 
-      expect(find.byIcon(Icons.music_video), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('SoundCheck branded poster placeholder'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('calls onTap when card is tapped', (WidgetTester tester) async {
@@ -99,10 +94,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: BandCard(
-              band: testBand,
-              onTap: () => tapped = true,
-            ),
+            body: BandCard(band: testBand, onTap: () => tapped = true),
           ),
         ),
       );
@@ -110,14 +102,15 @@ void main() {
       // Use runAsync to handle the async haptic feedback in the onTap callback
       await tester.runAsync(() async {
         await tester.tap(find.byType(InkWell));
-        await tester.pumpAndSettle();
+        await tester.pump();
       });
 
       expect(tapped, true);
     });
 
-    testWidgets('does not show genre when it is null',
-        (WidgetTester tester) async {
+    testWidgets('does not show genre when it is null', (
+      WidgetTester tester,
+    ) async {
       const bandNoGenre = Band(
         id: '1',
         name: 'Test Band',
@@ -130,13 +123,11 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: BandCard(band: bandNoGenre),
-          ),
+          home: Scaffold(body: BandCard(band: bandNoGenre)),
         ),
       );
 
-      expect(find.byIcon(Icons.music_note), findsNothing);
+      expect(find.byIcon(Icons.graphic_eq), findsNothing);
     });
   });
 }

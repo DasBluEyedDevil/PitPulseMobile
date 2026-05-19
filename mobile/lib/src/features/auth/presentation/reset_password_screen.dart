@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/error/failures.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/utils/validators.dart';
 
 /// SEC-057: Validates that a reset token has the expected format before
@@ -58,10 +59,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       final dioClient = ref.read(dioClientProvider);
       await dioClient.post(
         '/auth/reset-password',
-        data: {
-          'token': widget.token,
-          'newPassword': _passwordController.text,
-        },
+        data: {'token': widget.token, 'newPassword': _passwordController.text},
       );
 
       if (!mounted) return;
@@ -104,18 +102,22 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
         title: const Text('Reset Password'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/login'),
         ),
       ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppTheme.spacing24),
-            child: _buildContent(),
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.authBackdropAsset,
+        heroOpacity: 0.34,
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppTheme.spacing24),
+              child: GlassPanel(child: _buildContent()),
+            ),
           ),
         ),
       ),
@@ -139,26 +141,22 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Icon(
-          Icons.error_outline,
-          size: 64,
-          color: AppTheme.error,
-        ),
+        const Icon(Icons.error_outline, size: 64, color: AppTheme.error),
         const SizedBox(height: AppTheme.spacing24),
         Text(
           'Invalid Reset Link',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.bold,
-              ),
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppTheme.spacing8),
         Text(
           'This password reset link is invalid or malformed. Please request a new password reset from the login screen.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppTheme.spacing32),
@@ -190,26 +188,22 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(
-            Icons.lock_reset,
-            size: 64,
-            color: AppTheme.primary,
-          ),
+          const Icon(Icons.lock_reset, size: 64, color: AppTheme.primary),
           const SizedBox(height: AppTheme.spacing24),
           Text(
             'Create new password',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppTheme.spacing8),
           Text(
             'Enter your new password below. It must be at least 8 characters with uppercase, lowercase, a digit, and a special character.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppTheme.spacing32),
@@ -316,17 +310,17 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         Text(
           'Password Reset Successfully',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.bold,
-              ),
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppTheme.spacing8),
         Text(
           'Your password has been updated. You can now log in with your new password.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppTheme.spacing32),

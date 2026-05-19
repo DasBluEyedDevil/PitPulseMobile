@@ -16,6 +16,7 @@ This file is a table of contents, not the project encyclopedia. Keep it short an
 
 - `backend/`: Node.js, Express, TypeScript API deployed to Railway.
 - `mobile/`: Flutter app for iOS and Android.
+- `web/`: Astro static marketing/legal/support website.
 - `.planning/`: existing Legion-style milestone and execution-plan history.
 - `docs/`: durable, versioned knowledge for humans and agents.
 
@@ -33,6 +34,7 @@ From the repository root:
 
 ```bash
 npm run harness:check
+npm run build:web
 npm run test --prefix backend
 cd mobile && flutter test
 ```

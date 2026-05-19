@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/services/log_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../domain/notification.dart';
 import 'providers/notification_providers.dart';
 
@@ -18,14 +19,11 @@ class NotificationsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text(
           'Activity',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
         ),
         actions: [
           notificationFeedAsync.when(
@@ -51,14 +49,16 @@ class NotificationsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: notificationFeedAsync.when(
-        data: (feed) => _buildNotificationList(context, ref, feed),
-        loading: () => const Center(
-          child: CircularProgressIndicator(
-            color: AppTheme.voltLime,
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.feedBackdropAsset,
+        heroOpacity: 0.22,
+        child: notificationFeedAsync.when(
+          data: (feed) => _buildNotificationList(context, ref, feed),
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppTheme.voltLime),
           ),
+          error: (error, _) => _buildErrorState(context, ref, error),
         ),
-        error: (error, _) => _buildErrorState(context, ref, error),
       ),
     );
   }
@@ -290,26 +290,16 @@ class _NotificationItem extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         color: AppTheme.error,
-        child: const Icon(
-          Icons.delete,
-          color: Colors.white,
-        ),
+        child: const Icon(Icons.delete, color: Colors.white),
       ),
       child: InkWell(
         onTap: onTap,
-        child: Container(
+        child: GlassPanel(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: notification.isRead
-                ? Colors.transparent
-                : AppTheme.voltLime.withValues(alpha: 0.05),
-            border: Border(
-              bottom: BorderSide(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                width: 0.5,
-              ),
-            ),
-          ),
+          borderColor: notification.isRead
+              ? AppTheme.neonCyan.withValues(alpha: 0.12)
+              : AppTheme.neonMagenta.withValues(alpha: 0.32),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -449,10 +439,7 @@ class _NotificationItem extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppTheme.textSecondary,
-            ),
+            style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

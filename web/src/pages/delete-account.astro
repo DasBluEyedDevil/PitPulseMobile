@@ -1,0 +1,99 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import GlassPanel from '../components/GlassPanel.astro';
+---
+
+<BaseLayout
+  title="Delete Account"
+  description="Request deletion of your SoundCheck account and associated data."
+>
+  <article class="mx-auto max-w-container px-5 py-12 md:px-8 md:py-16">
+    <header class="mb-10">
+      <h1 class="font-display text-4xl font-black text-chrome">Delete your account</h1>
+      <p class="mt-4 max-w-2xl font-body text-silver">
+        You can request deletion of your SoundCheck account and associated personal data. This
+        satisfies Google Play's requirement for account deletion outside the app.
+      </p>
+    </header>
+
+    <GlassPanel class="mb-8">
+      <h2 class="font-display text-xl font-bold text-chrome">What gets deleted</h2>
+      <ul class="mt-4 list-inside list-disc space-y-2 font-body text-sm text-muted">
+        <li>Your account profile (email, username, bio, profile photo)</li>
+        <li>Check-ins, ratings, reviews, and comments</li>
+        <li>Photos you uploaded</li>
+        <li>Badges and activity history tied to your account</li>
+        <li>Friend connections and notification preferences</li>
+      </ul>
+      <p class="mt-4 font-body text-sm text-muted">
+        Some information may be retained as described in our
+        <a href="/privacy" class="text-cyan hover:underline">Privacy Policy</a> (for example, data
+        required for legal compliance, fraud prevention, or anonymized analytics).
+      </p>
+    </GlassPanel>
+
+    <GlassPanel class="mb-8">
+      <h2 class="font-display text-xl font-bold text-chrome">Delete in the app</h2>
+      <p class="mt-2 font-body text-silver">
+        You can also delete your account from inside the SoundCheck app:
+      </p>
+      <p class="mt-2 font-display font-bold text-cyan">Profile → Settings → Delete Account</p>
+    </GlassPanel>
+
+    <GlassPanel>
+      <h2 class="font-display text-xl font-bold text-chrome">Request deletion by email</h2>
+      <p class="mt-2 font-body text-muted">
+        Submit the form below to open an email to our privacy team with your deletion request.
+      </p>
+      <form id="delete-form" class="mt-6 space-y-4">
+        <div>
+          <label for="delete-email" class="block font-body text-sm font-medium text-silver"
+            >Account email</label
+          >
+          <input
+            type="email"
+            id="delete-email"
+            name="email"
+            required
+            placeholder="The email on your SoundCheck account"
+            class="mt-1 w-full rounded-xl border border-stroke-glass/50 bg-surface-high px-4 py-3 font-body text-chrome placeholder:text-muted focus:border-cyan focus:outline-none focus:ring-1 focus:ring-cyan"
+          />
+        </div>
+        <div>
+          <label for="delete-reason" class="block font-body text-sm font-medium text-silver"
+            >Reason (optional)</label
+          >
+          <textarea
+            id="delete-reason"
+            name="reason"
+            rows="3"
+            placeholder="Help us improve (optional)"
+            class="mt-1 w-full rounded-xl border border-stroke-glass/50 bg-surface-high px-4 py-3 font-body text-chrome placeholder:text-muted focus:border-cyan focus:outline-none focus:ring-1 focus:ring-cyan"
+          />
+        </div>
+        <button type="submit" class="btn-neon">Submit deletion request</button>
+        <p class="font-body text-xs text-muted">
+          <!-- TODO: Wire to POST /api/account-deletion-request when backend endpoint is available -->
+          This opens your email client addressed to
+          <a href="mailto:privacy@soundcheck.app" class="text-cyan hover:underline"
+            >privacy@soundcheck.app</a
+          >.
+        </p>
+      </form>
+    </GlassPanel>
+  </article>
+</BaseLayout>
+
+<script>
+  const form = document.getElementById('delete-form') as HTMLFormElement;
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = (document.getElementById('delete-email') as HTMLInputElement).value;
+    const reason = (document.getElementById('delete-reason') as HTMLTextAreaElement).value;
+    const subject = encodeURIComponent('Account deletion request');
+    const body = encodeURIComponent(
+      `Please delete my SoundCheck account associated with: ${email}\n\nReason: ${reason || '(not provided)'}`,
+    );
+    window.location.href = `mailto:privacy@soundcheck.app?subject=${subject}&body=${body}`;
+  });
+</script>

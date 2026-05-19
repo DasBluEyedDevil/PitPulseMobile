@@ -2,10 +2,11 @@
 
 ## Monorepo
 
-SoundCheck has two shipped surfaces:
+SoundCheck has three shipped surfaces:
 
 - `backend/`: Express API in TypeScript, PostgreSQL for persistence, Redis/BullMQ for caching and jobs, Sentry for errors, Railway/Nixpacks for deployment.
 - `mobile/`: Flutter app using Riverpod, GoRouter, Dio, Freezed/json_serializable, Firebase/Sentry, and platform secure storage.
+- `web/`: Astro static website for marketing, support, privacy, and terms pages. It uses local brand assets and syncs legal markdown from the repo root into `web/src/content/legal/` before dev/build.
 
 ## Backend Boundaries
 
@@ -32,6 +33,10 @@ Feature code lives under `mobile/lib/src/features/{feature}/`:
 App-wide concerns live under `mobile/lib/src/core/`; reusable UI/utilities live under `mobile/lib/src/shared/`.
 
 Generated Dart files are implementation artifacts. Update the source annotations and rerun build_runner rather than editing generated output.
+
+## Web Boundaries
+
+The web app is a static frontend surface. It should not own backend business logic, secrets, or support-ticket processing. Legal content remains sourced from the root markdown files and is copied by `web/scripts/sync-legal.mjs` before Astro runs.
 
 ## Integration Contracts
 

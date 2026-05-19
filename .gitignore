@@ -16,6 +16,9 @@ node_modules/
 **/node_modules/
 backend/node_modules/
 backend/dist/
+web/dist/
+web/tmp/
+test-results/
 
 # Log files - NEVER commit these!
 backend/logs/

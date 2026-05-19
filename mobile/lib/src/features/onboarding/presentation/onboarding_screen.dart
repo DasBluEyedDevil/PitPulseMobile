@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -16,22 +17,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<_OnboardingPage> _pages = [
     const _OnboardingPage(
-      title: 'Check In to Live Shows',
+      title: 'Live music. Real connection.',
       description:
-          "You're at a concert? Prove it. Check in, rate the set, and build your live music resume.",
-      icon: Icons.music_note,
+          'Check in. Share the moment. Relive every beat with the people who were there.',
+      imageAsset: AppTheme.flashStageMarkPortraitAsset,
+      imageSemanticLabel: 'SoundCheck concert stage hero',
     ),
     const _OnboardingPage(
-      title: 'Earn Badges & Concert Cred',
+      title: 'Build your live resume.',
       description:
-          'First show? 10th metal show? Unlock badges that tell your concert story.',
-      icon: Icons.emoji_events_outlined,
+          'Rate the set, collect badges, and keep a premium record of every show.',
+      imageAsset: AppTheme.flashPrismPortraitAsset,
+      imageSemanticLabel: 'Neon prism concert artwork',
     ),
     const _OnboardingPage(
-      title: 'Share & Discover',
+      title: 'Find the next wave.',
       description:
-          'Share your check-ins with friends, discover trending shows, and never miss a gig your crew is attending.',
-      icon: Icons.people_outline,
+          'See nearby shows, friend check-ins, and trending nights before they pass you by.',
+      imageAsset: AppTheme.flashWavePanoramaAsset,
+      imageSemanticLabel: 'Neon waveform concert artwork',
     ),
   ];
 
@@ -56,70 +60,71 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Skip button in top-right corner
-            Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.only(
-                  top: AppTheme.spacing8,
-                  right: AppTheme.spacing16,
-                ),
-                child: TextButton(
-                  onPressed: _finishOnboarding,
-                  child: const Text(
-                    'Skip',
-                    style: TextStyle(color: AppTheme.textSecondary),
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.onboardingBackdropAsset,
+        heroOpacity: 0.58,
+        heroAlignment: Alignment.topCenter,
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Skip button in top-right corner
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    top: AppTheme.spacing8,
+                    right: AppTheme.spacing16,
+                  ),
+                  child: TextButton(
+                    onPressed: _finishOnboarding,
+                    child: const Text(
+                      'Skip',
+                      style: TextStyle(color: AppTheme.textSecondary),
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: _pages.length,
-                onPageChanged: (index) {
-                  setState(() => _currentPage = index);
-                },
-                itemBuilder: (context, index) {
-                  return _OnboardingContent(page: _pages[index]);
-                },
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: _pages.length,
+                  onPageChanged: (index) {
+                    setState(() => _currentPage = index);
+                  },
+                  itemBuilder: (context, index) {
+                    return _OnboardingContent(page: _pages[index]);
+                  },
+                ),
               ),
-            ),
 
-            // Indicators and Controls
-            Padding(
-              padding: const EdgeInsets.all(AppTheme.spacing24),
-              child: Column(
-                children: [
-                  // Page Indicators
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      _pages.length,
-                      (index) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        height: 8,
-                        width: _currentPage == index ? 24 : 8,
-                        decoration: BoxDecoration(
-                          color: _currentPage == index
-                              ? AppTheme.primary
-                              : AppTheme.textSecondary.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(4),
+              // Indicators and Controls
+              Padding(
+                padding: const EdgeInsets.all(AppTheme.spacing24),
+                child: Column(
+                  children: [
+                    // Page Indicators
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        _pages.length,
+                        (index) => AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          height: 8,
+                          width: _currentPage == index ? 24 : 8,
+                          decoration: BoxDecoration(
+                            color: _currentPage == index
+                                ? AppTheme.primary
+                                : AppTheme.textSecondary.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
+                    const SizedBox(height: 32),
 
-                  // Buttons
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
+                    NeonGradientButton(
                       onPressed: () {
                         if (_currentPage < _pages.length - 1) {
                           _pageController.nextPage(
@@ -127,32 +132,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             curve: Curves.easeIn,
                           );
                         } else {
-                          // Last page: navigate to genre picker
                           context.go('/onboarding/genres');
                         }
                       },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        _currentPage == _pages.length - 1
-                            ? 'Get Started'
-                            : 'Next',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      label: _currentPage == _pages.length - 1
+                          ? 'Get Started'
+                          : 'Next',
                     ),
-                  ),
-                  const SizedBox(height: 48),
-                ],
+                    const SizedBox(height: AppTheme.spacing16),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -162,12 +154,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 class _OnboardingPage {
   final String title;
   final String description;
-  final IconData icon;
+  final String imageAsset;
+  final String imageSemanticLabel;
 
   const _OnboardingPage({
     required this.title,
     required this.description,
-    required this.icon,
+    required this.imageAsset,
+    required this.imageSemanticLabel,
   });
 }
 
@@ -178,43 +172,68 @@ class _OnboardingContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(AppTheme.spacing32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(40),
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxHeight < 720;
+        final horizontalPadding = compact
+            ? AppTheme.spacing24
+            : AppTheme.spacing32;
+        final heroHeight = compact ? 260.0 : 330.0;
+        final contentGap = compact ? AppTheme.spacing24 : AppTheme.spacing32;
+
+        return SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Padding(
+              padding: EdgeInsets.all(horizontalPadding),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const BrandLogoImage(height: 86),
+                  SizedBox(height: compact ? AppTheme.spacing16 : 22),
+                  NeonGlassPanel(
+                    padding: EdgeInsets.zero,
+                    borderRadius: AppTheme.radiusXLarge,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.radiusXLarge,
+                      ),
+                      child: SizedBox(
+                        height: heroHeight,
+                        child: Image.asset(
+                          page.imageAsset,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          semanticLabel: page.imageSemanticLabel,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: contentGap),
+                  Text(
+                    page.title,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppTheme.spacing16),
+                  Text(
+                    page.description,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: AppTheme.textSecondary,
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
-            child: Icon(
-              page.icon,
-              size: 100,
-              color: AppTheme.primary,
-            ),
           ),
-          const SizedBox(height: 48),
-          Text(
-            page.title,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primary,
-                ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            page.description,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppTheme.textSecondary,
-                  height: 1.5,
-                ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

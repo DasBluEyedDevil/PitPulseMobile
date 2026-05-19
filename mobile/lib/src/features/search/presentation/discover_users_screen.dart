@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/providers/providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/widgets/error_state_widget.dart';
 import '../data/discovery_providers.dart';
 
@@ -68,9 +69,9 @@ class _DiscoverUsersScreenState extends ConsumerState<DiscoverUsersScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update follow: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to update follow: $e')));
       }
     } finally {
       if (mounted) setState(() => _loadingIds.remove(userId));
@@ -84,88 +85,92 @@ class _DiscoverUsersScreenState extends ConsumerState<DiscoverUsersScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
         title: const Text('Discover People'),
       ),
-      body: RefreshIndicator(
-        color: AppTheme.voltLime,
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-        onRefresh: () async {
-          ref.invalidate(userSuggestionsProvider);
-        },
-        child: suggestionsAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: AppTheme.voltLime),
-          ),
-          error: (error, stack) => ListView(
-            children: [
-              ErrorStateWidget(
-                error: error,
-                stackTrace: stack,
-                customMessage: 'Failed to load suggestions',
-                onRetry: () => ref.invalidate(userSuggestionsProvider),
-              ),
-            ],
-          ),
-          data: (suggestions) {
-            if (suggestions.isEmpty) {
-              return ListView(
-                children: const [
-                  Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.people_outline,
-                            color: AppTheme.textTertiary,
-                            size: 64,
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'No suggestions yet',
-                            style: TextStyle(
-                              color: AppTheme.textPrimary,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.discoverBackdropAsset,
+        heroOpacity: 0.26,
+        child: RefreshIndicator(
+          color: AppTheme.voltLime,
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
+          onRefresh: () async {
+            ref.invalidate(userSuggestionsProvider);
+          },
+          child: suggestionsAsync.when(
+            loading: () => const Center(
+              child: CircularProgressIndicator(color: AppTheme.voltLime),
+            ),
+            error: (error, stack) => ListView(
+              children: [
+                ErrorStateWidget(
+                  error: error,
+                  stackTrace: stack,
+                  customMessage: 'Failed to load suggestions',
+                  onRetry: () => ref.invalidate(userSuggestionsProvider),
+                ),
+              ],
+            ),
+            data: (suggestions) {
+              if (suggestions.isEmpty) {
+                return ListView(
+                  children: const [
+                    Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.people_outline,
+                              color: AppTheme.textTertiary,
+                              size: 64,
                             ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Check in to more shows to get personalized suggestions!',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 14,
+                            SizedBox(height: 16),
+                            Text(
+                              'No suggestions yet',
+                              style: TextStyle(
+                                color: AppTheme.textPrimary,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                            SizedBox(height: 8),
+                            Text(
+                              'Check in to more shows to get personalized suggestions!',
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 14,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              );
-            }
-
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: suggestions.length,
-              itemBuilder: (context, index) {
-                final user = suggestions[index];
-                final isFollowed = _followedIds.contains(user.id);
-                final isLoading = _loadingIds.contains(user.id);
-
-                return _SuggestionCard(
-                  user: user,
-                  isFollowed: isFollowed,
-                  isLoading: isLoading,
-                  onFollow: () => _toggleFollow(user.id),
-                  onTap: () => context.push('/users/${user.id}'),
+                  ],
                 );
-              },
-            );
-          },
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: suggestions.length,
+                itemBuilder: (context, index) {
+                  final user = suggestions[index];
+                  final isFollowed = _followedIds.contains(user.id);
+                  final isLoading = _loadingIds.contains(user.id);
+
+                  return _SuggestionCard(
+                    user: user,
+                    isFollowed: isFollowed,
+                    isLoading: isLoading,
+                    onFollow: () => _toggleFollow(user.id),
+                    onTap: () => context.push('/users/${user.id}'),
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -284,39 +289,37 @@ class _SuggestionCard extends StatelessWidget {
                         ),
                       )
                     : isFollowed
-                        ? FilledButton(
-                            onPressed: onFollow,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppTheme.voltLime,
-                              padding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              'Following',
-                              style: TextStyle(fontSize: 13),
-                            ),
-                          )
-                        : OutlinedButton(
-                            onPressed: onFollow,
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(
-                                color: AppTheme.voltLime,
-                              ),
-                              padding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              'Follow',
-                              style: TextStyle(
-                                color: AppTheme.voltLime,
-                                fontSize: 13,
-                              ),
-                            ),
+                    ? FilledButton(
+                        onPressed: onFollow,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppTheme.voltLime,
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
+                        ),
+                        child: const Text(
+                          'Following',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      )
+                    : OutlinedButton(
+                        onPressed: onFollow,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppTheme.voltLime),
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Follow',
+                          style: TextStyle(
+                            color: AppTheme.voltLime,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
               ),
             ],
           ),

@@ -12,13 +12,17 @@
     "preinstall": "echo 'Installing from backend directory...'",
     "install": "npm install --prefix backend",
     "build": "npm run build --prefix backend",
+    "build:web": "npm run build --prefix web",
     "start": "npm start --prefix backend",
     "dev": "npm run dev --prefix backend",
+    "dev:web": "npm run dev --prefix web",
+    "preview:web": "npm run preview --prefix web",
     "test": "npm test --prefix backend",
     "harness:check": "node scripts/check-agent-harness.mjs",
     "check:backend": "npm run lint --prefix backend && npm run typecheck --prefix backend && npm test --prefix backend",
     "check:mobile": "cd mobile && flutter pub run build_runner build --delete-conflicting-outputs && flutter analyze && flutter test",
-    "check": "npm run harness:check && npm run check:backend && npm run check:mobile",
+    "check:web": "npm run build --prefix web",
+    "check": "npm run harness:check && npm run check:backend && npm run check:web && npm run check:mobile",
     "prepare": "node .husky/install.mjs"
   },
   "lint-staged": {

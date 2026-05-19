@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/error/failures.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/utils/validators.dart';
 
 /// Forgot Password Screen - Two-state screen for requesting password reset.
@@ -90,18 +91,24 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
         title: const Text('Forgot Password'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
       ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppTheme.spacing24),
-            child: _emailSent ? _buildSentState() : _buildRequestState(),
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.authBackdropAsset,
+        heroOpacity: 0.34,
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppTheme.spacing24),
+              child: GlassPanel(
+                child: _emailSent ? _buildSentState() : _buildRequestState(),
+              ),
+            ),
           ),
         ),
       ),
@@ -117,20 +124,16 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Icon
-          const Icon(
-            Icons.lock_reset,
-            size: 64,
-            color: AppTheme.primary,
-          ),
+          const Icon(Icons.lock_reset, size: 64, color: AppTheme.primary),
           const SizedBox(height: AppTheme.spacing24),
 
           // Title
           Text(
             'Reset your password',
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppTheme.spacing8),
@@ -138,9 +141,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
           // Description
           Text(
             'Enter the email address associated with your account and we\'ll send you a link to reset your password.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppTheme.spacing32),
@@ -213,9 +216,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         Text(
           'Check your inbox',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: AppTheme.textPrimary,
-                fontWeight: FontWeight.bold,
-              ),
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppTheme.spacing16),
@@ -223,9 +226,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         // Message from server
         Text(
           _responseMessage,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondary,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppTheme.spacing32),

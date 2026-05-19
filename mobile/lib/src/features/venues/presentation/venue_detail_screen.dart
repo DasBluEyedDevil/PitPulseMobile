@@ -5,12 +5,15 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../domain/venue.dart';
 import '../../checkins/presentation/providers/checkin_providers.dart';
 import '../../checkins/domain/checkin.dart';
 
-final venueDetailProvider =
-    FutureProvider.autoDispose.family<Venue, String>((ref, id) async {
+final venueDetailProvider = FutureProvider.autoDispose.family<Venue, String>((
+  ref,
+  id,
+) async {
   final repository = ref.watch(venueRepositoryProvider);
   return repository.getVenueById(id);
 });
@@ -20,10 +23,7 @@ final venueDetailProvider =
 class VenueDetailScreen extends ConsumerWidget {
   final String venueId;
 
-  const VenueDetailScreen({
-    required this.venueId,
-    super.key,
-  });
+  const VenueDetailScreen({required this.venueId, super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,12 +31,16 @@ class VenueDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: venueAsync.when(
-        data: (venue) => _VenueContent(venue: venue, venueId: venueId),
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppTheme.voltLime),
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.discoverBackdropAsset,
+        heroOpacity: 0.24,
+        child: venueAsync.when(
+          data: (venue) => _VenueContent(venue: venue, venueId: venueId),
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppTheme.voltLime),
+          ),
+          error: (error, _) => _buildErrorState(context, ref),
         ),
-        error: (error, _) => _buildErrorState(context, ref),
       ),
     );
   }
@@ -85,7 +89,7 @@ class _VenueContent extends ConsumerWidget {
         SliverAppBar(
           expandedHeight: 220,
           pinned: true,
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.transparent,
           flexibleSpace: FlexibleSpaceBar(
             background: Stack(
               fit: StackFit.expand,
@@ -107,9 +111,9 @@ class _VenueContent extends ConsumerWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Theme.of(context)
-                            .scaffoldBackgroundColor
-                            .withValues(alpha: 0.95),
+                        Theme.of(
+                          context,
+                        ).scaffoldBackgroundColor.withValues(alpha: 0.95),
                       ],
                     ),
                   ),
@@ -143,8 +147,9 @@ class _VenueContent extends ConsumerWidget {
                                   vertical: 12,
                                 ),
                                 decoration: BoxDecoration(
-                                  color:
-                                      AppTheme.primary.withValues(alpha: 0.2),
+                                  color: AppTheme.primary.withValues(
+                                    alpha: 0.2,
+                                  ),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: const Row(
@@ -232,9 +237,7 @@ class _VenueContent extends ConsumerWidget {
         ),
 
         // Map Strip
-        SliverToBoxAdapter(
-          child: _MapStrip(venue: venue),
-        ),
+        SliverToBoxAdapter(child: _MapStrip(venue: venue)),
 
         // Claim button (only for unclaimed venues)
         if (venue.claimedByUserId == null)
@@ -254,19 +257,14 @@ class _VenueContent extends ConsumerWidget {
                 ),
                 label: const Text(
                   'Claim this venue',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
                 ),
               ),
             ),
           ),
 
         // Stats Row -- uses aggregate if available
-        SliverToBoxAdapter(
-          child: _VenueStatsRow(venue: venue),
-        ),
+        SliverToBoxAdapter(child: _VenueStatsRow(venue: venue)),
 
         // Upcoming Events Section (Phase 7 -- real data from backend)
         SliverToBoxAdapter(
@@ -282,9 +280,7 @@ class _VenueContent extends ConsumerWidget {
         ),
 
         // Bottom padding for nav bar
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 100),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
     );
   }
@@ -340,11 +336,7 @@ class _MapStrip extends StatelessWidget {
                 ),
               ),
               child: const Center(
-                child: Icon(
-                  Icons.map,
-                  size: 32,
-                  color: AppTheme.voltLime,
-                ),
+                child: Icon(Icons.map, size: 32, color: AppTheme.voltLime),
               ),
             ),
             // Address info
@@ -383,10 +375,7 @@ class _MapStrip extends StatelessWidget {
             // Direction icon
             Container(
               padding: const EdgeInsets.all(12),
-              child: const Icon(
-                Icons.directions,
-                color: AppTheme.voltLime,
-              ),
+              child: const Icon(Icons.directions, color: AppTheme.voltLime),
             ),
           ],
         ),
@@ -412,8 +401,9 @@ class _MapStrip extends StatelessWidget {
       return;
     }
 
-    final uri =
-        Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$query',
+    );
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -429,8 +419,9 @@ class _VenueStatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     // Use aggregate data if available; fall back to legacy averageRating
     final aggregateRating = venue.aggregate?.avgExperienceRating ?? 0;
-    final displayRating =
-        aggregateRating > 0 ? aggregateRating : venue.averageRating;
+    final displayRating = aggregateRating > 0
+        ? aggregateRating
+        : venue.averageRating;
     final ratingLabel = aggregateRating > 0 ? 'Experience' : 'Rating';
     final visitors = venue.aggregate?.uniqueVisitors ?? venue.uniqueVisitors;
     final ratings = venue.aggregate?.totalRatings ?? 0;
@@ -450,16 +441,10 @@ class _VenueStatsRow extends StatelessWidget {
             label: 'Check-ins',
           ),
           _StatDivider(),
-          _StatItem(
-            value: _formatNumber(visitors),
-            label: 'Visitors',
-          ),
+          _StatItem(value: _formatNumber(visitors), label: 'Visitors'),
           _StatDivider(),
           if (ratings > 0) ...[
-            _StatItem(
-              value: _formatNumber(ratings),
-              label: 'Ratings',
-            ),
+            _StatItem(value: _formatNumber(ratings), label: 'Ratings'),
             _StatDivider(),
           ],
           _StatItem(
@@ -469,10 +454,7 @@ class _VenueStatsRow extends StatelessWidget {
           ),
           if (venue.capacity != null) ...[
             _StatDivider(),
-            _StatItem(
-              value: _formatNumber(venue.capacity!),
-              label: 'Capacity',
-            ),
+            _StatItem(value: _formatNumber(venue.capacity!), label: 'Capacity'),
           ],
         ],
       ),
@@ -511,11 +493,7 @@ class _StatItem extends StatelessWidget {
             if (isRating)
               const Padding(
                 padding: EdgeInsets.only(right: 4),
-                child: Icon(
-                  Icons.star,
-                  size: 16,
-                  color: AppTheme.toastGold,
-                ),
+                child: Icon(Icons.star, size: 16, color: AppTheme.toastGold),
               ),
             Text(
               value,
@@ -530,10 +508,7 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppTheme.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
         ),
       ],
     );
@@ -572,11 +547,7 @@ class _UpcomingEventsSection extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.event,
-                    color: AppTheme.voltLime,
-                    size: 20,
-                  ),
+                  Icon(Icons.event, color: AppTheme.voltLime, size: 20),
                   SizedBox(width: 8),
                   Text(
                     'Upcoming Events',
@@ -666,8 +637,8 @@ class _UpcomingEventItem extends StatelessWidget {
     final timeInfo = event.doorsTime != null
         ? 'Doors open ${event.doorsTime}'
         : event.startTime != null
-            ? 'Starts ${event.startTime}'
-            : '';
+        ? 'Starts ${event.startTime}'
+        : '';
 
     return GestureDetector(
       onTap: () => context.push('/events/${event.id}'),
@@ -748,8 +719,10 @@ class _UpcomingEventItem extends StatelessWidget {
                   }
                 },
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.voltLime,
                     borderRadius: BorderRadius.circular(8),
@@ -828,10 +801,7 @@ class _RecentBandsSection extends ConsumerWidget {
             ),
             error: (_, _) => const Text(
               'Unable to load',
-              style: TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
             ),
           ),
         ],
@@ -843,10 +813,7 @@ class _RecentBandsSection extends ConsumerWidget {
     if (bands.isEmpty) {
       return const Text(
         'No recent check-ins',
-        style: TextStyle(
-          color: AppTheme.textSecondary,
-          fontSize: 14,
-        ),
+        style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
       );
     }
 

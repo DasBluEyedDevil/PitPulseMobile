@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.astro/
+
+# Generated from repo root on prebuild
+src/content/legal/
+public/brand/
+public/favicon.png
+public/og-image.png
+public/legal/

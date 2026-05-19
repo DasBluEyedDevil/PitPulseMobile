@@ -54,6 +54,22 @@ flutter test test/src/features/feed/presentation/providers/feed_providers_test.d
 
 These targeted suites cover WebSocket URI/token construction, authenticated state/reconnect cleanup, room helpers, push initialization/deep-link parsing, Dio parsing for canonical and legacy error shapes, logout cleanup, check-in room lifecycle, and active event room membership.
 
+## Web
+
+Run from the repo root:
+
+```bash
+npm run build:web
+```
+
+Run locally:
+
+```bash
+npm run dev:web
+```
+
+The web build runs `astro build`, syncs root legal markdown into `web/src/content/legal/`, and emits the Astro static bundle.
+
 ## Agent Harness
 
 Run from the repo root:

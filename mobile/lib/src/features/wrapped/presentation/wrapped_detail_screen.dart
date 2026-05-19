@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/analytics_service.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../domain/wrapped_stats.dart';
 import 'wrapped_providers.dart';
 
@@ -37,100 +38,109 @@ class _WrappedDetailScreenState extends ConsumerState<WrappedDetailScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text('Wrapped $year Details'),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
       ),
-      body: detailAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppTheme.voltLime),
-        ),
-        error: (error, _) {
-          // Handle 403 (non-premium) gracefully
-          final errorStr = error.toString();
-          if (errorStr.contains('403') || errorStr.contains('premium')) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.lock_outline,
-                      size: 48,
-                      color: AppTheme.voltLime,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Detailed analytics require SoundCheck Pro',
-                      style: TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.profileBackdropAsset,
+        heroOpacity: 0.26,
+        child: detailAsync.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppTheme.voltLime),
+          ),
+          error: (error, _) {
+            // Handle 403 (non-premium) gracefully
+            final errorStr = error.toString();
+            if (errorStr.contains('403') || errorStr.contains('premium')) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.lock_outline,
+                        size: 48,
+                        color: AppTheme.voltLime,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () => context.push('/pro'),
-                      child: const Text('Learn about Pro'),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Detailed analytics require SoundCheck Pro',
+                        style: TextStyle(
+                          color: AppTheme.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () => context.push('/pro'),
+                        child: const Text('Learn about Pro'),
+                      ),
+                    ],
+                  ),
                 ),
+              );
+            }
+
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    color: AppTheme.error,
+                    size: 48,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Failed to load details',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () =>
+                        ref.invalidate(wrappedDetailProvider(year)),
+                    child: const Text('Retry'),
+                  ),
+                ],
               ),
             );
-          }
-
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.error_outline,
-                  color: AppTheme.error,
-                  size: 48,
+          },
+          data: (stats) => CustomScrollView(
+            slivers: [
+              // Stats header
+              SliverToBoxAdapter(child: _buildStatsHeader(stats)),
+              // Monthly breakdown
+              if (stats.monthlyBreakdown != null &&
+                  stats.monthlyBreakdown!.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: _buildMonthlyBreakdown(stats.monthlyBreakdown!),
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Failed to load details',
-                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
+              // Genre evolution
+              if (stats.genreEvolution != null &&
+                  stats.genreEvolution!.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: _buildGenreEvolution(stats.genreEvolution!),
                 ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => ref.invalidate(wrappedDetailProvider(year)),
-                  child: const Text('Retry'),
+              // Friend overlap
+              if (stats.friendOverlap != null &&
+                  stats.friendOverlap!.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: _buildFriendOverlap(stats.friendOverlap!),
                 ),
-              ],
-            ),
-          );
-        },
-        data: (stats) => CustomScrollView(
-          slivers: [
-            // Stats header
-            SliverToBoxAdapter(child: _buildStatsHeader(stats)),
-            // Monthly breakdown
-            if (stats.monthlyBreakdown != null &&
-                stats.monthlyBreakdown!.isNotEmpty)
-              SliverToBoxAdapter(
-                child: _buildMonthlyBreakdown(stats.monthlyBreakdown!),
-              ),
-            // Genre evolution
-            if (stats.genreEvolution != null &&
-                stats.genreEvolution!.isNotEmpty)
-              SliverToBoxAdapter(
-                child: _buildGenreEvolution(stats.genreEvolution!),
-              ),
-            // Friend overlap
-            if (stats.friendOverlap != null && stats.friendOverlap!.isNotEmpty)
-              SliverToBoxAdapter(
-                child: _buildFriendOverlap(stats.friendOverlap!),
-              ),
-            // Top rated sets
-            if (stats.topRatedSets != null && stats.topRatedSets!.isNotEmpty)
-              SliverToBoxAdapter(
-                child: _buildTopRatedSets(stats.topRatedSets!),
-              ),
-            // Bottom padding
-            const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
-          ],
+              // Top rated sets
+              if (stats.topRatedSets != null && stats.topRatedSets!.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: _buildTopRatedSets(stats.topRatedSets!),
+                ),
+              // Bottom padding
+              const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
+            ],
+          ),
         ),
       ),
     );
@@ -143,9 +153,7 @@ class _WrappedDetailScreenState extends ConsumerState<WrappedDetailScreen> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.voltLime.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: AppTheme.voltLime.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -159,22 +167,11 @@ class _WrappedDetailScreenState extends ConsumerState<WrappedDetailScreen> {
   }
 
   Widget _buildMonthlyBreakdown(List<MonthlyActivity> monthly) {
-    final maxCount =
-        monthly.fold<int>(0, (max, m) => m.showCount > max ? m.showCount : max);
-    const months = [
-      'J',
-      'F',
-      'M',
-      'A',
-      'M',
-      'J',
-      'J',
-      'A',
-      'S',
-      'O',
-      'N',
-      'D',
-    ];
+    final maxCount = monthly.fold<int>(
+      0,
+      (max, m) => m.showCount > max ? m.showCount : max,
+    );
+    const months = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
     // Fill in missing months with 0
     final allMonths = List.generate(12, (i) {
@@ -288,8 +285,10 @@ class _WrappedDetailScreenState extends ConsumerState<WrappedDetailScreen> {
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.voltLime.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
@@ -325,8 +324,9 @@ class _WrappedDetailScreenState extends ConsumerState<WrappedDetailScreen> {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor:
-                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
                   backgroundImage: f.friendProfileImageUrl != null
                       ? NetworkImage(f.friendProfileImageUrl!)
                       : null,
@@ -448,10 +448,7 @@ class _StatColumn extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 12,
-          ),
+          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
         ),
       ],
     );

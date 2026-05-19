@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/widgets/error_state_widget.dart';
 import 'providers/block_providers.dart';
 
@@ -17,102 +18,111 @@ class BlockedUsersScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
         title: const Text('Blocked Users'),
       ),
-      body: blockedUsers.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => RefreshIndicator(
-          onRefresh: () async => ref.invalidate(blockedUsersProvider),
-          child: ListView(
-            children: [
-              ErrorStateWidget(
-                error: err,
-                stackTrace: stack,
-                customMessage: 'Failed to load blocked users',
-                onRetry: () => ref.invalidate(blockedUsersProvider),
-              ),
-            ],
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.profileBackdropAsset,
+        heroOpacity: 0.24,
+        child: blockedUsers.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => RefreshIndicator(
+            onRefresh: () async => ref.invalidate(blockedUsersProvider),
+            child: ListView(
+              children: [
+                ErrorStateWidget(
+                  error: err,
+                  stackTrace: stack,
+                  customMessage: 'Failed to load blocked users',
+                  onRetry: () => ref.invalidate(blockedUsersProvider),
+                ),
+              ],
+            ),
           ),
-        ),
-        data: (users) {
-          if (users.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.block,
-                    size: 64,
-                    color: AppTheme.textTertiary,
-                  ),
-                  const SizedBox(height: AppTheme.spacing16),
-                  Text(
-                    'No blocked users',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
-                  ),
-                  const SizedBox(height: AppTheme.spacing8),
-                  Text(
-                    'Users you block will appear here',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing8),
-            itemCount: users.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final user = users[index];
-              // The blocked user data may be nested under 'blockedUser' or at top level
-              final blockedUser =
-                  user['blockedUser'] as Map<String, dynamic>? ?? user;
-              final userId = blockedUser['id'] as String? ??
-                  user['blockedId'] as String? ??
-                  '';
-              final username =
-                  blockedUser['username'] as String? ?? 'Unknown User';
-              final profileImageUrl = blockedUser['profileImageUrl'] as String?;
-              final initials =
-                  username.isNotEmpty ? username[0].toUpperCase() : '?';
-
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor:
-                      Theme.of(context).colorScheme.surfaceContainerHighest,
-                  backgroundImage: profileImageUrl != null
-                      ? CachedNetworkImageProvider(profileImageUrl)
-                      : null,
-                  child: profileImageUrl == null
-                      ? Text(
-                          initials,
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : null,
-                ),
-                title: Text(
-                  username,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                trailing: TextButton(
-                  onPressed: () =>
-                      _showUnblockDialog(context, ref, userId, username),
-                  child: const Text(
-                    'Unblock',
-                    style: TextStyle(color: AppTheme.primary),
-                  ),
+          data: (users) {
+            if (users.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.block,
+                      size: 64,
+                      color: AppTheme.textTertiary,
+                    ),
+                    const SizedBox(height: AppTheme.spacing16),
+                    Text(
+                      'No blocked users',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: AppTheme.spacing8),
+                    Text(
+                      'Users you block will appear here',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
               );
-            },
-          );
-        },
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacing8),
+              itemCount: users.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (context, index) {
+                final user = users[index];
+                // The blocked user data may be nested under 'blockedUser' or at top level
+                final blockedUser =
+                    user['blockedUser'] as Map<String, dynamic>? ?? user;
+                final userId =
+                    blockedUser['id'] as String? ??
+                    user['blockedId'] as String? ??
+                    '';
+                final username =
+                    blockedUser['username'] as String? ?? 'Unknown User';
+                final profileImageUrl =
+                    blockedUser['profileImageUrl'] as String?;
+                final initials = username.isNotEmpty
+                    ? username[0].toUpperCase()
+                    : '?';
+
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    backgroundImage: profileImageUrl != null
+                        ? CachedNetworkImageProvider(profileImageUrl)
+                        : null,
+                    child: profileImageUrl == null
+                        ? Text(
+                            initials,
+                            style: const TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
+                  ),
+                  title: Text(
+                    username,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  trailing: TextButton(
+                    onPressed: () =>
+                        _showUnblockDialog(context, ref, userId, username),
+                    child: const Text(
+                      'Unblock',
+                      style: TextStyle(color: AppTheme.primary),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -127,9 +137,7 @@ class BlockedUsersScreen extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Unblock $username?'),
-        content: const Text(
-          'They will be able to see your content again.',
-        ),
+        content: const Text('They will be able to see your content again.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -149,9 +157,7 @@ class BlockedUsersScreen extends ConsumerWidget {
         ref.invalidate(blockedUsersProvider);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('$username has been unblocked'),
-            ),
+            SnackBar(content: Text('$username has been unblocked')),
           );
         }
       } catch (e) {

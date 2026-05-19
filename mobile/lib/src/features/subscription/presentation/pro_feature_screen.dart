@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/analytics_service.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import 'subscription_service.dart';
 import 'subscription_providers.dart';
 
@@ -124,196 +125,209 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('SoundCheck Pro'),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const Icon(Icons.auto_awesome, color: AppTheme.voltLime, size: 48),
-            const SizedBox(height: 16),
-            const Text(
-              'SoundCheck Pro',
-              style: TextStyle(
-                color: AppTheme.voltLime,
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.profileBackdropAsset,
+        heroOpacity: 0.3,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const BrandLogoImage(
+                asset: AppTheme.markSquareAsset,
+                height: 96,
+                semanticLabel: 'SoundCheck Pro mark',
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isPremium
-                  ? isSyncingPremium
-                        ? 'Your purchase is syncing. Pro access may take a moment.'
-                        : "You're a Pro member!"
-                  : 'Unlock the full concert experience',
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 32),
-            const _PerkCard(
-              icon: Icons.analytics_outlined,
-              title: 'Detailed Wrapped Analytics',
-              description: 'Monthly breakdown, genre evolution, friend overlap',
-            ),
-            const _PerkCard(
-              icon: Icons.share_outlined,
-              title: 'Per-Stat Share Cards',
-              description: 'Share individual Wrapped stats to social',
-            ),
-            const _PerkCard(
-              icon: Icons.history,
-              title: 'Wrapped Archive',
-              description: "Browse previous years' Wrapped",
-            ),
-            const _PerkCard(
-              icon: Icons.insights,
-              title: 'Year-Round Analytics',
-              description: 'Detailed concert analytics anytime',
-            ),
-            const SizedBox(height: 32),
-            if (!isPremium) ...[
-              packagesAsync.when(
-                data: (packages) {
-                  if (packages.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        'Subscriptions are not available on this build.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppTheme.textSecondary),
-                      ),
-                    );
-                  }
-                  final effective =
-                      _selectedPackage ?? _pickDefaultPackage(packages)!;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Text(
-                        'Choose a plan',
-                        style: TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: packages.map((p) {
-                          final selected = effective.identifier == p.identifier;
-                          return FilterChip(
-                            label: Text(
-                              '${p.storeProduct.title} · ${p.storeProduct.priceString}',
-                            ),
-                            selected: selected,
-                            onSelected: _isPurchasing
-                                ? null
-                                : (_) => setState(() => _selectedPackage = p),
-                            selectedColor: AppTheme.voltLime.withValues(
-                              alpha: 0.35,
-                            ),
-                            checkmarkColor: AppTheme.voltLime,
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isPurchasing
-                              ? null
-                              : () => _onSubscribe(packages),
-                          child: _isPurchasing
-                              ? SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Theme.of(
-                                      context,
-                                    ).scaffoldBackgroundColor,
-                                  ),
-                                )
-                              : const Text('Subscribe'),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppTheme.voltLime),
-                  ),
+              const SizedBox(height: 16),
+              const Text(
+                'SoundCheck Pro',
+                style: TextStyle(
+                  color: AppTheme.voltLime,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
                 ),
-                error: (e, _) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    'Could not load plans: $e',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppTheme.error),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
-                onPressed: _isRestoring ? null : _onRestore,
-                child: Text(
-                  _isRestoring ? 'Restoring...' : 'Restore Purchases',
-                ),
-              ),
-            ] else ...[
-              Icon(
-                Icons.check_circle,
-                color: isSyncingPremium
-                    ? AppTheme.textSecondary
-                    : AppTheme.voltLime,
-                size: 48,
               ),
               const SizedBox(height: 8),
               Text(
-                isSyncingPremium
-                    ? 'Waiting for backend confirmation before unlocking server-gated features.'
-                    : 'All Pro features are unlocked',
-                textAlign: TextAlign.center,
+                isPremium
+                    ? isSyncingPremium
+                          ? 'Your purchase is syncing. Pro access may take a moment.'
+                          : "You're a Pro member!"
+                    : 'Unlock the full concert experience',
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
-                  fontSize: 14,
+                  fontSize: 16,
                 ),
               ),
-            ],
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextButton(
-                  onPressed: () => _launchUrl('https://soundcheck.app/terms'),
-                  child: const Text(
-                    'Terms of Service',
-                    style: TextStyle(fontSize: 14),
+              const SizedBox(height: 32),
+              const _PerkCard(
+                icon: Icons.analytics_outlined,
+                title: 'Detailed Wrapped Analytics',
+                description:
+                    'Monthly breakdown, genre evolution, friend overlap',
+              ),
+              const _PerkCard(
+                icon: Icons.share_outlined,
+                title: 'Per-Stat Share Cards',
+                description: 'Share individual Wrapped stats to social',
+              ),
+              const _PerkCard(
+                icon: Icons.history,
+                title: 'Wrapped Archive',
+                description: "Browse previous years' Wrapped",
+              ),
+              const _PerkCard(
+                icon: Icons.insights,
+                title: 'Year-Round Analytics',
+                description: 'Detailed concert analytics anytime',
+              ),
+              const SizedBox(height: 32),
+              if (!isPremium) ...[
+                packagesAsync.when(
+                  data: (packages) {
+                    if (packages.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          'Subscriptions are not available on this build.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppTheme.textSecondary),
+                        ),
+                      );
+                    }
+                    final effective =
+                        _selectedPackage ?? _pickDefaultPackage(packages)!;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text(
+                          'Choose a plan',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: packages.map((p) {
+                            final selected =
+                                effective.identifier == p.identifier;
+                            return FilterChip(
+                              label: Text(
+                                '${p.storeProduct.title} · ${p.storeProduct.priceString}',
+                              ),
+                              selected: selected,
+                              onSelected: _isPurchasing
+                                  ? null
+                                  : (_) => setState(() => _selectedPackage = p),
+                              selectedColor: AppTheme.voltLime.withValues(
+                                alpha: 0.35,
+                              ),
+                              checkmarkColor: AppTheme.voltLime,
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _isPurchasing
+                                ? null
+                                : () => _onSubscribe(packages),
+                            child: _isPurchasing
+                                ? SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Theme.of(
+                                        context,
+                                      ).scaffoldBackgroundColor,
+                                    ),
+                                  )
+                                : const Text('Subscribe'),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                  loading: () => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppTheme.voltLime,
+                      ),
+                    ),
+                  ),
+                  error: (e, _) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'Could not load plans: $e',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppTheme.error),
+                    ),
                   ),
                 ),
-                const Text(
-                  ' | ',
-                  style: TextStyle(color: AppTheme.textTertiary),
-                ),
+                const SizedBox(height: 12),
                 TextButton(
-                  onPressed: () => _launchUrl('https://soundcheck.app/privacy'),
-                  child: const Text(
-                    'Privacy Policy',
-                    style: TextStyle(fontSize: 14),
+                  style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                  onPressed: _isRestoring ? null : _onRestore,
+                  child: Text(
+                    _isRestoring ? 'Restoring...' : 'Restore Purchases',
+                  ),
+                ),
+              ] else ...[
+                Icon(
+                  Icons.check_circle,
+                  color: isSyncingPremium
+                      ? AppTheme.textSecondary
+                      : AppTheme.voltLime,
+                  size: 48,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isSyncingPremium
+                      ? 'Waiting for backend confirmation before unlocking server-gated features.'
+                      : 'All Pro features are unlocked',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 14,
                   ),
                 ),
               ],
-            ),
-          ],
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () => _launchUrl('https://soundcheck.app/terms'),
+                    child: const Text(
+                      'Terms of Service',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                  const Text(
+                    ' | ',
+                    style: TextStyle(color: AppTheme.textTertiary),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        _launchUrl('https://soundcheck.app/privacy'),
+                    child: const Text(
+                      'Privacy Policy',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

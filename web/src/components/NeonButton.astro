@@ -1,0 +1,22 @@
+---
+interface Props {
+  href?: string;
+  type?: 'button' | 'submit';
+  class?: string;
+}
+
+const { href, type = 'button', class: className = '' } = Astro.props;
+const classes = `btn-neon ${className}`;
+---
+
+{
+  href ? (
+    <a href={href} class={classes}>
+      <slot />
+    </a>
+  ) : (
+    <button type={type} class={classes}>
+      <slot />
+    </button>
+  )
+}

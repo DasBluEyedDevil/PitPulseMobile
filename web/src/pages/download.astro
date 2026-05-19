@@ -1,0 +1,33 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import GlassPanel from '../components/GlassPanel.astro';
+import StoreButtons from '../components/StoreButtons.astro';
+---
+
+<BaseLayout title="Download" description="Download SoundCheck for iOS and Android.">
+  <article class="mx-auto max-w-container px-5 py-16 md:px-8 md:py-24">
+    <div class="text-center">
+      <img
+        src="/brand/mark.png"
+        alt=""
+        class="mx-auto h-24 w-24 drop-shadow-neon"
+        width="96"
+        height="96"
+      />
+      <h1 class="mt-8 font-display text-4xl font-black text-chrome md:text-5xl">
+        Get <span class="gradient-text">SoundCheck</span>
+      </h1>
+      <p class="mx-auto mt-4 max-w-lg font-body text-lg text-silver">
+        Check in at shows, rate venues and bands, and connect with friends who love live music.
+      </p>
+    </div>
+
+    <GlassPanel class="mx-auto mt-12 max-w-xl text-center">
+      <StoreButtons size="large" class="justify-center" />
+      <p class="mt-6 font-body text-xs text-muted">
+        Store links are placeholders until launch. Android package:
+        <code class="text-silver">com.soundcheck.app</code>
+      </p>
+    </GlassPanel>
+  </article>
+</BaseLayout>

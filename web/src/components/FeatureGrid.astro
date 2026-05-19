@@ -1,0 +1,49 @@
+---
+import GlassPanel from './GlassPanel.astro';
+
+const features = [
+  {
+    icon: 'confirmation_num',
+    title: 'Check In',
+    description:
+      'Check in at nearby shows, share the moment with friends, and build your live music story in real time.',
+  },
+  {
+    icon: 'equalizer',
+    title: 'Build Your Live Resume',
+    description:
+      'Track every show, rating, and badge. Your concert history becomes a living resume of the music you live for.',
+  },
+  {
+    icon: 'explore',
+    title: 'Find the Next Wave',
+    description:
+      'Discover venues, bands, and events on the map. See what friends are attending and never miss the next great show.',
+  },
+];
+---
+
+<section id="features" class="mx-auto max-w-container px-5 py-20 md:px-8 md:py-28">
+  <div class="text-center">
+    <h2 class="font-display text-3xl font-black text-chrome md:text-4xl">
+      Everything you need at the show
+    </h2>
+    <p class="mx-auto mt-4 max-w-2xl font-body text-silver">
+      SoundCheck connects fans, venues, and live moments — from check-in to your year in music.
+    </p>
+  </div>
+
+  <div class="mt-14 grid gap-6 md:grid-cols-3">
+    {
+      features.map((feature) => (
+        <GlassPanel class="flex flex-col">
+          <span class="material-symbols-outlined text-4xl text-cyan">{feature.icon}</span>
+          <h3 class="mt-4 font-display text-xl font-bold text-chrome">{feature.title}</h3>
+          <p class="mt-3 flex-1 font-body text-sm leading-relaxed text-muted">
+            {feature.description}
+          </p>
+        </GlassPanel>
+      ))
+    }
+  </div>
+</section>

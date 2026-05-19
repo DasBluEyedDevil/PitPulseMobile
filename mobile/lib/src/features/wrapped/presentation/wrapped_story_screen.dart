@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/services/analytics_service.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../sharing/services/social_share_service.dart';
 import '../domain/wrapped_stats.dart';
 import 'wrapped_providers.dart';
@@ -145,8 +146,9 @@ class _WrappedStoryScreenState extends ConsumerState<WrappedStoryScreen>
     setState(() => _isSharing = true);
 
     try {
-      final cardUrls =
-          await ref.read(wrappedSummaryCardProvider(widget.year).future);
+      final cardUrls = await ref.read(
+        wrappedSummaryCardProvider(widget.year).future,
+      );
       if (!mounted) return;
 
       await SocialShareService.shareGeneric(
@@ -176,146 +178,151 @@ class _WrappedStoryScreenState extends ConsumerState<WrappedStoryScreen>
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: statsAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppTheme.voltLime),
-        ),
-        error: (error, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                color: AppTheme.error,
-                size: 48,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Failed to load Wrapped',
-                style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () =>
-                    ref.invalidate(wrappedStatsProvider(widget.year)),
-                child: const Text('Retry'),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => context.pop(),
-                child: const Text('Go back'),
-              ),
-            ],
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.profileBackdropAsset,
+        heroOpacity: 0.3,
+        child: statsAsync.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppTheme.voltLime),
           ),
-        ),
-        data: (stats) {
-          if (!stats.meetsThreshold) {
-            return _buildBelowThreshold(stats);
-          }
-
-          final slides = _buildSlides(stats);
-
-          // Start timer on first build
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_timerController.isDismissed &&
-                !_isPaused &&
-                _currentPage < _slideCount - 1) {
-              _startTimer();
-            }
-          });
-
-          return GestureDetector(
-            onTapDown: _onTapDown,
-            onTapUp: _onTapUp,
-            child: Stack(
+          error: (error, _) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Slides
-                PageView.builder(
-                  controller: _pageController,
-                  itemCount: slides.length,
-                  onPageChanged: _onPageChanged,
-                  itemBuilder: (context, index) => slides[index],
+                const Icon(
+                  Icons.error_outline,
+                  color: AppTheme.error,
+                  size: 48,
                 ),
-                // Progress bar
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 8,
-                  left: 16,
-                  right: 16,
-                  child: StoryProgressBar(
-                    slideCount: _slideCount,
-                    currentSlide: _currentPage,
-                    progress: _timerController,
-                  ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Failed to load Wrapped',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
                 ),
-                // Close button
-                Positioned(
-                  top: MediaQuery.of(context).padding.top + 20,
-                  right: 16,
-                  child: GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHigh
-                            .withValues(alpha: 0.7),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        color: AppTheme.textPrimary,
-                        size: 20,
-                      ),
-                    ),
-                  ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () =>
+                      ref.invalidate(wrappedStatsProvider(widget.year)),
+                  child: const Text('Retry'),
                 ),
-                // Bottom actions (on last slide)
-                if (_currentPage == _slideCount - 1)
-                  Positioned(
-                    bottom: MediaQuery.of(context).padding.bottom + 32,
-                    left: 32,
-                    right: 32,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: _isSharing ? null : _onShareTapped,
-                            icon: _isSharing
-                                ? SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Theme.of(context)
-                                          .scaffoldBackgroundColor,
-                                    ),
-                                  )
-                                : const Icon(Icons.share),
-                            label: Text(
-                              _isSharing ? 'Generating...' : 'Share',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton(
-                            onPressed: () => context.push(
-                              '/wrapped/${widget.year}/detail',
-                            ),
-                            child: const Text('View Details'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => context.pop(),
+                  child: const Text('Go back'),
+                ),
               ],
             ),
-          );
-        },
+          ),
+          data: (stats) {
+            if (!stats.meetsThreshold) {
+              return _buildBelowThreshold(stats);
+            }
+
+            final slides = _buildSlides(stats);
+
+            // Start timer on first build
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (_timerController.isDismissed &&
+                  !_isPaused &&
+                  _currentPage < _slideCount - 1) {
+                _startTimer();
+              }
+            });
+
+            return GestureDetector(
+              onTapDown: _onTapDown,
+              onTapUp: _onTapUp,
+              child: Stack(
+                children: [
+                  // Slides
+                  PageView.builder(
+                    controller: _pageController,
+                    itemCount: slides.length,
+                    onPageChanged: _onPageChanged,
+                    itemBuilder: (context, index) => slides[index],
+                  ),
+                  // Progress bar
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 8,
+                    left: 16,
+                    right: 16,
+                    child: StoryProgressBar(
+                      slideCount: _slideCount,
+                      currentSlide: _currentPage,
+                      progress: _timerController,
+                    ),
+                  ),
+                  // Close button
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 20,
+                    right: 16,
+                    child: GestureDetector(
+                      onTap: () => context.pop(),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHigh
+                              .withValues(alpha: 0.7),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: AppTheme.textPrimary,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Bottom actions (on last slide)
+                  if (_currentPage == _slideCount - 1)
+                    Positioned(
+                      bottom: MediaQuery.of(context).padding.bottom + 32,
+                      left: 32,
+                      right: 32,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _isSharing ? null : _onShareTapped,
+                              icon: _isSharing
+                                  ? SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Theme.of(
+                                          context,
+                                        ).scaffoldBackgroundColor,
+                                      ),
+                                    )
+                                  : const Icon(Icons.share),
+                              label: Text(
+                                _isSharing ? 'Generating...' : 'Share',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: () => context.push(
+                                '/wrapped/${widget.year}/detail',
+                              ),
+                              child: const Text('View Details'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -328,11 +335,7 @@ class _WrappedStoryScreenState extends ConsumerState<WrappedStoryScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.music_note,
-                size: 64,
-                color: AppTheme.voltLime,
-              ),
+              const Icon(Icons.music_note, size: 64, color: AppTheme.voltLime),
               const SizedBox(height: 24),
               Text(
                 "You've been to ${stats.totalShows} show${stats.totalShows == 1 ? '' : 's'} this year.",
@@ -346,10 +349,7 @@ class _WrappedStoryScreenState extends ConsumerState<WrappedStoryScreen>
               const SizedBox(height: 12),
               const Text(
                 'Hit 3 shows to unlock your Wrapped!',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),

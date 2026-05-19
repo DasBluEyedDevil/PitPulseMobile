@@ -1,0 +1,37 @@
+---
+interface Props {
+  class?: string;
+}
+
+const { class: className = '' } = Astro.props;
+const bars = [0.4, 0.7, 1, 0.85, 0.55, 0.9, 0.65, 0.75, 0.5, 1, 0.6, 0.8];
+---
+
+<div class={`flex h-8 items-end justify-center gap-1 ${className}`} aria-hidden="true">
+  {
+    bars.map((h, i) => (
+      <span
+        class="eq-bar w-1 rounded-full bg-gradient-to-t from-cyan via-plasma to-magenta"
+        style={`--h: ${h}; animation-delay: ${i * 0.08}s`}
+      />
+    ))
+  }
+</div>
+
+<style>
+  .eq-bar {
+    height: calc(var(--h) * 100%);
+    animation: eq-pulse 1.2s ease-in-out infinite alternate;
+  }
+
+  @keyframes eq-pulse {
+    from {
+      transform: scaleY(0.45);
+      opacity: 0.7;
+    }
+    to {
+      transform: scaleY(1);
+      opacity: 1;
+    }
+  }
+</style>

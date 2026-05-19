@@ -1,0 +1,42 @@
+---
+import NeonButton from './NeonButton.astro';
+
+const navLinks = [
+  { href: '/#features', label: 'Features' },
+  { href: '/support', label: 'Support' },
+  { href: '/download', label: 'Download' },
+];
+---
+
+<header class="nav-glass sticky top-0 z-50">
+  <div class="mx-auto flex max-w-container items-center justify-between gap-4 px-5 py-4 md:px-8">
+    <a href="/" class="flex items-center gap-3">
+      <img src="/brand/mark.png" alt="" class="h-9 w-9 object-contain" width="36" height="36" />
+      <img
+        src="/brand/wordmark.png"
+        alt="SoundCheck"
+        class="hidden h-8 object-contain sm:block"
+        height="32"
+      />
+      <span class="font-display text-lg font-bold text-chrome sm:hidden">SoundCheck</span>
+    </a>
+
+    <nav class="hidden items-center gap-8 md:flex" aria-label="Main">
+      {
+        navLinks.map((link) => (
+          <a
+            href={link.href}
+            class="font-body text-sm font-medium text-silver transition-colors hover:text-cyan"
+          >
+            {link.label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <div class="flex items-center gap-3">
+      <NeonButton href="/download" class="hidden sm:inline-flex">Get the App</NeonButton>
+      <NeonButton href="/download" class="sm:hidden text-sm px-4 py-2">Get App</NeonButton>
+    </div>
+  </div>
+</header>

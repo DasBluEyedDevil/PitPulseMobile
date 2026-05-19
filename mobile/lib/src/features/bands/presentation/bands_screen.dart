@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
 import '../domain/band.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/widgets/band_card.dart';
 import '../../../shared/widgets/band_card_skeleton.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
@@ -12,8 +13,9 @@ import 'band_filters_notifier.dart';
 import 'band_filters_state.dart';
 import 'widgets/band_filters_sheet.dart';
 
-final filteredBandsProvider =
-    FutureProvider.autoDispose<List<Band>>((ref) async {
+final filteredBandsProvider = FutureProvider.autoDispose<List<Band>>((
+  ref,
+) async {
   final repository = ref.watch(bandRepositoryProvider);
   final filters = ref.watch(bandFiltersProvider);
 
@@ -94,6 +96,7 @@ class BandsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
         title: const Text('Bands'),
         actions: [
           Stack(
@@ -139,116 +142,120 @@ class BandsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Quick filter chips
-          if (filters.hasActiveFilters)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacing16,
-                vertical: AppTheme.spacing8,
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    if (filters.genres.isNotEmpty)
-                      ...filters.genres.map(
-                        (genre) => Padding(
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.discoverBackdropAsset,
+        heroOpacity: 0.24,
+        child: Column(
+          children: [
+            // Quick filter chips
+            if (filters.hasActiveFilters)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacing16,
+                  vertical: AppTheme.spacing8,
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      if (filters.genres.isNotEmpty)
+                        ...filters.genres.map(
+                          (genre) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Chip(
+                              label: Text(genre),
+                              deleteIcon: const Icon(Icons.close, size: 16),
+                              onDeleted: () {
+                                ref
+                                    .read(bandFiltersProvider.notifier)
+                                    .toggleGenre(genre);
+                              },
+                            ),
+                          ),
+                        ),
+                      if (filters.minRating != null)
+                        Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: Chip(
-                            label: Text(genre),
+                            label: Text(
+                              '${filters.minRating!.toStringAsFixed(1)}+ stars',
+                            ),
                             deleteIcon: const Icon(Icons.close, size: 16),
                             onDeleted: () {
                               ref
                                   .read(bandFiltersProvider.notifier)
-                                  .toggleGenre(genre);
+                                  .setMinRating(null);
                             },
                           ),
                         ),
-                      ),
-                    if (filters.minRating != null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Chip(
-                          label: Text(
-                            '${filters.minRating!.toStringAsFixed(1)}+ stars',
+                      if (filters.hometowns.isNotEmpty)
+                        ...filters.hometowns.map(
+                          (hometown) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Chip(
+                              label: Text(hometown),
+                              deleteIcon: const Icon(Icons.close, size: 16),
+                              onDeleted: () {
+                                ref
+                                    .read(bandFiltersProvider.notifier)
+                                    .toggleHometown(hometown);
+                              },
+                            ),
                           ),
-                          deleteIcon: const Icon(Icons.close, size: 16),
-                          onDeleted: () {
-                            ref
-                                .read(bandFiltersProvider.notifier)
-                                .setMinRating(null);
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            Expanded(
+              child: bandsAsync.when(
+                data: (bands) => RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(filteredBandsProvider);
+                  },
+                  child: bands.isEmpty
+                      ? filters.hasActiveFilters
+                            ? EmptyStateWidget(
+                                type: EmptyStateType.noSearchResults,
+                                customTitle: 'No Bands Found',
+                                customMessage:
+                                    'No bands match your current filters. Try adjusting your filter criteria.',
+                                actionLabel: 'Clear Filters',
+                                onAction: () => ref
+                                    .read(bandFiltersProvider.notifier)
+                                    .clearAll(),
+                              )
+                            : EmptyStateWidget(
+                                type: EmptyStateType.noBands,
+                                onAction: () =>
+                                    ref.invalidate(filteredBandsProvider),
+                              )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(AppTheme.spacing16),
+                          itemCount: bands.length,
+                          itemBuilder: (context, index) {
+                            return BandCard(
+                              band: bands[index],
+                              onTap: () =>
+                                  context.push('/bands/${bands[index].id}'),
+                            );
                           },
                         ),
-                      ),
-                    if (filters.hometowns.isNotEmpty)
-                      ...filters.hometowns.map(
-                        (hometown) => Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Chip(
-                            label: Text(hometown),
-                            deleteIcon: const Icon(Icons.close, size: 16),
-                            onDeleted: () {
-                              ref
-                                  .read(bandFiltersProvider.notifier)
-                                  .toggleHometown(hometown);
-                            },
-                          ),
-                        ),
-                      ),
-                  ],
+                ),
+                loading: () => ListView.builder(
+                  padding: const EdgeInsets.all(AppTheme.spacing16),
+                  itemCount: 5,
+                  itemBuilder: (context, index) => const BandCardSkeleton(),
+                ),
+                error: (error, stackTrace) => ErrorStateWidget(
+                  error: error,
+                  stackTrace: stackTrace,
+                  onRetry: () => ref.invalidate(filteredBandsProvider),
                 ),
               ),
             ),
-          Expanded(
-            child: bandsAsync.when(
-              data: (bands) => RefreshIndicator(
-                onRefresh: () async {
-                  ref.invalidate(filteredBandsProvider);
-                },
-                child: bands.isEmpty
-                    ? filters.hasActiveFilters
-                        ? EmptyStateWidget(
-                            type: EmptyStateType.noSearchResults,
-                            customTitle: 'No Bands Found',
-                            customMessage:
-                                'No bands match your current filters. Try adjusting your filter criteria.',
-                            actionLabel: 'Clear Filters',
-                            onAction: () => ref
-                                .read(bandFiltersProvider.notifier)
-                                .clearAll(),
-                          )
-                        : EmptyStateWidget(
-                            type: EmptyStateType.noBands,
-                            onAction: () =>
-                                ref.invalidate(filteredBandsProvider),
-                          )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(AppTheme.spacing16),
-                        itemCount: bands.length,
-                        itemBuilder: (context, index) {
-                          return BandCard(
-                            band: bands[index],
-                            onTap: () =>
-                                context.push('/bands/${bands[index].id}'),
-                          );
-                        },
-                      ),
-              ),
-              loading: () => ListView.builder(
-                padding: const EdgeInsets.all(AppTheme.spacing16),
-                itemCount: 5,
-                itemBuilder: (context, index) => const BandCardSkeleton(),
-              ),
-              error: (error, stackTrace) => ErrorStateWidget(
-                error: error,
-                stackTrace: stackTrace,
-                onRetry: () => ref.invalidate(filteredBandsProvider),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -6,18 +6,18 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
 import '../../../shared/utils/date_formatter.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../checkins/domain/checkin.dart';
 import '../domain/band.dart';
 import 'providers/band_providers.dart';
 
-final bandDetailProvider =
-    FutureProvider.autoDispose.family<Band, String>((ref, id) async {
+final bandDetailProvider = FutureProvider.autoDispose.family<Band, String>((
+  ref,
+  id,
+) async {
   final repository = ref.watch(bandRepositoryProvider);
   final result = await repository.getBandById(id);
-  return result.fold(
-    (failure) => throw failure,
-    (band) => band,
-  );
+  return result.fold((failure) => throw failure, (band) => band);
 });
 
 /// Band Detail Screen - The "Beer Page" Model
@@ -25,10 +25,7 @@ final bandDetailProvider =
 class BandDetailScreen extends ConsumerStatefulWidget {
   final String bandId;
 
-  const BandDetailScreen({
-    required this.bandId,
-    super.key,
-  });
+  const BandDetailScreen({required this.bandId, super.key});
 
   @override
   ConsumerState<BandDetailScreen> createState() => _BandDetailScreenState();
@@ -67,12 +64,16 @@ class _BandDetailScreenState extends ConsumerState<BandDetailScreen>
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: bandAsync.when(
-        data: (band) => _buildContent(context, band),
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppTheme.voltLime),
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.discoverBackdropAsset,
+        heroOpacity: 0.24,
+        child: bandAsync.when(
+          data: (band) => _buildContent(context, band),
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppTheme.voltLime),
+          ),
+          error: (error, _) => _buildErrorState(context),
         ),
-        error: (error, _) => _buildErrorState(context),
       ),
     );
   }
@@ -85,7 +86,7 @@ class _BandDetailScreenState extends ConsumerState<BandDetailScreen>
           SliverAppBar(
             expandedHeight: 180,
             pinned: true,
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+            backgroundColor: Colors.transparent,
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -107,9 +108,9 @@ class _BandDetailScreenState extends ConsumerState<BandDetailScreen>
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Theme.of(context)
-                              .scaffoldBackgroundColor
-                              .withValues(alpha: 0.9),
+                          Theme.of(
+                            context,
+                          ).scaffoldBackgroundColor.withValues(alpha: 0.9),
                         ],
                       ),
                     ),
@@ -120,14 +121,10 @@ class _BandDetailScreenState extends ConsumerState<BandDetailScreen>
           ),
 
           // Band Header
-          SliverToBoxAdapter(
-            child: _BandHeader(band: band),
-          ),
+          SliverToBoxAdapter(child: _BandHeader(band: band)),
 
           // Stats Row -- uses aggregate if available, falls back to legacy
-          SliverToBoxAdapter(
-            child: _StatsRow(band: band),
-          ),
+          SliverToBoxAdapter(child: _StatsRow(band: band)),
 
           // Action Bar
           SliverToBoxAdapter(
@@ -195,9 +192,7 @@ class _BandDetailScreenState extends ConsumerState<BandDetailScreen>
             ),
 
           // Upcoming Shows section (Phase 7)
-          SliverToBoxAdapter(
-            child: _UpcomingShowsSection(band: band),
-          ),
+          SliverToBoxAdapter(child: _UpcomingShowsSection(band: band)),
 
           // Description (collapsible)
           if (band.description != null && band.description!.isNotEmpty)
@@ -210,9 +205,7 @@ class _BandDetailScreenState extends ConsumerState<BandDetailScreen>
               band.instagramUrl != null ||
               band.facebookUrl != null ||
               band.websiteUrl != null)
-            SliverToBoxAdapter(
-              child: _SocialLinksSection(band: band),
-            ),
+            SliverToBoxAdapter(child: _SocialLinksSection(band: band)),
 
           // Tabs
           SliverPersistentHeader(
@@ -238,9 +231,7 @@ class _BandDetailScreenState extends ConsumerState<BandDetailScreen>
 
   Widget _buildGradientBg() {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: AppTheme.primaryGradient,
-      ),
+      decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
     );
   }
 
@@ -391,8 +382,9 @@ class _StatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     // Use aggregate data if available; fall back to legacy averageRating
     final aggregateRating = band.aggregate?.avgPerformanceRating ?? 0;
-    final displayRating =
-        aggregateRating > 0 ? aggregateRating : band.averageRating;
+    final displayRating = aggregateRating > 0
+        ? aggregateRating
+        : band.averageRating;
     final ratingLabel = aggregateRating > 0 ? 'Live Performance' : 'Rating';
     final fans = band.aggregate?.uniqueFans ?? band.uniqueFans;
     final ratings = band.aggregate?.totalRatings ?? 0;
@@ -412,16 +404,10 @@ class _StatsRow extends StatelessWidget {
             label: 'Check-ins',
           ),
           _StatDivider(),
-          _StatItem(
-            value: _formatNumber(fans),
-            label: 'Fans',
-          ),
+          _StatItem(value: _formatNumber(fans), label: 'Fans'),
           _StatDivider(),
           if (ratings > 0) ...[
-            _StatItem(
-              value: _formatNumber(ratings),
-              label: 'Ratings',
-            ),
+            _StatItem(value: _formatNumber(ratings), label: 'Ratings'),
             _StatDivider(),
           ],
           _StatItem(
@@ -466,11 +452,7 @@ class _StatItem extends StatelessWidget {
             if (isRating)
               const Padding(
                 padding: EdgeInsets.only(right: 4),
-                child: Icon(
-                  Icons.star,
-                  size: 16,
-                  color: AppTheme.toastGold,
-                ),
+                child: Icon(Icons.star, size: 16, color: AppTheme.toastGold),
               ),
             Text(
               value,
@@ -485,10 +467,7 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 13,
-            color: AppTheme.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
         ),
       ],
     );
@@ -530,10 +509,7 @@ class _UpcomingShowsSection extends StatelessWidget {
               SizedBox(width: 12),
               Text(
                 'No upcoming shows',
-                style: TextStyle(
-                  color: AppTheme.textTertiary,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: AppTheme.textTertiary, fontSize: 14),
               ),
             ],
           ),
@@ -567,9 +543,10 @@ class _UpcomingShowItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final venueName = show.venue?.name ?? 'Unknown Venue';
-    final venueLocation = [show.venue?.city, show.venue?.state]
-        .where((s) => s != null && s.isNotEmpty)
-        .join(', ');
+    final venueLocation = [
+      show.venue?.city,
+      show.venue?.state,
+    ].where((s) => s != null && s.isNotEmpty).join(', ');
     final eventDate = show.eventDate ?? '';
 
     // Parse date for display
@@ -760,16 +737,15 @@ class _ActionBar extends StatelessWidget {
                 isOnWishlist ? Icons.bookmark : Icons.bookmark_border,
                 size: 20,
               ),
-              label: const Text(
-                'Wishlist',
-                style: TextStyle(fontSize: 12),
-              ),
+              label: const Text('Wishlist', style: TextStyle(fontSize: 12)),
               style: OutlinedButton.styleFrom(
-                foregroundColor:
-                    isOnWishlist ? AppTheme.voltLime : AppTheme.textSecondary,
+                foregroundColor: isOnWishlist
+                    ? AppTheme.voltLime
+                    : AppTheme.textSecondary,
                 side: BorderSide(
-                  color:
-                      isOnWishlist ? AppTheme.voltLime : AppTheme.textTertiary,
+                  color: isOnWishlist
+                      ? AppTheme.voltLime
+                      : AppTheme.textTertiary,
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -1041,11 +1017,7 @@ class _GlobalActivityTab extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
-                size: 48,
-                color: AppTheme.error,
-              ),
+              const Icon(Icons.error_outline, size: 48, color: AppTheme.error),
               const SizedBox(height: 16),
               const Text(
                 'Could not load activity',
@@ -1137,11 +1109,7 @@ class _YourActivityTab extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
-                size: 48,
-                color: AppTheme.error,
-              ),
+              const Icon(Icons.error_outline, size: 48, color: AppTheme.error),
               const SizedBox(height: 16),
               const Text(
                 'Could not load your activity',

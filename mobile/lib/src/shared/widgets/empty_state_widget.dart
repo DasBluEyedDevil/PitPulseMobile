@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import 'brand_widgets.dart';
 
 /// Type of empty state to display
 enum EmptyStateType {
@@ -35,56 +36,11 @@ class EmptyStateWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final config = _getConfig();
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacing32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Illustration
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacing32),
-              decoration: BoxDecoration(
-                color: config.color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                config.icon,
-                size: 80,
-                color: config.color,
-              ),
-            ),
-            const SizedBox(height: AppTheme.spacing24),
-
-            // Title
-            Text(
-              customTitle ?? config.title,
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppTheme.spacing12),
-
-            // Message
-            Text(
-              customMessage ?? config.message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-
-            // Action Button (if provided)
-            if (onAction != null) ...[
-              const SizedBox(height: AppTheme.spacing24),
-              ElevatedButton.icon(
-                onPressed: onAction,
-                icon: Icon(config.actionIcon),
-                label: Text(actionLabel ?? config.actionLabel),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return FlashEmptyState(
+      title: customTitle ?? config.title,
+      message: customMessage ?? config.message,
+      actionLabel: onAction == null ? null : actionLabel ?? config.actionLabel,
+      onAction: onAction,
     );
   }
 

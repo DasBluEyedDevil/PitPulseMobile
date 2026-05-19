@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/services/location_service.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../domain/nearby_event.dart';
 import '../domain/checkin.dart';
 import 'providers/checkin_providers.dart';
@@ -201,24 +202,28 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.close),
           tooltip: 'Close',
           onPressed: () => context.pop(),
         ),
-        title: const Text(
-          'Check In',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: const BrandLogoImage(
+          height: 36,
+          semanticLabel: 'SoundCheck check-in',
         ),
         centerTitle: true,
       ),
-      body: switch (_screenState) {
-        _ScreenState.events => _buildEventList(),
-        _ScreenState.success => _buildSuccessState(),
-        _ScreenState.manual =>
-          _isSearchingBand ? _buildBandSearch() : _buildCheckInForm(),
-      },
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.checkInBackdropAsset,
+        heroOpacity: 0.54,
+        child: switch (_screenState) {
+          _ScreenState.events => _buildEventList(),
+          _ScreenState.success => _buildSuccessState(),
+          _ScreenState.manual =>
+            _isSearchingBand ? _buildBandSearch() : _buildCheckInForm(),
+        },
+      ),
     );
   }
 
@@ -318,122 +323,96 @@ class _CheckInScreenState extends ConsumerState<CheckInScreen> {
   }
 
   Widget _buildNoEventsState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.location_off,
-              size: 64,
-              color: AppTheme.textTertiary.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No shows near you right now',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Try checking in manually or make sure location services are enabled.',
-              style: TextStyle(color: AppTheme.textTertiary, fontSize: 14),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () async {
-                try {
-                  // First check if location services are enabled at all
-                  final serviceEnabled =
-                      await LocationService.isLocationServiceEnabled();
-                  if (!serviceEnabled) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Location services are disabled. Please enable GPS in your device settings.',
-                          ),
-                        ),
-                      );
-                      await LocationService.openLocationSettings();
-                    }
-                    return;
-                  }
-
-                  // Check current permission
-                  final currentPerm = await LocationService.checkPermission();
-                  if (currentPerm == LocationPermission.deniedForever) {
-                    // Must open app settings — Android won't show dialog again
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Opening app settings — please enable Location permission.',
-                          ),
-                        ),
-                      );
-                    }
-                    await LocationService.openAppSettings();
-                    // After returning from settings, re-check
-                    if (mounted) {
-                      final newPerm = await LocationService.checkPermission();
-                      if (LocationService.hasPermission(newPerm)) {
-                        ref.invalidate(nearbyEventsProvider);
-                      }
-                    }
-                    return;
-                  }
-
-                  final perm = await LocationService.requestPermission();
-                  if (LocationService.hasPermission(perm) && mounted) {
-                    ref.invalidate(nearbyEventsProvider);
-                  } else if (perm == LocationPermission.deniedForever &&
-                      mounted) {
+    return Column(
+      children: [
+        Expanded(
+          child: FlashEmptyState(
+            title: 'No shows near you right now',
+            message:
+                'Try checking in manually or make sure location services are enabled.',
+            actionLabel: 'Grant location access',
+            onAction: () async {
+              try {
+                // First check if location services are enabled at all
+                final serviceEnabled =
+                    await LocationService.isLocationServiceEnabled();
+                if (!serviceEnabled) {
+                  if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
-                          'Location permission denied. Please enable it in app settings.',
+                          'Location services are disabled. Please enable GPS in your device settings.',
+                        ),
+                      ),
+                    );
+                    await LocationService.openLocationSettings();
+                  }
+                  return;
+                }
+
+                // Check current permission
+                final currentPerm = await LocationService.checkPermission();
+                if (currentPerm == LocationPermission.deniedForever) {
+                  // Must open app settings — Android won't show dialog again
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Opening app settings — please enable Location permission.',
                         ),
                       ),
                     );
                   }
-                } catch (e) {
+                  await LocationService.openAppSettings();
+                  // After returning from settings, re-check
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Location error: $e')),
-                    );
+                    final newPerm = await LocationService.checkPermission();
+                    if (LocationService.hasPermission(newPerm)) {
+                      ref.invalidate(nearbyEventsProvider);
+                    }
                   }
+                  return;
                 }
-              },
-              icon: const Icon(Icons.my_location),
-              label: const Text('Grant location access'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.voltLime,
-                foregroundColor: Theme.of(context).scaffoldBackgroundColor,
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
+
+                final perm = await LocationService.requestPermission();
+                if (LocationService.hasPermission(perm) && mounted) {
+                  ref.invalidate(nearbyEventsProvider);
+                } else if (perm == LocationPermission.deniedForever &&
+                    mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Location permission denied. Please enable it in app settings.',
+                      ),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Location error: $e')));
+                }
+              }
+            },
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: TextButton(
               onPressed: () {
                 setState(() {
                   _screenState = _ScreenState.manual;
                   _isSearchingBand = true;
                 });
               },
-              child: const Text(
-                'Check in manually',
-                style: TextStyle(color: AppTheme.voltLime),
-              ),
+              child: const Text('Check in manually'),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -1617,41 +1596,25 @@ class _EventCard extends StatelessWidget {
             ),
             button: true,
             enabled: !isCheckingIn,
-            child: SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton(
-                onPressed: isCheckingIn ? null : onCheckIn,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.voltLime,
-                  disabledBackgroundColor: AppTheme.voltLime.withValues(
-                    alpha: 0.5,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
-                child: isCheckingIn
-                    ? SizedBox(
+            child: isCheckingIn
+                ? const NeonGlassPanel(
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    child: Center(
+                      child: SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                          color: Theme.of(context).scaffoldBackgroundColor,
+                          color: AppTheme.neonCyan,
                           strokeWidth: 2,
                         ),
-                      )
-                    : Text(
-                        'CHECK IN',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).scaffoldBackgroundColor,
-                          letterSpacing: 0.5,
-                        ),
                       ),
-              ),
-            ),
+                    ),
+                  )
+                : NeonGradientButton(
+                    onPressed: onCheckIn,
+                    label: 'Check In',
+                    icon: Icons.check_circle_outline,
+                  ),
           ),
         ],
       ),

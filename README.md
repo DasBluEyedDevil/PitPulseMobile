@@ -27,6 +27,10 @@ SoundCheckMobile/
 │   ├── test/       # Unit and widget tests
 │   └── README.md   # Mobile app-specific documentation
 │
+├── web/             # Astro static marketing, support, and legal website
+│   ├── src/        # Pages, components, layouts, and styles
+│   └── public/     # Brand assets and static files
+│
 └── README.md       # This file
 ```
 
@@ -46,6 +50,11 @@ SoundCheckMobile/
 - **Networking:** Dio
 - **Data Models:** Freezed & JSON serializable
 - **Secure Storage:** flutter_secure_storage
+
+### Website
+- **Framework:** Astro (static output)
+- **Styling:** Tailwind CSS (glass-neon theme aligned with the mobile app)
+- **Content:** Marketing/support pages; privacy and terms synced from repo root markdown at build time
 
 ## 📋 Getting Started
 
@@ -92,12 +101,24 @@ SoundCheckMobile/
    
    See [mobile/README.md](mobile/README.md) for detailed mobile app setup instructions.
 
+4. **Run the website:**
+   ```bash
+   npm install --prefix web
+   npm run dev:web
+   ```
+
+   To verify a production build:
+   ```bash
+   npm run build:web
+   ```
+
 ## 📚 Documentation
 
 - **[AGENTS.md](AGENTS.md)** - Short agent entrypoint and repository map
 - **[docs/agent/README.md](docs/agent/README.md)** - Agent-first knowledge base index
 - **[backend/README.md](backend/README.md)** - Backend API setup and documentation
 - **[mobile/README.md](mobile/README.md)** - Mobile app setup and documentation
+- **[web/](web/)** - Website source
 - **[backend/DEPLOYMENT.md](backend/DEPLOYMENT.md)** - Backend deployment notes
 - **[PRIVACY_POLICY.md](PRIVACY_POLICY.md)** - Privacy policy
 

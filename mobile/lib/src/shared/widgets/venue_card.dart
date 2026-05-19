@@ -3,22 +3,21 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/venues/domain/venue.dart';
 import '../utils/haptic_feedback.dart';
+import 'brand_widgets.dart';
 import 'star_rating.dart';
 
 class VenueCard extends StatelessWidget {
   final Venue venue;
   final VoidCallback? onTap;
 
-  const VenueCard({
-    required this.venue,
-    super.key,
-    this.onTap,
-  });
+  const VenueCard({required this.venue, super.key, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final location =
-        [venue.city, venue.state].where((e) => e != null).join(', ');
+    final location = [
+      venue.city,
+      venue.state,
+    ].where((e) => e != null).join(', ');
 
     return Semantics(
       button: true,
@@ -27,9 +26,12 @@ class VenueCard extends StatelessWidget {
           'Venue: ${venue.name}${location.isNotEmpty ? ', located in $location' : ''}, ${venue.averageRating.toStringAsFixed(1)} star rating',
       child: Card(
         elevation: 4,
-        shadowColor: Colors.black.withValues(alpha: 0.2),
+        shadowColor: AppTheme.neonCyan.withValues(alpha: 0.18),
         clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: AppTheme.neonMagenta.withValues(alpha: 0.16)),
+        ),
         child: InkWell(
           onTap: onTap != null
               ? () async {
@@ -158,15 +160,11 @@ class VenueCard extends StatelessWidget {
   }
 
   Widget _buildPlaceholder(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: const Center(
-        child: Icon(
-          Icons.location_city,
-          size: 48,
-          color: AppTheme.textSecondary,
-        ),
-      ),
+    return const BrandImagePlaceholder(
+      height: 200,
+      asset: AppTheme.cardCyanAsset,
+      icon: Icons.location_city,
+      borderRadius: BorderRadius.zero,
     );
   }
 }

@@ -6,6 +6,7 @@ import 'dart:io';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/error/failures.dart';
 import '../../../core/providers/providers.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -63,9 +64,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error picking image: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
       }
     }
   }
@@ -102,14 +103,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       final authRepository = ref.read(authRepositoryProvider);
 
       if (_selectedImage != null) {
-        final upRes =
-            await profileRepository.uploadProfileImage(_selectedImage!.path);
+        final upRes = await profileRepository.uploadProfileImage(
+          _selectedImage!.path,
+        );
         final stop = upRes.fold(
           (Failure f) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(f.message)),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(f.message)));
             }
             return true;
           },
@@ -124,17 +126,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       }
 
       final upd = await authRepository.updateProfile(updates);
-      final failed = upd.fold(
-        (Failure f) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(f.message)),
-            );
-          }
-          return true;
-        },
-        (_) => false,
-      );
+      final failed = upd.fold((Failure f) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(f.message)));
+        }
+        return true;
+      }, (_) => false);
       if (failed) {
         return;
       }
@@ -162,9 +161,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         } else {
           message = 'Could not update profile. Please try again.';
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     } finally {
       if (mounted) {
@@ -181,6 +180,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
         title: const Text('Edit Profile'),
         actions: [
           if (_isLoading)
@@ -202,160 +202,167 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppTheme.spacing16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              // Profile Image Section
-              Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundColor: AppTheme.primary,
-                      backgroundImage: _selectedImage != null
-                          ? FileImage(_selectedImage!)
-                          : (user?.profileImageUrl != null
-                              ? NetworkImage(user!.profileImageUrl!)
-                              : null) as ImageProvider?,
-                      child: _selectedImage == null &&
-                              user?.profileImageUrl == null
-                          ? Text(
-                              user?.username[0].toUpperCase() ?? 'U',
-                              style: const TextStyle(
-                                fontSize: 40,
-                                color: Colors.white,
-                              ),
-                            )
-                          : null,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: CircleAvatar(
-                        radius: 20,
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.profileBackdropAsset,
+        heroOpacity: 0.24,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppTheme.spacing16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                // Profile Image Section
+                Center(
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 60,
                         backgroundColor: AppTheme.primary,
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.camera_alt,
-                            size: 20,
-                            color: Colors.white,
+                        backgroundImage: _selectedImage != null
+                            ? FileImage(_selectedImage!)
+                            : (user?.profileImageUrl != null
+                                      ? NetworkImage(user!.profileImageUrl!)
+                                      : null)
+                                  as ImageProvider?,
+                        child:
+                            _selectedImage == null &&
+                                user?.profileImageUrl == null
+                            ? Text(
+                                user?.username[0].toUpperCase() ?? 'U',
+                                style: const TextStyle(
+                                  fontSize: 40,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : null,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: CircleAvatar(
+                          radius: 20,
+                          backgroundColor: AppTheme.primary,
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.camera_alt,
+                              size: 20,
+                              color: Colors.white,
+                            ),
+                            tooltip: 'Change Photo',
+                            onPressed: _pickImage,
                           ),
-                          tooltip: 'Change Photo',
-                          onPressed: _pickImage,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacing32),
-
-              // Username Field
-              TextFormField(
-                controller: _usernameController,
-                decoration: const InputDecoration(
-                  labelText: 'Username',
-                  prefixIcon: Icon(Icons.person),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a username';
-                  }
-                  if (value.length < 3) {
-                    return 'Username must be at least 3 characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: AppTheme.spacing16),
-
-              // First Name Field
-              TextFormField(
-                controller: _firstNameController,
-                decoration: const InputDecoration(
-                  labelText: 'First Name',
-                  prefixIcon: Icon(Icons.badge),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacing16),
-
-              // Last Name Field
-              TextFormField(
-                controller: _lastNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Last Name',
-                  prefixIcon: Icon(Icons.badge_outlined),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacing16),
-
-              // Email Field
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter an email';
-                  }
-                  final emailRegex =
-                      RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                  if (!emailRegex.hasMatch(value)) {
-                    return 'Please enter a valid email';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: AppTheme.spacing16),
-
-              // Bio Field
-              TextFormField(
-                controller: _bioController,
-                decoration: const InputDecoration(
-                  labelText: 'Bio',
-                  prefixIcon: Icon(Icons.description),
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 4,
-                maxLength: 200,
-                validator: (value) {
-                  if (value != null && value.length > 200) {
-                    return 'Bio must be 200 characters or less';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: AppTheme.spacing24),
-
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveProfile,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    ],
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Save Changes'),
                 ),
-              ),
-            ],
+                const SizedBox(height: AppTheme.spacing32),
+
+                // Username Field
+                TextFormField(
+                  controller: _usernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Username',
+                    prefixIcon: Icon(Icons.person),
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a username';
+                    }
+                    if (value.length < 3) {
+                      return 'Username must be at least 3 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppTheme.spacing16),
+
+                // First Name Field
+                TextFormField(
+                  controller: _firstNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'First Name',
+                    prefixIcon: Icon(Icons.badge),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacing16),
+
+                // Last Name Field
+                TextFormField(
+                  controller: _lastNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Last Name',
+                    prefixIcon: Icon(Icons.badge_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacing16),
+
+                // Email Field
+                TextFormField(
+                  controller: _emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email),
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter an email';
+                    }
+                    final emailRegex = RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    );
+                    if (!emailRegex.hasMatch(value)) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppTheme.spacing16),
+
+                // Bio Field
+                TextFormField(
+                  controller: _bioController,
+                  decoration: const InputDecoration(
+                    labelText: 'Bio',
+                    prefixIcon: Icon(Icons.description),
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
+                  ),
+                  maxLines: 4,
+                  maxLength: 200,
+                  validator: (value) {
+                    if (value != null && value.length > 200) {
+                      return 'Bio must be 200 characters or less';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppTheme.spacing24),
+
+                // Save Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Save Changes'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

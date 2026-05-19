@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../reporting/presentation/widgets/report_bottom_sheet.dart';
 import '../domain/checkin.dart';
 import '../domain/checkin_comment.dart';
@@ -172,7 +173,7 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
         title: const Text('Check-in'),
         actions: [
           checkinAsync.maybeWhen(
@@ -223,112 +224,116 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
           ),
         ],
       ),
-      body: checkinAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppTheme.voltLime),
-        ),
-        error: (error, _) => _buildErrorState(context),
-        data: (checkIn) => Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // User Header
-                    _UserHeader(
-                      checkIn: checkIn,
-                      timeAgo: _getTimeAgo(checkIn.createdAt),
-                      onUserTap: () {
-                        if (checkIn.userId.isNotEmpty) {
-                          context.push('/users/${checkIn.userId}');
-                        }
-                      },
-                    ),
-
-                    // Event Info Section
-                    _EventInfoSection(
-                      checkIn: checkIn,
-                      formattedDate: _formatEventDate(checkIn.eventDate),
-                      onBandTap: () {
-                        if (checkIn.bandId != null) {
-                          context.push('/bands/${checkIn.bandId}');
-                        }
-                      },
-                      onVenueTap: () {
-                        if (checkIn.venueId != null) {
-                          context.push('/venues/${checkIn.venueId}');
-                        }
-                      },
-                    ),
-
-                    // Ratings Section
-                    if (checkIn.bandRating != null ||
-                        checkIn.venueRating != null)
-                      _RatingsSection(checkIn: checkIn),
-
-                    // Notes
-                    if (checkIn.noteText != null &&
-                        checkIn.noteText!.isNotEmpty)
-                      _NotesSection(noteText: checkIn.noteText!),
-
-                    // Vibe Tags
-                    if (checkIn.vibeTags != null &&
-                        checkIn.vibeTags!.isNotEmpty)
-                      _VibeTagsSection(
-                        vibeTags: checkIn.vibeTags!,
-                        getVibeIcon: _getVibeIcon,
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.checkInBackdropAsset,
+        heroOpacity: 0.28,
+        child: checkinAsync.when(
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppTheme.voltLime),
+          ),
+          error: (error, _) => _buildErrorState(context),
+          data: (checkIn) => Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // User Header
+                      _UserHeader(
+                        checkIn: checkIn,
+                        timeAgo: _getTimeAgo(checkIn.createdAt),
+                        onUserTap: () {
+                          if (checkIn.userId.isNotEmpty) {
+                            context.push('/users/${checkIn.userId}');
+                          }
+                        },
                       ),
 
-                    // Photos Carousel
-                    if (checkIn.imageUrls != null &&
-                        checkIn.imageUrls!.isNotEmpty)
-                      _PhotosCarousel(
-                        imageUrls: checkIn.imageUrls!,
+                      // Event Info Section
+                      _EventInfoSection(
+                        checkIn: checkIn,
+                        formattedDate: _formatEventDate(checkIn.eventDate),
+                        onBandTap: () {
+                          if (checkIn.bandId != null) {
+                            context.push('/bands/${checkIn.bandId}');
+                          }
+                        },
+                        onVenueTap: () {
+                          if (checkIn.venueId != null) {
+                            context.push('/venues/${checkIn.venueId}');
+                          }
+                        },
+                      ),
+
+                      // Ratings Section
+                      if (checkIn.bandRating != null ||
+                          checkIn.venueRating != null)
+                        _RatingsSection(checkIn: checkIn),
+
+                      // Notes
+                      if (checkIn.noteText != null &&
+                          checkIn.noteText!.isNotEmpty)
+                        _NotesSection(noteText: checkIn.noteText!),
+
+                      // Vibe Tags
+                      if (checkIn.vibeTags != null &&
+                          checkIn.vibeTags!.isNotEmpty)
+                        _VibeTagsSection(
+                          vibeTags: checkIn.vibeTags!,
+                          getVibeIcon: _getVibeIcon,
+                        ),
+
+                      // Photos Carousel
+                      if (checkIn.imageUrls != null &&
+                          checkIn.imageUrls!.isNotEmpty)
+                        _PhotosCarousel(
+                          imageUrls: checkIn.imageUrls!,
+                          checkinId: widget.checkinId,
+                          currentUserId: ref.watch(authStateProvider).value?.id,
+                          checkinUserId: checkIn.userId,
+                        ),
+
+                      // Action Bar
+                      _ActionBar(
+                        checkIn: checkIn,
+                        onToast: () => _handleToast(checkIn),
+                        onShare: () => _handleShare(checkIn),
+                      ),
+
+                      // Divider
+                      Divider(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        height: 1,
+                      ),
+
+                      // Comments Section
+                      _CommentsSection(
+                        commentsAsync: commentsAsync,
                         checkinId: widget.checkinId,
+                        getTimeAgo: _getTimeAgo,
+                        onUserTap: (userId) => context.push('/users/$userId'),
                         currentUserId: ref.watch(authStateProvider).value?.id,
-                        checkinUserId: checkIn.userId,
                       ),
 
-                    // Action Bar
-                    _ActionBar(
-                      checkIn: checkIn,
-                      onToast: () => _handleToast(checkIn),
-                      onShare: () => _handleShare(checkIn),
-                    ),
-
-                    // Divider
-                    Divider(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainerHighest,
-                      height: 1,
-                    ),
-
-                    // Comments Section
-                    _CommentsSection(
-                      commentsAsync: commentsAsync,
-                      checkinId: widget.checkinId,
-                      getTimeAgo: _getTimeAgo,
-                      onUserTap: (userId) => context.push('/users/$userId'),
-                      currentUserId: ref.watch(authStateProvider).value?.id,
-                    ),
-
-                    // Bottom padding for comment input
-                    const SizedBox(height: 80),
-                  ],
+                      // Bottom padding for comment input
+                      const SizedBox(height: 80),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            // Comment Input
-            _CommentInput(
-              controller: _commentController,
-              onSubmit: _handleSubmitComment,
-              isLoading: ref.watch(addCommentProvider).isLoading,
-            ),
-          ],
+              // Comment Input
+              _CommentInput(
+                controller: _commentController,
+                onSubmit: _handleSubmitComment,
+                isLoading: ref.watch(addCommentProvider).isLoading,
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -9,15 +9,14 @@ class VenueCardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark
-        ? Theme.of(context).colorScheme.surfaceContainerHighest
-        : Colors.grey[300]!;
+    final baseColor = isDark ? AppTheme.graphiteHigh : Colors.grey[300]!;
     final highlightColor = isDark
-        ? Theme.of(context).colorScheme.surfaceContainerHigh
+        ? AppTheme.neonCyan.withValues(alpha: 0.18)
         : Colors.grey[100]!;
-    final shapeColor =
-        isDark ? Theme.of(context).colorScheme.surface : Colors.white;
-    final iconColor = isDark ? AppTheme.textMuted : Colors.grey[300];
+    final shapeColor = isDark
+        ? AppTheme.brushedSilver.withValues(alpha: 0.16)
+        : Colors.white;
+    final iconColor = isDark ? AppTheme.neonCyan : Colors.grey[300];
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -82,11 +81,7 @@ class VenueCardSkeleton extends StatelessWidget {
                           5,
                           (index) => Padding(
                             padding: const EdgeInsets.only(right: 2),
-                            child: Icon(
-                              Icons.star,
-                              size: 16,
-                              color: iconColor,
-                            ),
+                            child: Icon(Icons.star, size: 16, color: iconColor),
                           ),
                         ),
                       ),
