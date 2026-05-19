@@ -9,9 +9,10 @@ const { size = 'default', class: className = '' } = Astro.props;
 const playUrl = 'https://play.google.com/store/apps/details?id=com.soundcheck.app';
 const appStoreUrl = 'https://apps.apple.com/app/soundcheck/id000000000';
 
-const badgeHeight = size === 'large' ? 'h-12' : 'h-10';
-const badgeLinkClass = `inline-flex shrink-0 items-center ${badgeHeight} transition opacity-90 hover:opacity-100`;
-const badgeImageClass = 'block h-full w-auto max-w-none object-contain';
+// Equal-size boxes so PNG/SVG badges render at the same visual scale.
+const badgeBox = size === 'large' ? 'h-12 w-[8.75rem]' : 'h-10 w-[7.25rem]';
+const badgeLinkClass = `inline-flex shrink-0 items-center justify-center ${badgeBox} transition opacity-90 hover:opacity-100`;
+const badgeImageClass = 'max-h-full max-w-full object-contain object-center';
 ---
 
 <div class={`flex flex-wrap items-center gap-3 ${className}`}>
@@ -20,6 +21,8 @@ const badgeImageClass = 'block h-full w-auto max-w-none object-contain';
       src="/store/google-play-badge.png"
       alt="Get it on Google Play"
       class={badgeImageClass}
+      width="155"
+      height="60"
       loading="lazy"
     />
   </a>
@@ -28,6 +31,8 @@ const badgeImageClass = 'block h-full w-auto max-w-none object-contain';
       src="/store/app-store-badge-official.svg"
       alt="Download on the App Store"
       class={badgeImageClass}
+      width="120"
+      height="40"
       loading="lazy"
     />
   </a>
