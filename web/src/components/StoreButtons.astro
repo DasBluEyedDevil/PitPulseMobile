@@ -9,27 +9,25 @@ const { size = 'default', class: className = '' } = Astro.props;
 const playUrl = 'https://play.google.com/store/apps/details?id=com.soundcheck.app';
 const appStoreUrl = 'https://apps.apple.com/app/soundcheck/id000000000';
 
-const badgeClass = size === 'large' ? 'h-14 w-auto' : 'h-11 w-auto';
+const badgeHeight = size === 'large' ? 'h-12' : 'h-10';
+const badgeLinkClass = `inline-flex shrink-0 items-center ${badgeHeight} transition opacity-90 hover:opacity-100`;
+const badgeImageClass = 'block h-full w-auto max-w-none object-contain';
 ---
 
-<div class={`flex flex-wrap items-center gap-4 ${className}`}>
-  <a href={playUrl} target="_blank" rel="noopener noreferrer" class="transition opacity-90 hover:opacity-100">
+<div class={`flex flex-wrap items-center gap-3 ${className}`}>
+  <a href={playUrl} target="_blank" rel="noopener noreferrer" class={badgeLinkClass}>
     <img
       src="/store/google-play-badge.png"
       alt="Get it on Google Play"
-      class={badgeClass}
-      width="180"
-      height="53"
+      class={badgeImageClass}
       loading="lazy"
     />
   </a>
-  <a href={appStoreUrl} target="_blank" rel="noopener noreferrer" class="transition opacity-90 hover:opacity-100">
+  <a href={appStoreUrl} target="_blank" rel="noopener noreferrer" class={badgeLinkClass}>
     <img
       src="/store/app-store-badge-official.svg"
       alt="Download on the App Store"
-      class={badgeClass}
-      width="120"
-      height="40"
+      class={badgeImageClass}
       loading="lazy"
     />
   </a>
