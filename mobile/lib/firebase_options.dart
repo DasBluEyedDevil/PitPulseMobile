@@ -72,10 +72,10 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: _iosApiKey,
-    appId: '1:843136025510:ios:2b1e3e37c22b410ca74567',
+    appId: '1:843136025510:ios:846d4b7346bd2e6da74567',
     messagingSenderId: '843136025510',
     projectId: 'soundcheck-prod-e973c',
     storageBucket: 'soundcheck-prod-e973c.firebasestorage.app',
-    iosBundleId: 'com.soundcheck.app',
+    iosBundleId: 'com.9thlevelsoftware.soundcheck',
   );
 }
