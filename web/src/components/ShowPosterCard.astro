@@ -1,0 +1,37 @@
+---
+interface Props {
+  image: string;
+  title: string;
+  subtitle?: string;
+  accent?: 'cyan' | 'magenta' | 'violet';
+}
+
+const { image, title, subtitle, accent = 'cyan' } = Astro.props;
+
+const accentColors = {
+  cyan: 'text-cyan',
+  magenta: 'text-magenta',
+  violet: 'text-violet',
+};
+---
+
+<article class="group relative w-[164px] shrink-0 overflow-hidden rounded-2xl border border-cyan/10 shadow-lg transition hover:border-cyan/30 hover:shadow-neon-sm">
+  <div class="relative aspect-[164/214] overflow-hidden">
+    <img
+      src={image}
+      alt=""
+      class="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+      loading="lazy"
+      width="164"
+      height="214"
+    />
+    <div class="absolute inset-0 bg-gradient-to-t from-void via-void/60 to-transparent" />
+  </div>
+  <div class="absolute bottom-0 left-0 right-0 p-4">
+    <p class={`font-display text-xs font-bold uppercase tracking-wide ${accentColors[accent]}`}>
+      Live now
+    </p>
+    <h3 class="mt-1 font-display text-sm font-bold text-chrome">{title}</h3>
+    {subtitle && <p class="mt-0.5 font-body text-xs text-muted">{subtitle}</p>}
+  </div>
+</article>

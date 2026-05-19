@@ -8,6 +8,7 @@ import '../../../core/api/api_config.dart';
 import '../../../core/services/log_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/utils/haptic_feedback.dart';
 import '../../../shared/utils/date_formatter.dart';
 import '../../badges/domain/badge.dart';
@@ -37,242 +38,249 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: authState.when(
-        data: (user) => user == null
-            ? const Center(child: Text('Not logged in'))
-            : RefreshIndicator(
-                color: AppTheme.voltLime,
-                backgroundColor:
-                    Theme.of(context).colorScheme.surfaceContainerHigh,
-                onRefresh: () async {
-                  ref.invalidate(concertCredProvider(user.id));
-                  ref.invalidate(userRecentCheckinsProvider(user.id));
-                  ref.invalidate(userBadgesProvider(user.id));
-                  await ref.read(authStateProvider.notifier).refreshUser();
-                },
-                child: CustomScrollView(
-                  slivers: [
-                    // Profile Header with Cover
-                    SliverToBoxAdapter(
-                      child: _ProfileHeader(user: user),
-                    ),
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.profileBackdropAsset,
+        heroOpacity: 0.24,
+        child: authState.when(
+          data: (user) => user == null
+              ? const Center(child: Text('Not logged in'))
+              : RefreshIndicator(
+                  color: AppTheme.voltLime,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHigh,
+                  onRefresh: () async {
+                    ref.invalidate(concertCredProvider(user.id));
+                    ref.invalidate(userRecentCheckinsProvider(user.id));
+                    ref.invalidate(userBadgesProvider(user.id));
+                    await ref.read(authStateProvider.notifier).refreshUser();
+                  },
+                  child: CustomScrollView(
+                    slivers: [
+                      // Profile Header with Cover
+                      SliverToBoxAdapter(child: _ProfileHeader(user: user)),
 
-                    // Main Stats Row (from concert cred)
-                    SliverToBoxAdapter(
-                      child: _MainStatsRow(userId: user.id),
-                    ),
+                      // Main Stats Row (from concert cred)
+                      SliverToBoxAdapter(child: _MainStatsRow(userId: user.id)),
 
-                    // Collapsible secondary sections
-                    if (_showMore) ...[
-                      // Your Wrapped entry point
+                      // Collapsible secondary sections
+                      if (_showMore) ...[
+                        // Your Wrapped entry point
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            child: InkWell(
+                              onTap: () => context.push(
+                                '/wrapped/${DateTime.now().year}',
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerHigh,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppTheme.voltLime.withValues(
+                                      alpha: 0.3,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.voltLime.withValues(
+                                          alpha: 0.15,
+                                        ),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.auto_awesome,
+                                        color: AppTheme.voltLime,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Your ${DateTime.now().year} Wrapped',
+                                            style: const TextStyle(
+                                              color: AppTheme.textPrimary,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          const Text(
+                                            'See your year in concerts',
+                                            style: TextStyle(
+                                              color: AppTheme.textSecondary,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.chevron_right,
+                                      color: AppTheme.textTertiary,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Level Progress
+                        SliverToBoxAdapter(
+                          child: _LevelProgress(
+                            totalCheckins: user.totalCheckins,
+                          ),
+                        ),
+
+                        // Section: Genre Breakdown
+                        const SliverToBoxAdapter(
+                          child: _SectionHeader(title: 'Top Genres'),
+                        ),
+
+                        // Genre Breakdown (from concert cred)
+                        SliverToBoxAdapter(
+                          child: _GenreBreakdown(userId: user.id),
+                        ),
+
+                        // Section: Top Rated Bands
+                        const SliverToBoxAdapter(
+                          child: _SectionHeader(title: 'Favorite Bands'),
+                        ),
+
+                        // Top Rated Bands
+                        SliverToBoxAdapter(
+                          child: _TopRatedBands(userId: user.id),
+                        ),
+
+                        // Section: Top Rated Venues
+                        const SliverToBoxAdapter(
+                          child: _SectionHeader(title: 'Favorite Venues'),
+                        ),
+
+                        // Top Rated Venues
+                        SliverToBoxAdapter(
+                          child: _TopRatedVenues(userId: user.id),
+                        ),
+                      ],
+
+                      // See More / See Less toggle button
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 8,
                           ),
-                          child: InkWell(
-                            onTap: () =>
-                                context.push('/wrapped/${DateTime.now().year}'),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHigh,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color:
-                                      AppTheme.voltLime.withValues(alpha: 0.3),
+                          child: TextButton(
+                            onPressed: () =>
+                                setState(() => _showMore = !_showMore),
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(0, 44),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  _showMore ? 'See Less' : 'See More',
+                                  style: const TextStyle(
+                                    color: AppTheme.voltLime,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.voltLime
-                                          .withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(
-                                      Icons.auto_awesome,
-                                      color: AppTheme.voltLime,
-                                      size: 24,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Your ${DateTime.now().year} Wrapped',
-                                          style: const TextStyle(
-                                            color: AppTheme.textPrimary,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        const Text(
-                                          'See your year in concerts',
-                                          style: TextStyle(
-                                            color: AppTheme.textSecondary,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const Icon(
-                                    Icons.chevron_right,
-                                    color: AppTheme.textTertiary,
-                                  ),
-                                ],
-                              ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  _showMore
+                                      ? Icons.expand_less
+                                      : Icons.expand_more,
+                                  color: AppTheme.voltLime,
+                                  size: 20,
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
 
-                      // Level Progress
+                      // Section: Badges (always visible)
                       SliverToBoxAdapter(
-                        child:
-                            _LevelProgress(totalCheckins: user.totalCheckins),
+                        child: _SectionHeader(
+                          title: 'Badges',
+                          trailing: 'View All',
+                          onTrailingTap: () {
+                            HapticFeedbackUtil.selectionClick();
+                            context.push('/badges');
+                          },
+                        ),
                       ),
 
-                      // Section: Genre Breakdown
-                      const SliverToBoxAdapter(
-                        child: _SectionHeader(title: 'Top Genres'),
-                      ),
-
-                      // Genre Breakdown (from concert cred)
+                      // Badges Showcase
                       SliverToBoxAdapter(
-                        child: _GenreBreakdown(userId: user.id),
+                        child: _BadgesShowcase(userId: user.id),
                       ),
 
-                      // Section: Top Rated Bands
-                      const SliverToBoxAdapter(
-                        child: _SectionHeader(title: 'Favorite Bands'),
-                      ),
-
-                      // Top Rated Bands
+                      // Section: Recent Activity (always visible)
                       SliverToBoxAdapter(
-                        child: _TopRatedBands(userId: user.id),
+                        child: _SectionHeader(
+                          title: 'Recent Activity',
+                          trailing: 'View All',
+                          onTrailingTap: () {
+                            HapticFeedbackUtil.selectionClick();
+                            context.go('/feed');
+                          },
+                        ),
                       ),
 
-                      // Section: Top Rated Venues
-                      const SliverToBoxAdapter(
-                        child: _SectionHeader(title: 'Favorite Venues'),
-                      ),
-
-                      // Top Rated Venues
+                      // Recent Check-ins
                       SliverToBoxAdapter(
-                        child: _TopRatedVenues(userId: user.id),
+                        child: _RecentCheckins(userId: user.id),
                       ),
+
+                      // Bottom padding for nav bar
+                      const SliverToBoxAdapter(child: SizedBox(height: 120)),
                     ],
-
-                    // See More / See Less toggle button
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: TextButton(
-                          onPressed: () =>
-                              setState(() => _showMore = !_showMore),
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(0, 44),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                _showMore ? 'See Less' : 'See More',
-                                style: const TextStyle(
-                                  color: AppTheme.voltLime,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(
-                                _showMore
-                                    ? Icons.expand_less
-                                    : Icons.expand_more,
-                                color: AppTheme.voltLime,
-                                size: 20,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Section: Badges (always visible)
-                    SliverToBoxAdapter(
-                      child: _SectionHeader(
-                        title: 'Badges',
-                        trailing: 'View All',
-                        onTrailingTap: () {
-                          HapticFeedbackUtil.selectionClick();
-                          context.push('/badges');
-                        },
-                      ),
-                    ),
-
-                    // Badges Showcase
-                    SliverToBoxAdapter(
-                      child: _BadgesShowcase(userId: user.id),
-                    ),
-
-                    // Section: Recent Activity (always visible)
-                    SliverToBoxAdapter(
-                      child: _SectionHeader(
-                        title: 'Recent Activity',
-                        trailing: 'View All',
-                        onTrailingTap: () {
-                          HapticFeedbackUtil.selectionClick();
-                          context.go('/feed');
-                        },
-                      ),
-                    ),
-
-                    // Recent Check-ins
-                    SliverToBoxAdapter(
-                      child: _RecentCheckins(userId: user.id),
-                    ),
-
-                    // Bottom padding for nav bar
-                    const SliverToBoxAdapter(
-                      child: SizedBox(height: 120),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppTheme.voltLime),
-        ),
-        error: (error, _) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: AppTheme.error),
-              const SizedBox(height: 16),
-              const Text(
-                'Error loading profile',
-                style: TextStyle(color: AppTheme.textSecondary),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(authStateProvider),
-                child: const Text('Retry'),
-              ),
-            ],
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppTheme.voltLime),
+          ),
+          error: (error, _) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: AppTheme.error,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Error loading profile',
+                  style: TextStyle(color: AppTheme.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(authStateProvider),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -295,16 +303,30 @@ class _ProfileHeader extends ConsumerWidget {
         Container(
           height: 140,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
+            image: DecorationImage(
+              image: const AssetImage(AppTheme.flashProfileHeaderAsset),
+              fit: BoxFit.cover,
+              colorFilter: ColorFilter.mode(
+                AppTheme.stageBlack.withValues(alpha: 0.28),
+                BlendMode.darken,
+              ),
+            ),
+            gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppTheme.voltLime,
-                AppTheme.voltLime.withValues(alpha: 0.6),
-                AppTheme.hotOrange.withValues(alpha: 0.4),
+                AppTheme.neonCyan,
+                AppTheme.neonViolet,
+                AppTheme.neonMagenta,
               ],
             ),
           ),
+        ),
+        const Positioned(
+          left: 0,
+          right: 0,
+          top: 94,
+          child: EqualizerDivider(height: 32),
         ),
 
         // Actions bar
@@ -360,8 +382,9 @@ class _ProfileHeader extends ConsumerWidget {
                     ),
                     child: CircleAvatar(
                       radius: 50,
-                      backgroundColor:
-                          Theme.of(context).colorScheme.surfaceContainerHigh,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHigh,
                       backgroundImage: user.profileImageUrl != null
                           ? NetworkImage(user.profileImageUrl!)
                           : null,
@@ -490,9 +513,7 @@ class _MainStatsRow extends ConsumerWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.voltLime.withValues(alpha: 0.2),
-          ),
+          border: Border.all(color: AppTheme.voltLime.withValues(alpha: 0.2)),
         ),
         child: const Center(
           child: SizedBox(
@@ -535,9 +556,7 @@ class _MainStatsRow extends ConsumerWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppTheme.voltLime.withValues(alpha: 0.2),
-          ),
+          border: Border.all(color: AppTheme.voltLime.withValues(alpha: 0.2)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -609,10 +628,7 @@ class _StatItem extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppTheme.textTertiary,
-            ),
+            style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary),
           ),
         ],
       ),
@@ -638,7 +654,7 @@ class _LevelProgress extends StatelessWidget {
   const _LevelProgress({required this.totalCheckins});
 
   static (int level, int currentXP, int nextLevelXP, String title)
-      _calculateLevel(int checkins) {
+  _calculateLevel(int checkins) {
     const xpPerCheckin = 50;
     final totalXP = checkins * xpPerCheckin;
 
@@ -671,8 +687,9 @@ class _LevelProgress extends StatelessWidget {
         currentLevel = level;
         currentThreshold = threshold;
         title = levelTitle;
-        nextThreshold =
-            i + 1 < levels.length ? levels[i + 1].$2 : threshold + 10000;
+        nextThreshold = i + 1 < levels.length
+            ? levels[i + 1].$2
+            : threshold + 10000;
       } else {
         break;
       }
@@ -686,10 +703,12 @@ class _LevelProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (currentLevel, currentXP, nextLevelXP, title) =
-        _calculateLevel(totalCheckins);
-    final progress =
-        nextLevelXP > 0 ? (currentXP / nextLevelXP).clamp(0.0, 1.0) : 1.0;
+    final (currentLevel, currentXP, nextLevelXP, title) = _calculateLevel(
+      totalCheckins,
+    );
+    final progress = nextLevelXP > 0
+        ? (currentXP / nextLevelXP).clamp(0.0, 1.0)
+        : 1.0;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -707,8 +726,10 @@ class _LevelProgress extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       gradient: AppTheme.primaryGradient,
                       borderRadius: BorderRadius.circular(12),
@@ -755,10 +776,7 @@ class _LevelProgress extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             '${nextLevelXP - currentXP} XP until Level ${currentLevel + 1}',
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppTheme.textTertiary,
-            ),
+            style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary),
           ),
         ],
       ),
@@ -810,13 +828,12 @@ class _SectionHeader extends StatelessWidget {
           ),
           if (trailing != null)
             TextButton(
-              onPressed: onTrailingTap ??
+              onPressed:
+                  onTrailingTap ??
                   () {
                     LogService.d('$title - $trailing tapped');
                   },
-              style: TextButton.styleFrom(
-                minimumSize: const Size(0, 44),
-              ),
+              style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
               child: Text(
                 trailing!,
                 style: const TextStyle(
@@ -1054,9 +1071,7 @@ class _TopBandCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppTheme.hotOrange.withValues(alpha: 0.15),
-          ),
+          border: Border.all(color: AppTheme.hotOrange.withValues(alpha: 0.15)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1075,14 +1090,10 @@ class _TopBandCard extends StatelessWidget {
                       child: CachedNetworkImage(
                         imageUrl: band.imageUrl!,
                         fit: BoxFit.cover,
-                        placeholder: (_, _) => const Icon(
-                          Icons.album,
-                          color: AppTheme.hotOrange,
-                        ),
-                        errorWidget: (_, _, _) => const Icon(
-                          Icons.album,
-                          color: AppTheme.hotOrange,
-                        ),
+                        placeholder: (_, _) =>
+                            const Icon(Icons.album, color: AppTheme.hotOrange),
+                        errorWidget: (_, _, _) =>
+                            const Icon(Icons.album, color: AppTheme.hotOrange),
                       ),
                     )
                   : const Icon(Icons.album, color: AppTheme.hotOrange),
@@ -1219,9 +1230,10 @@ class _TopVenueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final location = [venue.city, venue.state]
-        .where((s) => s != null && s.isNotEmpty)
-        .join(', ');
+    final location = [
+      venue.city,
+      venue.state,
+    ].where((s) => s != null && s.isNotEmpty).join(', ');
 
     return GestureDetector(
       onTap: venue.id.isNotEmpty
@@ -1237,9 +1249,7 @@ class _TopVenueCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppTheme.toastGold.withValues(alpha: 0.15),
-          ),
+          border: Border.all(color: AppTheme.toastGold.withValues(alpha: 0.15)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1420,10 +1430,7 @@ class _RecentCheckins extends ConsumerWidget {
 }
 
 class _CheckinCard extends StatelessWidget {
-  const _CheckinCard({
-    required this.checkin,
-    this.onTap,
-  });
+  const _CheckinCard({required this.checkin, this.onTap});
 
   final CheckIn checkin;
   final VoidCallback? onTap;
@@ -1486,10 +1493,7 @@ class _CheckinCard extends StatelessWidget {
                               ),
                             ),
                           )
-                        : const Icon(
-                            Icons.album,
-                            color: AppTheme.voltLime,
-                          ),
+                        : const Icon(Icons.album, color: AppTheme.voltLime),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1524,8 +1528,10 @@ class _CheckinCard extends StatelessWidget {
                 // Rating
                 if (rating > 0)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: _getRatingColor(rating).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
@@ -1739,9 +1745,7 @@ class _BadgesShowcase extends ConsumerWidget {
               final badgeName = badge?.name ?? 'Badge';
               final badgeType = badge?.category ?? BadgeCategory.checkinCount;
               final badgeColor = badge?.color != null
-                  ? Color(
-                      int.parse(badge!.color!.replaceFirst('#', '0xFF')),
-                    )
+                  ? Color(int.parse(badge!.color!.replaceFirst('#', '0xFF')))
                   : _getBadgeColor(badgeType);
               final badgeIcon = _getBadgeIcon(badgeType);
 
@@ -1775,11 +1779,7 @@ class _BadgesShowcase extends ConsumerWidget {
                                 ),
                               ),
                             )
-                          : Icon(
-                              badgeIcon,
-                              color: badgeColor,
-                              size: 28,
-                            ),
+                          : Icon(badgeIcon, color: badgeColor, size: 28),
                     ),
                     const SizedBox(height: 8),
                     Text(

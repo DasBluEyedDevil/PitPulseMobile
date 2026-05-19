@@ -2,16 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../../core/theme/app_theme.dart';
+import 'brand_widgets.dart';
 
 /// Type of error to display
-enum ErrorType {
-  network,
-  server,
-  notFound,
-  unauthorized,
-  timeout,
-  unknown,
-}
+enum ErrorType { network, server, notFound, unauthorized, timeout, unknown }
 
 /// A reusable widget for displaying error states with retry functionality
 class ErrorStateWidget extends StatelessWidget {
@@ -36,68 +30,67 @@ class ErrorStateWidget extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppTheme.spacing32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Error Icon
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacing24),
-              decoration: BoxDecoration(
-                color: config.color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+        child: GlassPanel(
+          borderColor: config.color.withValues(alpha: 0.24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Error Icon
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacing24),
+                decoration: BoxDecoration(
+                  color: config.color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(config.icon, size: 64, color: config.color),
               ),
-              child: Icon(
-                config.icon,
-                size: 64,
-                color: config.color,
-              ),
-            ),
-            const SizedBox(height: AppTheme.spacing24),
-
-            // Error Title
-            Text(
-              config.title,
-              style: Theme.of(context).textTheme.headlineSmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppTheme.spacing12),
-
-            // Error Message
-            Text(
-              customMessage ?? config.message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-
-            // Retry Button (if provided)
-            if (onRetry != null) ...[
               const SizedBox(height: AppTheme.spacing24),
-              ElevatedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: config.color,
-                ),
-              ),
-            ],
 
-            // Technical Details (only visible in debug builds)
-            if (kDebugMode && error.toString().isNotEmpty) ...[
-              const SizedBox(height: AppTheme.spacing16),
-              TextButton(
-                onPressed: () {
-                  _showErrorDetails(context);
-                },
-                child: const Text(
-                  'View Technical Details',
-                  style: TextStyle(fontSize: 12),
-                ),
+              // Error Title
+              Text(
+                config.title,
+                style: Theme.of(context).textTheme.headlineSmall,
+                textAlign: TextAlign.center,
               ),
+              const SizedBox(height: AppTheme.spacing12),
+
+              // Error Message
+              Text(
+                customMessage ?? config.message,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
+                textAlign: TextAlign.center,
+              ),
+
+              // Retry Button (if provided)
+              if (onRetry != null) ...[
+                const SizedBox(height: AppTheme.spacing24),
+                OutlinedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                  style: ElevatedButton.styleFrom(
+                    foregroundColor: config.color,
+                  ),
+                ),
+              ],
+
+              // Technical Details (only visible in debug builds)
+              if (kDebugMode && error.toString().isNotEmpty) ...[
+                const SizedBox(height: AppTheme.spacing16),
+                TextButton(
+                  onPressed: () {
+                    _showErrorDetails(context);
+                  },
+                  child: const Text(
+                    'View Technical Details',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -191,10 +184,7 @@ class ErrorStateWidget extends StatelessWidget {
           child: SelectableText(
             'Error: ${error.toString()}\n\n'
             'Stack Trace:\n${stackTrace?.toString() ?? 'Not available'}',
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 12,
-            ),
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
           ),
         ),
         actions: [

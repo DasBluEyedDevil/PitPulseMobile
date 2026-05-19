@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/providers/providers.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/brand_widgets.dart';
 import '../../../../shared/utils/a11y_utils.dart';
 import '../../../reporting/presentation/widgets/report_bottom_sheet.dart';
 import '../../domain/feed_item.dart';
@@ -12,11 +13,7 @@ import '../../domain/feed_item.dart';
 /// Untappd-style balanced feed card showing user + event info + photo + badge indicator
 /// Ratings and badges are behind a tap (detail view), not on the card surface
 class FeedCard extends ConsumerWidget {
-  const FeedCard({
-    required this.item,
-    super.key,
-    this.onToast,
-  });
+  const FeedCard({required this.item, super.key, this.onToast});
 
   final FeedItem item;
   final VoidCallback? onToast;
@@ -60,8 +57,18 @@ class FeedCard extends ConsumerWidget {
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHigh,
+            gradient: AppTheme.glassGradient,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppTheme.neonCyan.withValues(alpha: 0.14),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.3),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,8 +179,9 @@ class FeedCard extends ConsumerWidget {
                 decoration: BoxDecoration(
                   border: Border(
                     top: BorderSide(
-                      color:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       width: 1,
                     ),
                   ),
@@ -243,11 +251,8 @@ class FeedCard extends ConsumerWidget {
 
 /// User avatar with CachedNetworkImage or initial letter fallback
 class _UserAvatar extends StatelessWidget {
-  const _UserAvatar({
-    required this.username,
-    this.avatarUrl,
-    double size = 40,
-  }) : _size = size;
+  const _UserAvatar({required this.username, this.avatarUrl, double size = 40})
+    : _size = size;
 
   final String username;
   final String? avatarUrl;
@@ -262,14 +267,10 @@ class _UserAvatar extends StatelessWidget {
           width: _size,
           height: _size,
           fit: BoxFit.cover,
-          placeholder: (context, url) => _InitialAvatar(
-            username: username,
-            size: _size,
-          ),
-          errorWidget: (context, url, error) => _InitialAvatar(
-            username: username,
-            size: _size,
-          ),
+          placeholder: (context, url) =>
+              _InitialAvatar(username: username, size: _size),
+          errorWidget: (context, url, error) =>
+              _InitialAvatar(username: username, size: _size),
         ),
       );
     }
@@ -278,10 +279,7 @@ class _UserAvatar extends StatelessWidget {
 }
 
 class _InitialAvatar extends StatelessWidget {
-  const _InitialAvatar({
-    required this.username,
-    required this.size,
-  });
+  const _InitialAvatar({required this.username, required this.size});
 
   final String username;
   final double size;
@@ -311,10 +309,7 @@ class _InitialAvatar extends StatelessWidget {
 
 /// Photo area with optional badge earned indicator
 class _PhotoArea extends StatelessWidget {
-  const _PhotoArea({
-    required this.hasBadgeEarned,
-    this.photoUrl,
-  });
+  const _PhotoArea({required this.hasBadgeEarned, this.photoUrl});
 
   final String? photoUrl;
   final bool hasBadgeEarned;
@@ -365,10 +360,7 @@ class _PhotoArea extends StatelessWidget {
               top: 8,
               right: 8,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppTheme.toastGold.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(12),
@@ -403,25 +395,14 @@ class _PhotoArea extends StatelessWidget {
 class _GradientPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return const SizedBox(
       height: 200,
       width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.voltLime.withValues(alpha: 0.3),
-            AppTheme.hotOrange.withValues(alpha: 0.3),
-          ],
-        ),
-      ),
-      child: Center(
-        child: Icon(
-          Icons.music_note,
-          size: 64,
-          color: Colors.white.withValues(alpha: 0.3),
-        ),
+      child: BrandImagePlaceholder(
+        height: 200,
+        asset: AppTheme.cardSilverAsset,
+        icon: Icons.graphic_eq,
+        borderRadius: BorderRadius.zero,
       ),
     );
   }
@@ -446,8 +427,9 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        isActive ? (activeColor ?? AppTheme.voltLime) : AppTheme.textTertiary;
+    final color = isActive
+        ? (activeColor ?? AppTheme.voltLime)
+        : AppTheme.textTertiary;
 
     return Semantics(
       label: semanticLabel,

@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
 import '../../../shared/services/location_service.dart';
 import '../../../shared/utils/a11y_utils.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../bands/domain/band.dart';
 import '../../venues/domain/venue.dart';
 import '../domain/discovery_models.dart';
@@ -24,10 +25,7 @@ part 'discover_screen.g.dart';
 Future<List<Band>> trendingBands(Ref ref) async {
   final repository = ref.watch(bandRepositoryProvider);
   final result = await repository.getTrendingBands(limit: 10);
-  return result.fold(
-    (failure) => [],
-    (bands) => bands,
-  );
+  return result.fold((failure) => [], (bands) => bands);
 }
 
 /// Provider for top rated venues
@@ -42,10 +40,7 @@ Future<List<Venue>> topRatedVenues(Ref ref) async {
 Future<List<Band>> popularBands(Ref ref) async {
   final repository = ref.watch(bandRepositoryProvider);
   final result = await repository.getPopularBands(limit: 10);
-  return result.fold(
-    (failure) => [],
-    (bands) => bands,
-  );
+  return result.fold((failure) => [], (bands) => bands);
 }
 
 /// Provider for nearby venues based on user location
@@ -111,115 +106,122 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: CustomScrollView(
-        slivers: [
-          // App Bar with Search
-          SliverAppBar(
-            floating: true,
-            pinned: true,
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            expandedHeight: 140,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                padding: const EdgeInsets.fromLTRB(16, 60, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Discover',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Search Bar
-                    Semantics(
-                      label: searchFieldSemantics(),
-                      textField: true,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.discoverBackdropAsset,
+        heroOpacity: 0.26,
+        child: CustomScrollView(
+          slivers: [
+            // App Bar with Search
+            SliverAppBar(
+              floating: true,
+              pinned: true,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              expandedHeight: 140,
+              flexibleSpace: FlexibleSpaceBar(
+                background: Container(
+                  padding: const EdgeInsets.fromLTRB(16, 60, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Discover',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
                         ),
-                        child: TextField(
-                          controller: _searchController,
-                          style: const TextStyle(color: AppTheme.textPrimary),
-                          decoration: InputDecoration(
-                            hintText:
-                                'Search shows, bands, venues, or users...',
-                            hintStyle:
-                                const TextStyle(color: AppTheme.textTertiary),
-                            prefixIcon: const Icon(
-                              Icons.search,
-                              color: AppTheme.textTertiary,
-                            ),
-                            suffixIcon: _searchController.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(
-                                      Icons.clear,
-                                      color: AppTheme.textTertiary,
-                                    ),
-                                    tooltip: 'Clear Search',
-                                    onPressed: _clearSearch,
-                                  )
-                                : null,
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Search Bar
+                      Semantics(
+                        label: searchFieldSemantics(),
+                        textField: true,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          onChanged: _onSearchChanged,
+                          child: TextField(
+                            controller: _searchController,
+                            style: const TextStyle(color: AppTheme.textPrimary),
+                            decoration: InputDecoration(
+                              hintText:
+                                  'Search shows, bands, venues, or users...',
+                              hintStyle: const TextStyle(
+                                color: AppTheme.textTertiary,
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: AppTheme.textTertiary,
+                              ),
+                              suffixIcon: _searchController.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(
+                                        Icons.clear,
+                                        color: AppTheme.textTertiary,
+                                      ),
+                                      tooltip: 'Clear Search',
+                                      onPressed: _clearSearch,
+                                    )
+                                  : null,
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                            onChanged: _onSearchChanged,
+                          ),
                         ),
                       ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                // Map Toggle Button
+                IconButton(
+                  tooltip: 'Toggle Map View',
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _showMapView
+                          ? AppTheme.voltLime.withValues(alpha: 0.2)
+                          : Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                      border: _showMapView
+                          ? Border.all(color: AppTheme.voltLime, width: 1.5)
+                          : null,
                     ),
-                  ],
+                    child: Icon(
+                      _showMapView ? Icons.list : Icons.map,
+                      color: AppTheme.voltLime,
+                      size: 20,
+                    ),
+                  ),
+                  onPressed: () {
+                    setState(() => _showMapView = !_showMapView);
+                  },
                 ),
-              ),
+              ],
             ),
-            actions: [
-              // Map Toggle Button
-              IconButton(
-                tooltip: 'Toggle Map View',
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _showMapView
-                        ? AppTheme.voltLime.withValues(alpha: 0.2)
-                        : Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(8),
-                    border: _showMapView
-                        ? Border.all(color: AppTheme.voltLime, width: 1.5)
-                        : null,
-                  ),
-                  child: Icon(
-                    _showMapView ? Icons.list : Icons.map,
-                    color: AppTheme.voltLime,
-                    size: 20,
-                  ),
-                ),
-                onPressed: () {
-                  setState(() => _showMapView = !_showMapView);
-                },
-              ),
-            ],
-          ),
 
-          // Content
-          if (_isSearching)
-            // Search Results
-            _buildSearchResults()
-          else if (_showMapView)
-            // Map View
-            _buildMapView()
-          else
-            // Event-first Discovery Content
-            _buildTrendingContent(),
-        ],
+            // Content
+            if (_isSearching)
+              // Search Results
+              _buildSearchResults()
+            else if (_showMapView)
+              // Map View
+              _buildMapView()
+            else
+              // Event-first Discovery Content
+              _buildTrendingContent(),
+          ],
+        ),
       ),
     );
   }
@@ -268,9 +270,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           child: Center(
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 40),
-              child: CircularProgressIndicator(
-                color: AppTheme.voltLime,
-              ),
+              child: CircularProgressIndicator(color: AppTheme.voltLime),
             ),
           ),
         ),
@@ -533,10 +533,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                         decoration: BoxDecoration(
                           color: AppTheme.hotOrange,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 2,
-                          ),
+                          border: Border.all(color: Colors.white, width: 2),
                           boxShadow: [
                             BoxShadow(
                               color: AppTheme.hotOrange.withValues(alpha: 0.5),
@@ -762,9 +759,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                             const SizedBox(height: 4),
                             if (venue.city != null || venue.state != null)
                               Text(
-                                [venue.city, venue.state]
-                                    .where((s) => s != null)
-                                    .join(', '),
+                                [
+                                  venue.city,
+                                  venue.state,
+                                ].where((s) => s != null).join(', '),
                                 style: const TextStyle(
                                   color: AppTheme.textTertiary,
                                   fontSize: 14,
@@ -910,9 +908,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
             loading: () => const Center(
               child: Padding(
                 padding: EdgeInsets.all(16),
-                child: CircularProgressIndicator(
-                  color: AppTheme.voltLime,
-                ),
+                child: CircularProgressIndicator(color: AppTheme.voltLime),
               ),
             ),
             error: (err, stack) => const Padding(
@@ -1060,9 +1056,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                         },
                       ),
                 loading: () => const Center(
-                  child: CircularProgressIndicator(
-                    color: AppTheme.voltLime,
-                  ),
+                  child: CircularProgressIndicator(color: AppTheme.voltLime),
                 ),
                 error: (err, stack) => const Center(
                   child: Text(
@@ -1073,9 +1067,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               );
             },
             loading: () => const Center(
-              child: CircularProgressIndicator(
-                color: AppTheme.voltLime,
-              ),
+              child: CircularProgressIndicator(color: AppTheme.voltLime),
             ),
             error: (err, stack) => const Center(
               child: Text(
@@ -1117,7 +1109,9 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                       final isSelected = _selectedGenre == genre;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
-                        child: GestureDetector(
+                        child: NeonOutlineChip(
+                          label: genre,
+                          selected: isSelected,
                           onTap: () {
                             setState(() {
                               _selectedGenre = isSelected ? null : genre;
@@ -1126,36 +1120,6 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                               _showGenreEventsSheet(genre);
                             }
                           },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppTheme.voltLime
-                                  : Theme.of(context)
-                                      .colorScheme
-                                      .surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(20),
-                              border: isSelected
-                                  ? null
-                                  : Border.all(
-                                      color: AppTheme.voltLime
-                                          .withValues(alpha: 0.3),
-                                    ),
-                            ),
-                            child: Text(
-                              genre,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : AppTheme.textPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
                         ),
                       );
                     },
@@ -1196,8 +1160,9 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
             ),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surfaceContainerHigh,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1296,8 +1261,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                 return const Center(
                   child: Text(
                     'Enable location to see trending shows nearby',
-                    style:
-                        TextStyle(color: AppTheme.textTertiary, fontSize: 13),
+                    style: TextStyle(
+                      color: AppTheme.textTertiary,
+                      fontSize: 13,
+                    ),
                   ),
                 );
               }
@@ -1324,9 +1291,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                         },
                       ),
                 loading: () => const Center(
-                  child: CircularProgressIndicator(
-                    color: AppTheme.hotOrange,
-                  ),
+                  child: CircularProgressIndicator(color: AppTheme.hotOrange),
                 ),
                 error: (err, stack) => const Center(
                   child: Text(
@@ -1337,9 +1302,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
               );
             },
             loading: () => const Center(
-              child: CircularProgressIndicator(
-                color: AppTheme.hotOrange,
-              ),
+              child: CircularProgressIndicator(color: AppTheme.hotOrange),
             ),
             error: (err, stack) => const Center(
               child: Text(
@@ -1409,10 +1372,7 @@ class _LocationPermissionPrompt extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.title,
-    this.subtitle,
-  });
+  const _SectionHeader({required this.title, this.subtitle});
 
   final String title;
   final String? subtitle;
@@ -1513,10 +1473,7 @@ class _SearchResultItem extends StatelessWidget {
         subtitle,
         style: const TextStyle(color: AppTheme.textTertiary),
       ),
-      trailing: const Icon(
-        Icons.chevron_right,
-        color: AppTheme.textTertiary,
-      ),
+      trailing: const Icon(Icons.chevron_right, color: AppTheme.textTertiary),
     );
   }
 }
@@ -1524,10 +1481,7 @@ class _SearchResultItem extends StatelessWidget {
 /// Event card for horizontal scroll lists (Nearby Shows)
 /// Shows RSVP checkmark indicator when user has RSVP'd (uses batch userRsvpsProvider).
 class _EventCard extends ConsumerWidget {
-  const _EventCard({
-    required this.event,
-    required this.onTap,
-  });
+  const _EventCard({required this.event, required this.onTap});
 
   final DiscoverEvent event;
   final VoidCallback onTap;
@@ -1542,170 +1496,29 @@ class _EventCard extends ConsumerWidget {
       final date = DateTime.parse(event.eventDate);
       dateDisplay = DateFormat('MMM d').format(date);
     } catch (_) {}
+    final metaParts = [
+      if (dateDisplay.isNotEmpty) dateDisplay,
+      if (event.distanceKm != null)
+        '${event.distanceKm!.toStringAsFixed(1)} km',
+    ];
 
-    return GestureDetector(
+    return ShowPosterCard(
+      title: event.eventName ?? event.bandName ?? 'Event',
+      subtitle: event.venueName,
+      meta: metaParts.isEmpty ? null : metaParts.join('  '),
+      badge: isGoing ? 'GOING' : null,
+      imageUrl: event.bandImageUrl,
+      asset: AppTheme.flashShowCardOneAsset,
+      width: 160,
+      height: 172,
       onTap: onTap,
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image / gradient header with date
-            Container(
-              height: 90,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.voltLime.withValues(alpha: 0.5),
-                    AppTheme.hotOrange.withValues(alpha: 0.5),
-                  ],
-                ),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-              ),
-              child: Stack(
-                children: [
-                  if (event.bandImageUrl != null)
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(16),
-                      ),
-                      child: Image.network(
-                        event.bandImageUrl!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                      ),
-                    ),
-                  // Date badge
-                  if (dateDisplay.isNotEmpty)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .scaffoldBackgroundColor
-                              .withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          dateDisplay,
-                          style: const TextStyle(
-                            color: AppTheme.voltLime,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  // RSVP indicator (checkmark when user is going)
-                  if (isGoing)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.voltLime,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.voltLime.withValues(alpha: 0.4),
-                              blurRadius: 6,
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.check,
-                          color: Theme.of(context).scaffoldBackgroundColor,
-                          size: 12,
-                        ),
-                      ),
-                    ),
-                  // Distance badge
-                  if (event.distanceKm != null)
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .scaffoldBackgroundColor
-                              .withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '${event.distanceKm!.toStringAsFixed(1)} km',
-                          style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // Info
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    event.eventName ?? event.bandName ?? 'Event',
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 3),
-                  if (event.venueName != null)
-                    Text(
-                      event.venueName!,
-                      style: const TextStyle(
-                        color: AppTheme.textTertiary,
-                        fontSize: 11,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
 
 /// Trending event card with check-in count badge
 class _TrendingEventCard extends StatelessWidget {
-  const _TrendingEventCard({
-    required this.event,
-    required this.onTap,
-  });
+  const _TrendingEventCard({required this.event, required this.onTap});
 
   final DiscoverEvent event;
   final VoidCallback onTap;
@@ -1717,145 +1530,20 @@ class _TrendingEventCard extends StatelessWidget {
       final date = DateTime.parse(event.eventDate);
       dateDisplay = DateFormat('MMM d').format(date);
     } catch (_) {}
+    final subtitle =
+        '${event.venueName ?? ''}${event.venueCity != null ? '  ${event.venueCity}' : ''}'
+            .trim();
 
-    return GestureDetector(
+    return ShowPosterCard(
+      title: event.eventName ?? event.bandName ?? 'Event',
+      subtitle: subtitle.isEmpty ? null : subtitle,
+      meta: dateDisplay.isEmpty ? null : dateDisplay,
+      badge: event.checkinCount > 0 ? '${event.checkinCount} checked in' : null,
+      imageUrl: event.bandImageUrl,
+      asset: AppTheme.flashShowCardThreeAsset,
+      width: 160,
+      height: 172,
       onTap: onTap,
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image / gradient header
-            Container(
-              height: 90,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.hotOrange.withValues(alpha: 0.6),
-                    AppTheme.voltLime.withValues(alpha: 0.4),
-                  ],
-                ),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-              ),
-              child: Stack(
-                children: [
-                  if (event.bandImageUrl != null)
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(16),
-                      ),
-                      child: Image.network(
-                        event.bandImageUrl!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                      ),
-                    ),
-                  // Check-in count badge
-                  if (event.checkinCount > 0)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.hotOrange,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.local_fire_department,
-                              size: 12,
-                              color: Colors.white,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              '${event.checkinCount}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  // Date badge
-                  if (dateDisplay.isNotEmpty)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .scaffoldBackgroundColor
-                              .withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          dateDisplay,
-                          style: const TextStyle(
-                            color: AppTheme.hotOrange,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // Info
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    event.eventName ?? event.bandName ?? 'Event',
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 3),
-                  if (event.venueName != null)
-                    Text(
-                      '${event.venueName!}${event.venueCity != null ? ' - ${event.venueCity}' : ''}',
-                      style: const TextStyle(
-                        color: AppTheme.textTertiary,
-                        fontSize: 11,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -1863,10 +1551,7 @@ class _TrendingEventCard extends StatelessWidget {
 /// "For You" recommendation card -- wider than standard event cards
 /// to show more info (genre tag pill, date in voltLime).
 class _ForYouCard extends StatelessWidget {
-  const _ForYouCard({
-    required this.event,
-    required this.onTap,
-  });
+  const _ForYouCard({required this.event, required this.onTap});
 
   final DiscoverEvent event;
   final VoidCallback onTap;
@@ -1878,146 +1563,27 @@ class _ForYouCard extends StatelessWidget {
       final date = DateTime.parse(event.eventDate);
       dateDisplay = DateFormat('MMM d').format(date);
     } catch (_) {}
+    final subtitle =
+        '${event.venueName ?? ''}${event.venueCity != null ? '  ${event.venueCity}' : ''}'
+            .trim();
 
-    return GestureDetector(
+    return ShowPosterCard(
+      title: event.eventName ?? event.bandName ?? 'Event',
+      subtitle: subtitle.isEmpty ? null : subtitle,
+      meta: dateDisplay.isEmpty ? null : dateDisplay,
+      badge: event.bandGenre,
+      imageUrl: event.bandImageUrl,
+      asset: AppTheme.flashShowCardTwoAsset,
+      width: 200,
+      height: 192,
       onTap: onTap,
-      child: Container(
-        width: 200,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image / gradient header
-            Container(
-              height: 100,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppTheme.voltLime.withValues(alpha: 0.6),
-                    AppTheme.hotOrange.withValues(alpha: 0.4),
-                  ],
-                ),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-              ),
-              child: Stack(
-                children: [
-                  if (event.bandImageUrl != null)
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(16),
-                      ),
-                      child: Image.network(
-                        event.bandImageUrl!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                      ),
-                    ),
-                  // Date badge (voltLime)
-                  if (dateDisplay.isNotEmpty)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .scaffoldBackgroundColor
-                              .withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          dateDisplay,
-                          style: const TextStyle(
-                            color: AppTheme.voltLime,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  // Genre tag pill
-                  if (event.bandGenre != null)
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.voltLime,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          event.bandGenre!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // Info
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    event.eventName ?? event.bandName ?? 'Event',
-                    style: const TextStyle(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 3),
-                  if (event.venueName != null)
-                    Text(
-                      '${event.venueName!}${event.venueCity != null ? ' - ${event.venueCity}' : ''}',
-                      style: const TextStyle(
-                        color: AppTheme.textTertiary,
-                        fontSize: 11,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
 
 /// List item for genre events in bottom sheet
 class _GenreEventListItem extends StatelessWidget {
-  const _GenreEventListItem({
-    required this.event,
-    required this.onTap,
-  });
+  const _GenreEventListItem({required this.event, required this.onTap});
 
   final DiscoverEvent event;
   final VoidCallback onTap;
@@ -2061,15 +1627,9 @@ class _GenreEventListItem extends StatelessWidget {
           if (event.venueName != null) event.venueName,
           if (dateDisplay.isNotEmpty) dateDisplay,
         ].join(' - '),
-        style: const TextStyle(
-          color: AppTheme.textSecondary,
-          fontSize: 13,
-        ),
+        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
       ),
-      trailing: const Icon(
-        Icons.chevron_right,
-        color: AppTheme.textTertiary,
-      ),
+      trailing: const Icon(Icons.chevron_right, color: AppTheme.textTertiary),
     );
   }
 }
@@ -2122,11 +1682,7 @@ class _PopularBandListItem extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.star,
-            size: 16,
-            color: AppTheme.toastGold,
-          ),
+          const Icon(Icons.star, size: 16, color: AppTheme.toastGold),
           const SizedBox(width: 4),
           Text(
             band.averageRating.toStringAsFixed(1),

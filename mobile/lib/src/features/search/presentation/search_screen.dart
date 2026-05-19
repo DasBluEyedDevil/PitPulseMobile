@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/search_providers.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/widgets/venue_card.dart';
 import '../../../shared/widgets/band_card.dart';
 
@@ -50,6 +51,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
         title: TextField(
           controller: _searchController,
           autofocus: true,
@@ -72,87 +74,89 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
         ],
       ),
-      body: Column(
-        children: [
-          // Filter Chips
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.spacing16,
-              vertical: AppTheme.spacing8,
-            ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  FilterChip(
-                    label: const Text('All'),
-                    selected: currentFilter == SearchFilter.all,
-                    onSelected: (selected) {
-                      if (selected) {
-                        ref
-                            .read(searchFilterStateProvider.notifier)
-                            .setFilter(SearchFilter.all);
-                      }
-                    },
-                  ),
-                  const SizedBox(width: AppTheme.spacing8),
-                  FilterChip(
-                    label: const Text('Bands'),
-                    selected: currentFilter == SearchFilter.bands,
-                    onSelected: (selected) {
-                      if (selected) {
-                        ref
-                            .read(searchFilterStateProvider.notifier)
-                            .setFilter(SearchFilter.bands);
-                      }
-                    },
-                  ),
-                  const SizedBox(width: AppTheme.spacing8),
-                  FilterChip(
-                    label: const Text('Venues'),
-                    selected: currentFilter == SearchFilter.venues,
-                    onSelected: (selected) {
-                      if (selected) {
-                        ref
-                            .read(searchFilterStateProvider.notifier)
-                            .setFilter(SearchFilter.venues);
-                      }
-                    },
-                  ),
-                  const SizedBox(width: AppTheme.spacing8),
-                  FilterChip(
-                    label: const Text('Events'),
-                    selected: currentFilter == SearchFilter.events,
-                    onSelected: (selected) {
-                      if (selected) {
-                        ref
-                            .read(searchFilterStateProvider.notifier)
-                            .setFilter(SearchFilter.events);
-                      }
-                    },
-                  ),
-                  const SizedBox(width: AppTheme.spacing8),
-                  FilterChip(
-                    label: const Text('Users'),
-                    selected: currentFilter == SearchFilter.users,
-                    onSelected: (selected) {
-                      if (selected) {
-                        ref
-                            .read(searchFilterStateProvider.notifier)
-                            .setFilter(SearchFilter.users);
-                      }
-                    },
-                  ),
-                ],
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.discoverBackdropAsset,
+        heroOpacity: 0.26,
+        child: Column(
+          children: [
+            // Filter Chips
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacing16,
+                vertical: AppTheme.spacing8,
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    FilterChip(
+                      label: const Text('All'),
+                      selected: currentFilter == SearchFilter.all,
+                      onSelected: (selected) {
+                        if (selected) {
+                          ref
+                              .read(searchFilterStateProvider.notifier)
+                              .setFilter(SearchFilter.all);
+                        }
+                      },
+                    ),
+                    const SizedBox(width: AppTheme.spacing8),
+                    FilterChip(
+                      label: const Text('Bands'),
+                      selected: currentFilter == SearchFilter.bands,
+                      onSelected: (selected) {
+                        if (selected) {
+                          ref
+                              .read(searchFilterStateProvider.notifier)
+                              .setFilter(SearchFilter.bands);
+                        }
+                      },
+                    ),
+                    const SizedBox(width: AppTheme.spacing8),
+                    FilterChip(
+                      label: const Text('Venues'),
+                      selected: currentFilter == SearchFilter.venues,
+                      onSelected: (selected) {
+                        if (selected) {
+                          ref
+                              .read(searchFilterStateProvider.notifier)
+                              .setFilter(SearchFilter.venues);
+                        }
+                      },
+                    ),
+                    const SizedBox(width: AppTheme.spacing8),
+                    FilterChip(
+                      label: const Text('Events'),
+                      selected: currentFilter == SearchFilter.events,
+                      onSelected: (selected) {
+                        if (selected) {
+                          ref
+                              .read(searchFilterStateProvider.notifier)
+                              .setFilter(SearchFilter.events);
+                        }
+                      },
+                    ),
+                    const SizedBox(width: AppTheme.spacing8),
+                    FilterChip(
+                      label: const Text('Users'),
+                      selected: currentFilter == SearchFilter.users,
+                      onSelected: (selected) {
+                        if (selected) {
+                          ref
+                              .read(searchFilterStateProvider.notifier)
+                              .setFilter(SearchFilter.users);
+                        }
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // Search Results
-          Expanded(
-            child: _buildSearchResults(context, query, searchResults),
-          ),
-        ],
+            // Search Results
+            Expanded(child: _buildSearchResults(context, query, searchResults)),
+          ],
+        ),
       ),
     );
   }
@@ -168,17 +172,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.search,
-              size: 64,
-              color: AppTheme.textTertiary,
-            ),
+            const Icon(Icons.search, size: 64, color: AppTheme.textTertiary),
             const SizedBox(height: AppTheme.spacing16),
             Text(
               'Start typing to search',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(color: AppTheme.textSecondary),
             ),
           ],
         ),
@@ -187,9 +187,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     // Show loading state
     if (results.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     // Show error state
@@ -200,11 +198,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: AppTheme.error,
-              ),
+              const Icon(Icons.error_outline, size: 64, color: AppTheme.error),
               const SizedBox(height: AppTheme.spacing16),
               Text(
                 'Could not load search results',
@@ -243,9 +237,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               const SizedBox(height: AppTheme.spacing8),
               Text(
                 'Try searching with different keywords',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppTheme.textSecondary),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -268,7 +262,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             color: AppTheme.voltLime,
           ),
           const SizedBox(height: AppTheme.spacing8),
-          ...results.bands.take(5).map(
+          ...results.bands
+              .take(5)
+              .map(
                 (band) => Padding(
                   padding: const EdgeInsets.only(bottom: AppTheme.spacing8),
                   child: BandCard(
@@ -300,7 +296,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             color: AppTheme.hotOrange,
           ),
           const SizedBox(height: AppTheme.spacing8),
-          ...results.venues.take(5).map(
+          ...results.venues
+              .take(5)
+              .map(
                 (venue) => Padding(
                   padding: const EdgeInsets.only(bottom: AppTheme.spacing8),
                   child: VenueCard(
@@ -332,7 +330,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             color: AppTheme.electricBlue,
           ),
           const SizedBox(height: AppTheme.spacing8),
-          ...results.events.take(5).map(
+          ...results.events
+              .take(5)
+              .map(
                 (event) => _EventSearchTile(
                   event: event,
                   onTap: () => context.push('/events/${event.id}'),
@@ -361,7 +361,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             color: AppTheme.voltLime,
           ),
           const SizedBox(height: AppTheme.spacing8),
-          ...results.users.take(5).map(
+          ...results.users
+              .take(5)
+              .map(
                 (user) => _UserSearchTile(
                   user: user,
                   onTap: () => context.push('/users/${user.id}'),
@@ -393,10 +395,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       children: [
         Icon(icon, size: 20, color: color),
         const SizedBox(width: 8),
-        Text(
-          '$title ($count)',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
+        Text('$title ($count)', style: Theme.of(context).textTheme.titleLarge),
       ],
     );
   }
@@ -425,10 +424,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
 /// User search result tile.
 class _UserSearchTile extends StatelessWidget {
-  const _UserSearchTile({
-    required this.user,
-    required this.onTap,
-  });
+  const _UserSearchTile({required this.user, required this.onTap});
 
   final SearchUser user;
   final VoidCallback onTap;
@@ -478,10 +474,7 @@ class _UserSearchTile extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(color: AppTheme.textTertiary),
         ),
-        trailing: const Icon(
-          Icons.chevron_right,
-          color: AppTheme.textTertiary,
-        ),
+        trailing: const Icon(Icons.chevron_right, color: AppTheme.textTertiary),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppTheme.spacing8,
         ),
@@ -496,10 +489,7 @@ class _UserSearchTile extends StatelessWidget {
 
 /// Event search result tile.
 class _EventSearchTile extends StatelessWidget {
-  const _EventSearchTile({
-    required this.event,
-    required this.onTap,
-  });
+  const _EventSearchTile({required this.event, required this.onTap});
 
   final SearchEvent event;
   final VoidCallback onTap;
@@ -532,10 +522,7 @@ class _EventSearchTile extends StatelessWidget {
             color: AppTheme.electricBlue.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(
-            Icons.calendar_today,
-            color: AppTheme.electricBlue,
-          ),
+          child: const Icon(Icons.calendar_today, color: AppTheme.electricBlue),
         ),
         title: Text(
           event.eventName ?? 'Event',
@@ -554,10 +541,7 @@ class _EventSearchTile extends StatelessWidget {
                 style: const TextStyle(color: AppTheme.textTertiary),
               )
             : null,
-        trailing: const Icon(
-          Icons.chevron_right,
-          color: AppTheme.textTertiary,
-        ),
+        trailing: const Icon(Icons.chevron_right, color: AppTheme.textTertiary),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppTheme.spacing8,
         ),

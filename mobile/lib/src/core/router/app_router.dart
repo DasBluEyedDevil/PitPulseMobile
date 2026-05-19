@@ -38,6 +38,7 @@ import '../../features/subscription/presentation/pro_feature_screen.dart';
 import '../../features/subscription/presentation/subscription_providers.dart';
 import '../../features/search/presentation/discover_users_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
+import '../../shared/widgets/brand_widgets.dart';
 import '../../shared/widgets/scaffold_with_nav_bar.dart';
 
 part 'app_router.g.dart';
@@ -167,8 +168,20 @@ GoRouter goRouter(Ref ref) {
       // Splash Route (for loading state)
       GoRoute(
         path: '/splash',
-        builder: (context, state) =>
-            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        builder: (context, state) => const Scaffold(
+          body: BrandGradientBackground(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  BrandLogoImage(height: 96),
+                  SizedBox(height: 24),
+                  CircularProgressIndicator(),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
 
       // Auth Routes

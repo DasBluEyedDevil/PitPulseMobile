@@ -8,10 +8,11 @@ void main() {
   // Mock the haptic feedback platform channel
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform,
-            (MethodCall methodCall) async {
-      return null;
-    });
+        .setMockMethodCallHandler(SystemChannels.platform, (
+          MethodCall methodCall,
+        ) async {
+          return null;
+        });
   });
 
   tearDown(() {
@@ -36,9 +37,7 @@ void main() {
     testWidgets('displays venue name', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: VenueCard(venue: testVenue),
-          ),
+          home: Scaffold(body: VenueCard(venue: testVenue)),
         ),
       );
 
@@ -48,9 +47,7 @@ void main() {
     testWidgets('displays city and state', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: VenueCard(venue: testVenue),
-          ),
+          home: Scaffold(body: VenueCard(venue: testVenue)),
         ),
       );
 
@@ -60,9 +57,7 @@ void main() {
     testWidgets('displays total check-ins count', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: VenueCard(venue: testVenue),
-          ),
+          home: Scaffold(body: VenueCard(venue: testVenue)),
         ),
       );
 
@@ -72,26 +67,26 @@ void main() {
     testWidgets('shows location icon', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: VenueCard(venue: testVenue),
-          ),
+          home: Scaffold(body: VenueCard(venue: testVenue)),
         ),
       );
 
       expect(find.byIcon(Icons.location_on), findsOneWidget);
     });
 
-    testWidgets('displays placeholder when no image URL',
-        (WidgetTester tester) async {
+    testWidgets('displays placeholder when no image URL', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: VenueCard(venue: testVenue),
-          ),
+          home: Scaffold(body: VenueCard(venue: testVenue)),
         ),
       );
 
-      expect(find.byIcon(Icons.location_city), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('SoundCheck branded poster placeholder'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('calls onTap when card is tapped', (WidgetTester tester) async {
@@ -100,10 +95,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: VenueCard(
-              venue: testVenue,
-              onTap: () => tapped = true,
-            ),
+            body: VenueCard(venue: testVenue, onTap: () => tapped = true),
           ),
         ),
       );
@@ -111,14 +103,15 @@ void main() {
       // Use runAsync to handle the async haptic feedback in the onTap callback
       await tester.runAsync(() async {
         await tester.tap(find.byType(InkWell));
-        await tester.pumpAndSettle();
+        await tester.pump();
       });
 
       expect(tapped, true);
     });
 
-    testWidgets('does not show location when city and state are null',
-        (WidgetTester tester) async {
+    testWidgets('does not show location when city and state are null', (
+      WidgetTester tester,
+    ) async {
       const venueNoLocation = Venue(
         id: '1',
         name: 'Test Venue',
@@ -131,9 +124,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: VenueCard(venue: venueNoLocation),
-          ),
+          home: Scaffold(body: VenueCard(venue: venueNoLocation)),
         ),
       );
 

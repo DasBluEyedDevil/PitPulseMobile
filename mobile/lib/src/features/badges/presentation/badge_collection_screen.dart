@@ -8,6 +8,7 @@ import '../../../core/providers/providers.dart';
 import '../../../core/services/websocket_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/utils/a11y_utils.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../domain/badge.dart';
 import 'badge_providers.dart';
 import '../../sharing/presentation/share_card_preview.dart';
@@ -69,38 +70,38 @@ class _BadgeCollectionScreenState extends ConsumerState<BadgeCollectionScreen> {
     _badgeSubscription = wsService.messageStream
         .where((msg) => msg.type == WebSocketEvents.badgeEarned)
         .listen((msg) {
-      if (!mounted) return;
-      final badgeName = msg.payload['badgeName'] as String? ?? 'New Badge';
-      final badgeColor = parseHexColor(msg.payload['color'] as String?);
+          if (!mounted) return;
+          final badgeName = msg.payload['badgeName'] as String? ?? 'New Badge';
+          final badgeColor = parseHexColor(msg.payload['color'] as String?);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.emoji_events, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Badge Earned: $badgeName',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.emoji_events, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Badge Earned: $badgeName',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-          backgroundColor: badgeColor,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+              backgroundColor: badgeColor,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+            ),
+          );
 
-      // Refresh badge data after earning a new badge
-      ref.invalidate(badgeProgressProvider);
-      ref.invalidate(badgeRarityProvider);
-      ref.invalidate(badgeCollectionProvider);
-    });
+          // Refresh badge data after earning a new badge
+          ref.invalidate(badgeProgressProvider);
+          ref.invalidate(badgeRarityProvider);
+          ref.invalidate(badgeCollectionProvider);
+        });
   }
 
   @override
@@ -118,87 +119,91 @@ class _BadgeCollectionScreenState extends ConsumerState<BadgeCollectionScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
         title: const Text('Badge Collection'),
       ),
-      body: collectionAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, color: AppTheme.error, size: 48),
-              const SizedBox(height: 16),
-              const Text(
-                'Failed to load badges',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 16,
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.profileBackdropAsset,
+        heroOpacity: 0.24,
+        child: collectionAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  color: AppTheme.error,
+                  size: 48,
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () {
-                  ref.invalidate(badgeCollectionProvider);
-                },
-                child: const Text('Retry'),
-              ),
-            ],
+                const SizedBox(height: 16),
+                const Text(
+                  'Failed to load badges',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    ref.invalidate(badgeCollectionProvider);
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
           ),
-        ),
-        data: (collection) {
-          if (collection.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.emoji_events_outlined,
-                    size: 64,
-                    color: AppTheme.textTertiary,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No badges available yet',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Check in to events to start earning badges!',
-                    style: TextStyle(
-                      fontSize: 14,
+          data: (collection) {
+            if (collection.isEmpty) {
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.emoji_events_outlined,
+                      size: 64,
                       color: AppTheme.textTertiary,
                     ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // Order categories consistently
-          final orderedCategories = BadgeCategory.values
-              .where((c) => collection.containsKey(c))
-              .toList();
-
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            itemCount: orderedCategories.length,
-            itemBuilder: (context, index) {
-              final category = orderedCategories[index];
-              final badges = collection[category]!;
-
-              return _CategorySection(
-                category: category,
-                badges: badges,
-                rarityMap: rarityMap,
+                    SizedBox(height: 16),
+                    Text(
+                      'No badges available yet',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Check in to events to start earning badges!',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
               );
-            },
-          );
-        },
+            }
+
+            // Order categories consistently
+            final orderedCategories = BadgeCategory.values
+                .where((c) => collection.containsKey(c))
+                .toList();
+
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              itemCount: orderedCategories.length,
+              itemBuilder: (context, index) {
+                final category = orderedCategories[index];
+                final badges = collection[category]!;
+
+                return _CategorySection(
+                  category: category,
+                  badges: badges,
+                  rarityMap: rarityMap,
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -242,10 +247,7 @@ class _CategorySection extends StatelessWidget {
               final bp = badges[index];
               final rarity = rarityMap[bp.badge.id];
 
-              return _BadgeCard(
-                progress: bp,
-                rarity: rarity,
-              );
+              return _BadgeCard(progress: bp, rarity: rarity);
             },
           ),
         ),
@@ -258,10 +260,7 @@ class _CategorySection extends StatelessWidget {
 /// Individual badge card with progress ring, name, progress text, and rarity.
 /// Earned badges are tappable to open a share bottom sheet.
 class _BadgeCard extends ConsumerWidget {
-  const _BadgeCard({
-    required this.progress,
-    this.rarity,
-  });
+  const _BadgeCard({required this.progress, this.rarity});
 
   final BadgeProgress progress;
   final BadgeRarity? rarity;

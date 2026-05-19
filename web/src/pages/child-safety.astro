@@ -1,0 +1,91 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import GlassPanel from '../components/GlassPanel.astro';
+---
+
+<BaseLayout
+  title="Child Safety"
+  description="SoundCheck child safety standards, CSAE policy, and reporting."
+>
+  <article class="mx-auto max-w-container px-5 py-12 md:px-8 md:py-16">
+    <header class="mb-10">
+      <h1 class="font-display text-4xl font-black text-chrome">Child safety standards</h1>
+      <p class="mt-4 max-w-2xl font-body text-silver">
+        SoundCheck is committed to protecting children and preventing child sexual abuse and
+        exploitation (CSAE). These standards apply to all users of our social concert platform.
+      </p>
+    </header>
+
+    <div class="space-y-6">
+      <GlassPanel>
+        <h2 class="font-display text-xl font-bold text-chrome">Age requirement</h2>
+        <p class="mt-3 font-body text-muted">
+          You must be at least <strong class="text-chrome">13 years old</strong> to use SoundCheck,
+          as stated in our <a href="/terms" class="text-cyan hover:underline">Terms of Service</a>.
+          We do not knowingly collect personal information from children under 13. If we learn that
+          we have, we will delete that information promptly.
+        </p>
+      </GlassPanel>
+
+      <GlassPanel>
+        <h2 class="font-display text-xl font-bold text-chrome">Prohibited content and conduct</h2>
+        <p class="mt-3 font-body text-muted">
+          SoundCheck strictly prohibits child sexual abuse material (CSAM), grooming, sexualization
+          of minors, and any content or behavior that exploits children. Violations result in
+          immediate account termination and reporting to appropriate authorities.
+        </p>
+      </GlassPanel>
+
+      <GlassPanel>
+        <h2 class="font-display text-xl font-bold text-chrome">In-app reporting</h2>
+        <p class="mt-3 font-body text-muted">
+          Users can report concerning profiles, check-ins, photos, or messages directly in the app
+          using the report option on any user-generated content. Our moderation team reviews reports
+          and takes action within our enforcement guidelines.
+        </p>
+      </GlassPanel>
+
+      <GlassPanel>
+        <h2 class="font-display text-xl font-bold text-chrome">Law enforcement and NCMEC</h2>
+        <p class="mt-3 font-body text-muted">
+          We comply with applicable laws regarding child safety. When we identify CSAM or credible
+          threats to children, we report to the National Center for Missing &amp; Exploited Children
+          (NCMEC) and cooperate with law enforcement as required.
+        </p>
+        <ul class="mt-4 list-inside list-disc space-y-2 font-body text-sm text-muted">
+          <li>
+            <a
+              href="https://www.missingkids.org/"
+              class="text-cyan hover:underline"
+              target="_blank"
+              rel="noopener noreferrer">NCMEC (US)</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://www.inhope.org/"
+              class="text-cyan hover:underline"
+              target="_blank"
+              rel="noopener noreferrer">INHOPE (international hotlines)</a
+            >
+          </li>
+        </ul>
+      </GlassPanel>
+
+      <GlassPanel>
+        <h2 class="font-display text-xl font-bold text-chrome">Contact for child safety concerns</h2>
+        <p class="mt-3 font-body text-muted">
+          For urgent child safety reports or law enforcement inquiries, contact:
+        </p>
+        <p class="mt-3">
+          <a href="mailto:privacy@soundcheck.app" class="font-body text-cyan hover:underline"
+            >privacy@soundcheck.app</a
+          >
+        </p>
+        <p class="mt-2 font-body text-sm text-muted">
+          Subject line: <strong class="text-silver">Child Safety Report</strong>
+        </p>
+      </GlassPanel>
+    </div>
+  </article>
+</BaseLayout>

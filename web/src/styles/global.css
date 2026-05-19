@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-stage: #030713;
+  --bg-void: #00030a;
+  --surface: #08111f;
+  --surface-raised: #0e1a2d;
+  --surface-high: #18243a;
+  --stroke-glass: #3a5070;
+  --text-chrome: #e9edf8;
+  --text-silver: #c7d0e5;
+  --text-muted: #8e9ab0;
+  --neon-cyan: #00e5ff;
+  --neon-magenta: #ff2bf7;
+  --neon-violet: #8e3cff;
+  --plasma-blue: #1d63ff;
+  --live-pink: #ff35b8;
+  --molten-gold: #ffcc4d;
+  --signal-green: #4dffb2;
+  --error: #ff5b6e;
+  --cta-gradient: linear-gradient(90deg, #05daff 0%, #2b6cff 50%, #ff22e8 100%);
+  --stage-gradient: linear-gradient(
+    180deg,
+    #00030a 0%,
+    #030713 50%,
+    #10051e 80%,
+    #070219 100%
+  );
+  --glass-gradient: linear-gradient(
+    135deg,
+    rgba(13, 25, 48, 0.84),
+    rgba(6, 16, 32, 0.78),
+    rgba(22, 6, 39, 0.82)
+  );
+  --poster-scrim: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.2) 0%,
+    #00030a 70%,
+    #00030a 100%
+  );
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-screen font-body text-chrome antialiased;
+    background: var(--stage-gradient);
+    background-color: var(--bg-stage);
+  }
+
+  ::selection {
+    background: rgba(0, 229, 255, 0.35);
+    color: var(--text-chrome);
+  }
+}
+
+@layer components {
+  .btn-neon {
+    @apply inline-flex items-center justify-center rounded-3xl px-6 py-3 font-display text-base font-extrabold text-white transition-transform hover:scale-[1.02] active:scale-[0.98];
+    background: var(--cta-gradient);
+    box-shadow:
+      0 0 20px rgba(0, 229, 255, 0.4),
+      0 0 40px rgba(255, 43, 247, 0.25);
+  }
+
+  .panel-glass {
+    @apply rounded-glass border backdrop-blur-xl;
+    background: var(--glass-gradient);
+    border-color: rgba(0, 229, 255, 0.16);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .hero-scrim {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0, 229, 255, 0.12), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 100%, rgba(255, 43, 247, 0.1), transparent),
+      var(--poster-scrim);
+  }
+
+  .nav-glass {
+    @apply border-b backdrop-blur-xl;
+    background: rgba(3, 7, 19, 0.85);
+    border-color: rgba(0, 229, 255, 0.1);
+  }
+
+  .gradient-text {
+    @apply bg-clip-text font-display font-black text-transparent;
+    background-image: linear-gradient(90deg, #00e5ff, #1d63ff, #ff2bf7);
+  }
+
+  .prose-legal {
+    @apply prose prose-invert max-w-none prose-headings:font-display prose-headings:font-bold prose-a:text-cyan prose-a:no-underline hover:prose-a:underline;
+  }
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../domain/notification.dart';
 import 'providers/notification_providers.dart';
 
@@ -19,47 +20,48 @@ class NotificationDetailScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
         elevation: 0,
         title: const Text(
           'Notification',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
       ),
-      body: notificationsAsync.when(
-        data: (feed) {
-          if (notificationId == null) {
-            return const _EmptyNotificationState(
-              icon: Icons.notifications_none,
-              title: 'Notification not found',
-              subtitle: 'The notification ID is missing',
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.feedBackdropAsset,
+        heroOpacity: 0.22,
+        child: notificationsAsync.when(
+          data: (feed) {
+            if (notificationId == null) {
+              return const _EmptyNotificationState(
+                icon: Icons.notifications_none,
+                title: 'Notification not found',
+                subtitle: 'The notification ID is missing',
+              );
+            }
+
+            final notification = feed.notifications.firstWhere(
+              (n) => n.id == notificationId,
+              orElse: () => AppNotification(
+                id: notificationId!,
+                userId: '',
+                type: '',
+                createdAt: DateTime.now().toIso8601String(),
+                title: 'Notification not found',
+                message: 'This notification may have been deleted or expired.',
+              ),
             );
-          }
 
-          final notification = feed.notifications.firstWhere(
-            (n) => n.id == notificationId,
-            orElse: () => AppNotification(
-              id: notificationId!,
-              userId: '',
-              type: '',
-              createdAt: DateTime.now().toIso8601String(),
-              title: 'Notification not found',
-              message: 'This notification may have been deleted or expired.',
-            ),
-          );
-
-          return _NotificationContent(notification: notification);
-        },
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppTheme.voltLime),
-        ),
-        error: (error, _) => _EmptyNotificationState(
-          icon: Icons.error_outline,
-          title: 'Error loading notification',
-          subtitle: error.toString(),
+            return _NotificationContent(notification: notification);
+          },
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppTheme.voltLime),
+          ),
+          error: (error, _) => _EmptyNotificationState(
+            icon: Icons.error_outline,
+            title: 'Error loading notification',
+            subtitle: error.toString(),
+          ),
         ),
       ),
     );
@@ -142,10 +144,7 @@ class _NotificationContent extends StatelessWidget {
           // Timestamp
           Text(
             _formatTimestamp(notification.createdAt),
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppTheme.textTertiary,
-            ),
+            style: const TextStyle(fontSize: 12, color: AppTheme.textTertiary),
           ),
         ],
       ),
@@ -405,10 +404,7 @@ class _RelatedBadgeCard extends StatelessWidget {
             ),
             child: badge.iconUrl != null
                 ? ClipOval(
-                    child: Image.network(
-                      badge.iconUrl,
-                      fit: BoxFit.cover,
-                    ),
+                    child: Image.network(badge.iconUrl, fit: BoxFit.cover),
                   )
                 : const Icon(Icons.emoji_events, color: AppTheme.voltLime),
           ),

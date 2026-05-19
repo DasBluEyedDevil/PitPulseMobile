@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/error/failures.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/utils/haptic_feedback.dart';
 import '../data/social_auth_service.dart';
@@ -56,10 +57,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     await HapticFeedbackUtil.mediumImpact();
     setState(() => _isLoading = true);
 
-    await ref.read(authStateProvider.notifier).login(
-          _emailController.text.trim(),
-          _passwordController.text,
-        );
+    await ref
+        .read(authStateProvider.notifier)
+        .login(_emailController.text.trim(), _passwordController.text);
 
     if (!mounted) return;
 
@@ -99,8 +99,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       },
@@ -150,8 +151,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
@@ -194,8 +196,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }
@@ -222,227 +225,207 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       resizeToAvoidBottomInset: true,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppTheme.spacing24),
-                child: Form(
-                  key: _formKey,
-                  autovalidateMode: AutovalidateMode.onUserInteraction,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Logo/Title
-                      Semantics(
-                        label: 'SoundCheck logo',
-                        image: true,
-                        child: const Icon(
-                          Icons.music_note,
-                          size: 80,
-                          color: AppTheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: AppTheme.spacing16),
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.authBackdropAsset,
+        heroOpacity: 0.54,
+        heroAlignment: Alignment.topCenter,
+        child: Stack(
+          children: [
+            SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(AppTheme.spacing24),
+                  child: Form(
+                    key: _formKey,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const BrandLogoImage(height: 118),
+                        const SizedBox(height: AppTheme.spacing20),
 
-                      Text(
-                        'SoundCheck',
-                        style:
-                            Theme.of(context).textTheme.displayLarge?.copyWith(
-                                  color: AppTheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: AppTheme.spacing8),
-
-                      Text(
-                        'Check In, Share, Connect',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: AppTheme.textSecondary,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: AppTheme.spacing48),
-
-                      // Email Field
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        autofillHints: const [AutofillHints.email],
-                        textInputAction: TextInputAction.next,
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          hintText: 'name@example.com',
-                          prefixIcon: const Icon(Icons.email_outlined),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                        Text.rich(
+                          const TextSpan(
+                            children: [
+                              TextSpan(text: 'Live music.\n'),
+                              TextSpan(
+                                text: 'Real connection.',
+                                style: TextStyle(color: AppTheme.neonCyan),
+                              ),
+                            ],
                           ),
+                          style: Theme.of(context).textTheme.displaySmall
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                height: 1.05,
+                              ),
+                          textAlign: TextAlign.center,
                         ),
-                        validator: Validators.email,
-                        enabled: !_isLoading,
-                      ),
-                      const SizedBox(height: AppTheme.spacing16),
-
-                      // Password Field
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        autofillHints: const [AutofillHints.password],
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) => _handleLogin(),
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          hintText: 'Enter your password',
-                          prefixIcon: const Icon(Icons.lock_outlined),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                            ),
-                            tooltip: 'Toggle password visibility',
-                            onPressed: () async {
-                              await HapticFeedbackUtil.selectionClick();
-                              setState(
-                                () => _obscurePassword = !_obscurePassword,
-                              );
-                            },
-                          ),
+                        const SizedBox(height: AppTheme.spacing8),
+                        Text(
+                          'Check in. Share the moment. Relive every beat.',
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(color: AppTheme.brushedSilver),
+                          textAlign: TextAlign.center,
                         ),
-                        validator: Validators.password,
-                        enabled: !_isLoading,
-                      ),
+                        const SizedBox(height: AppTheme.spacing32),
 
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {
-                            if (mounted) {
-                              context.push('/forgot-password');
-                            }
-                          },
-                          child: const Text(
-                            'Forgot password?',
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
+                        // Email Field
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: const [AutofillHints.email],
+                          textInputAction: TextInputAction.next,
+                          decoration: InputDecoration(
+                            labelText: 'Email',
+                            hintText: 'name@example.com',
+                            prefixIcon: const Icon(Icons.email_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
+                          validator: Validators.email,
+                          enabled: !_isLoading,
                         ),
-                      ),
+                        const SizedBox(height: AppTheme.spacing16),
 
-                      const SizedBox(height: AppTheme.spacing24),
-
-                      // Login Button
-                      ElevatedButton(
-                        onPressed: _isLoading ? null : _handleLogin,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          backgroundColor: AppTheme.primary,
-                          foregroundColor: Theme.of(context)
-                              .scaffoldBackgroundColor, // Dark text on volt lime
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Login',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: AppTheme.spacing32),
-
-                      // Divider
-                      Row(
-                        children: [
-                          const Expanded(child: Divider()),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              'OR',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: AppTheme.textSecondary,
-                                  ),
+                        // Password Field
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          autofillHints: const [AutofillHints.password],
+                          textInputAction: TextInputAction.done,
+                          onFieldSubmitted: (_) => _handleLogin(),
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            hintText: 'Enter your password',
+                            prefixIcon: const Icon(Icons.lock_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                              ),
+                              tooltip: 'Toggle password visibility',
+                              onPressed: () async {
+                                await HapticFeedbackUtil.selectionClick();
+                                setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                );
+                              },
                             ),
                           ),
-                          const Expanded(child: Divider()),
-                        ],
-                      ),
+                          validator: Validators.password,
+                          enabled: !_isLoading,
+                        ),
 
-                      const SizedBox(height: AppTheme.spacing24),
-
-                      // Social Login Buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Apple Sign-In only available on iOS/macOS
-                          if (Platform.isIOS || Platform.isMacOS) ...[
-                            _SocialLoginButton(
-                              icon: Icons.apple,
-                              onTap: _isLoading ? null : _handleAppleSignIn,
-                            ),
-                            const SizedBox(width: 24),
-                          ],
-                          _SocialLoginButton(
-                            icon: Icons.g_mobiledata, // Google icon
-                            onTap: _isLoading ? null : _handleGoogleSignIn,
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: AppTheme.spacing32),
-
-                      // Register Link
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            "Don't have an account? ",
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              await HapticFeedbackUtil.lightImpact();
-                              if (context.mounted) {
-                                // Clear stack prevents back button to login
-                                context.push('/register');
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              if (mounted) {
+                                context.push('/forgot-password');
                               }
                             },
                             child: const Text(
-                              'Sign Up',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                              'Forgot password?',
+                              style: TextStyle(color: AppTheme.textSecondary),
                             ),
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+
+                        const SizedBox(height: AppTheme.spacing24),
+
+                        NeonGradientButton(
+                          onPressed: _isLoading ? null : _handleLogin,
+                          label: 'Login',
+                        ),
+
+                        const SizedBox(height: AppTheme.spacing32),
+
+                        // Divider
+                        Row(
+                          children: [
+                            const Expanded(child: Divider()),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
+                              child: Text(
+                                'OR',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: AppTheme.textSecondary),
+                              ),
+                            ),
+                            const Expanded(child: Divider()),
+                          ],
+                        ),
+
+                        const SizedBox(height: AppTheme.spacing24),
+
+                        // Social Login Buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Apple Sign-In only available on iOS/macOS
+                            if (Platform.isIOS || Platform.isMacOS) ...[
+                              _SocialLoginButton(
+                                icon: Icons.apple,
+                                onTap: _isLoading ? null : _handleAppleSignIn,
+                              ),
+                              const SizedBox(width: 24),
+                            ],
+                            _SocialLoginButton(
+                              icon: Icons.g_mobiledata, // Google icon
+                              onTap: _isLoading ? null : _handleGoogleSignIn,
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: AppTheme.spacing32),
+
+                        // Register Link
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              "Don't have an account? ",
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                await HapticFeedbackUtil.lightImpact();
+                                if (context.mounted) {
+                                  // Clear stack prevents back button to login
+                                  context.push('/register');
+                                }
+                              },
+                              child: const Text(
+                                'Sign Up',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          // Loading Overlay
-          if (_isLoading)
-            Container(
-              color: Colors.black.withValues(alpha: 0.3),
-              child: const Center(
-                child: CircularProgressIndicator(),
+            // Loading Overlay
+            if (_isLoading)
+              Container(
+                color: Colors.black.withValues(alpha: 0.3),
+                child: const Center(child: CircularProgressIndicator()),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -452,10 +435,7 @@ class _SocialLoginButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
 
-  const _SocialLoginButton({
-    required this.icon,
-    this.onTap,
-  });
+  const _SocialLoginButton({required this.icon, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -477,11 +457,7 @@ class _SocialLoginButton extends StatelessWidget {
               ),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              icon,
-              size: 28,
-              color: AppTheme.textPrimary,
-            ),
+            child: Icon(icon, size: 28, color: AppTheme.textPrimary),
           ),
         ),
       ),

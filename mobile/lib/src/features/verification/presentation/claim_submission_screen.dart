@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import 'providers/claim_providers.dart';
 
 /// Full-screen form for submitting a verification claim for a venue or band.
@@ -86,177 +87,186 @@ class _ClaimSubmissionScreenState extends ConsumerState<ClaimSubmissionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Claim ${widget.entityName}'),
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
       ),
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Info card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppTheme.info.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppTheme.info.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.info_outline,
-                      color: AppTheme.info,
-                      size: 20,
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.profileBackdropAsset,
+        heroOpacity: 0.24,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Info card
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.info.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppTheme.info.withValues(alpha: 0.3),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Verify that you own or manage this $entityLabel. '
-                        'An admin will review your claim.',
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 14,
-                          height: 1.4,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        color: AppTheme.info,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Verify that you own or manage this $entityLabel. '
+                          'An admin will review your claim.',
+                          style: const TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // Evidence text field
-              const Text(
-                'Your Connection',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _evidenceTextController,
-                maxLines: 4,
-                style: const TextStyle(color: AppTheme.textPrimary),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please describe your connection to this $entityLabel';
-                  }
-                  if (value.trim().length < 10) {
-                    return 'Please provide at least 10 characters of evidence';
-                  }
-                  return null;
-                },
-                decoration: InputDecoration(
-                  hintText: 'Explain your connection to this $entityLabel...',
-                  hintStyle: const TextStyle(color: AppTheme.textTertiary),
-                  filled: true,
-                  fillColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: AppTheme.voltLime,
-                    ),
+                // Evidence text field
+                const Text(
+                  'Your Connection',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-
-              // Evidence URL field
-              const Text(
-                'Supporting Link (optional)',
-                style: TextStyle(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _evidenceUrlController,
-                style: const TextStyle(color: AppTheme.textPrimary),
-                keyboardType: TextInputType.url,
-                decoration: InputDecoration(
-                  hintText: 'Link to your official website or social media',
-                  hintStyle: const TextStyle(color: AppTheme.textTertiary),
-                  filled: true,
-                  fillColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: AppTheme.voltLime,
-                    ),
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.link,
-                    color: AppTheme.textTertiary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Submit button
-              SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.voltLime,
-                    foregroundColor: Theme.of(context).scaffoldBackgroundColor,
-                    disabledBackgroundColor:
-                        AppTheme.voltLime.withValues(alpha: 0.5),
-                    shape: RoundedRectangleBorder(
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _evidenceTextController,
+                  maxLines: 4,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please describe your connection to this $entityLabel';
+                    }
+                    if (value.trim().length < 10) {
+                      return 'Please provide at least 10 characters of evidence';
+                    }
+                    return null;
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Explain your connection to this $entityLabel...',
+                    hintStyle: const TextStyle(color: AppTheme.textTertiary),
+                    filled: true,
+                    fillColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHigh,
+                    border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppTheme.voltLime),
                     ),
                   ),
-                  child: _isSubmitting
-                      ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Theme.of(context).scaffoldBackgroundColor,
-                          ),
-                        )
-                      : const Text(
-                          'Submit Claim',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 20),
+
+                // Evidence URL field
+                const Text(
+                  'Supporting Link (optional)',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _evidenceUrlController,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  keyboardType: TextInputType.url,
+                  decoration: InputDecoration(
+                    hintText: 'Link to your official website or social media',
+                    hintStyle: const TextStyle(color: AppTheme.textTertiary),
+                    filled: true,
+                    fillColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHigh,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppTheme.voltLime),
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.link,
+                      color: AppTheme.textTertiary,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Submit button
+                SizedBox(
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _isSubmitting ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.voltLime,
+                      foregroundColor: Theme.of(
+                        context,
+                      ).scaffoldBackgroundColor,
+                      disabledBackgroundColor: AppTheme.voltLime.withValues(
+                        alpha: 0.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isSubmitting
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Theme.of(context).scaffoldBackgroundColor,
+                            ),
+                          )
+                        : const Text(
+                            'Submit Claim',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

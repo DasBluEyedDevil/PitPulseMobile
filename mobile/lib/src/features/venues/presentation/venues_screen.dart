@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../domain/venue.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/widgets/venue_card.dart';
 import '../../../shared/widgets/venue_card_skeleton.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
@@ -76,6 +77,7 @@ class _VenuesScreenState extends ConsumerState<VenuesScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
         title: const Text('Venues'),
         actions: [
           Stack(
@@ -121,119 +123,120 @@ class _VenuesScreenState extends ConsumerState<VenuesScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Quick filter chips
-          if (filters.hasActiveFilters)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacing16,
-                vertical: AppTheme.spacing8,
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    if (filters.venueTypes.isNotEmpty)
-                      ...filters.venueTypes.map(
-                        (type) => Padding(
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.discoverBackdropAsset,
+        heroOpacity: 0.24,
+        child: Column(
+          children: [
+            // Quick filter chips
+            if (filters.hasActiveFilters)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacing16,
+                  vertical: AppTheme.spacing8,
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      if (filters.venueTypes.isNotEmpty)
+                        ...filters.venueTypes.map(
+                          (type) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Chip(
+                              label: Text(_venueTypeLabel(type)),
+                              deleteIcon: const Icon(Icons.close, size: 16),
+                              onDeleted: () {
+                                ref
+                                    .read(venueFiltersProvider.notifier)
+                                    .toggleVenueType(type);
+                              },
+                            ),
+                          ),
+                        ),
+                      if (filters.minRating != null)
+                        Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: Chip(
-                            label: Text(_venueTypeLabel(type)),
+                            label: Text(
+                              '${filters.minRating!.toStringAsFixed(1)}+ stars',
+                            ),
                             deleteIcon: const Icon(Icons.close, size: 16),
                             onDeleted: () {
                               ref
                                   .read(venueFiltersProvider.notifier)
-                                  .toggleVenueType(type);
+                                  .setMinRating(null);
                             },
                           ),
                         ),
-                      ),
-                    if (filters.minRating != null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Chip(
-                          label: Text(
-                            '${filters.minRating!.toStringAsFixed(1)}+ stars',
+                      if (filters.minCapacity != null ||
+                          filters.maxCapacity != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Chip(
+                            label: Text(
+                              'Capacity: ${filters.minCapacity ?? 0}-${filters.maxCapacity ?? '∞'}',
+                            ),
+                            deleteIcon: const Icon(Icons.close, size: 16),
+                            onDeleted: () {
+                              ref
+                                  .read(venueFiltersProvider.notifier)
+                                  .setCapacityRange(min: null, max: null);
+                            },
                           ),
-                          deleteIcon: const Icon(Icons.close, size: 16),
-                          onDeleted: () {
-                            ref
-                                .read(venueFiltersProvider.notifier)
-                                .setMinRating(null);
-                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            // Error banner
+            if (venuesState.error != null)
+              Container(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.spacing16,
+                  vertical: AppTheme.spacing8,
+                ),
+                padding: const EdgeInsets.all(AppTheme.spacing12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      color: Theme.of(context).colorScheme.error,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        venuesState.error!.message,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                          fontSize: 14,
                         ),
                       ),
-                    if (filters.minCapacity != null ||
-                        filters.maxCapacity != null)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Chip(
-                          label: Text(
-                            'Capacity: ${filters.minCapacity ?? 0}-${filters.maxCapacity ?? '∞'}',
-                          ),
-                          deleteIcon: const Icon(Icons.close, size: 16),
-                          onDeleted: () {
-                            ref
-                                .read(venueFiltersProvider.notifier)
-                                .setCapacityRange(
-                                  min: null,
-                                  max: null,
-                                );
-                          },
-                        ),
-                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        ref.read(paginatedVenuesProvider.notifier).loadMore();
+                      },
+                      child: const Text('Retry'),
+                    ),
                   ],
                 ),
               ),
-            ),
-          // Error banner
-          if (venuesState.error != null)
-            Container(
-              margin: const EdgeInsets.symmetric(
-                horizontal: AppTheme.spacing16,
-                vertical: AppTheme.spacing8,
-              ),
-              padding: const EdgeInsets.all(AppTheme.spacing12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    color: Theme.of(context).colorScheme.error,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      venuesState.error!.message,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      ref.read(paginatedVenuesProvider.notifier).loadMore();
-                    },
-                    child: const Text('Retry'),
-                  ),
-                ],
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await ref.read(paginatedVenuesProvider.notifier).refresh();
+                },
+                child: _buildVenuesList(context, ref, venuesState, filters),
               ),
             ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: () async {
-                await ref.read(paginatedVenuesProvider.notifier).refresh();
-              },
-              child: _buildVenuesList(context, ref, venuesState, filters),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -282,9 +285,7 @@ class _VenuesScreenState extends ConsumerState<VenuesScreen> {
         if (index >= venuesState.venues.length) {
           return const Padding(
             padding: EdgeInsets.symmetric(vertical: 16),
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
+            child: Center(child: CircularProgressIndicator()),
           );
         }
 

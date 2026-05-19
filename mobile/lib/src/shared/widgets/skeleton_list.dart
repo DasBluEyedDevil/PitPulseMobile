@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
+import '../../core/theme/app_theme.dart';
+
 /// A reusable skeleton loader for list items
 class SkeletonListItem extends StatelessWidget {
   final double height;
@@ -21,21 +23,26 @@ class SkeletonListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark
-        ? Theme.of(context).colorScheme.surfaceContainerHighest
-        : Colors.grey[300]!;
+    final baseColor = isDark ? AppTheme.graphiteHigh : Colors.grey[300]!;
     final highlightColor = isDark
-        ? Theme.of(context).colorScheme.surfaceContainerHigh
+        ? AppTheme.neonCyan.withValues(alpha: 0.18)
         : Colors.grey[100]!;
-    final shapeColor =
-        isDark ? Theme.of(context).colorScheme.surface : Colors.white;
+    final shapeColor = isDark
+        ? AppTheme.brushedSilver.withValues(alpha: 0.16)
+        : Colors.white;
 
     return Container(
       margin: margin,
       padding: padding,
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        gradient: isDark ? AppTheme.glassGradient : null,
+        color: isDark ? null : Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(
+          color: isDark
+              ? AppTheme.neonCyan.withValues(alpha: 0.12)
+              : Colors.transparent,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -106,11 +113,7 @@ class SkeletonList extends StatelessWidget {
   final int itemCount;
   final double itemHeight;
 
-  const SkeletonList({
-    super.key,
-    this.itemCount = 5,
-    this.itemHeight = 100,
-  });
+  const SkeletonList({super.key, this.itemCount = 5, this.itemHeight = 100});
 
   @override
   Widget build(BuildContext context) {

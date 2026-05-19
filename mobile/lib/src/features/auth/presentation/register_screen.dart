@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/error/failures.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/utils/validators.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -117,7 +118,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     setState(() => _isLoading = true);
 
-    await ref.read(authStateProvider.notifier).register(
+    await ref
+        .read(authStateProvider.notifier)
+        .register(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           username: _usernameController.text.trim(),
@@ -160,8 +163,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             backgroundColor: AppTheme.error,
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       },
@@ -188,253 +192,267 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
         title: const Text('Create Account'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
         ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppTheme.spacing24),
-          child: Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: AppTheme.spacing16),
-
-                Text(
-                  'Join SoundCheck',
-                  style: Theme.of(context).textTheme.displayMedium,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppTheme.spacing8),
-
-                Text(
-                  'Start checking in to live shows',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppTheme.spacing32),
-
-                // Email Field
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email],
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Email *',
-                    hintText: 'Enter your email',
-                    prefixIcon: Icon(Icons.email_outlined),
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.authBackdropAsset,
+        heroOpacity: 0.34,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppTheme.spacing24),
+            child: Form(
+              key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: AppTheme.spacing16),
+                  const BrandLogoImage(
+                    asset: AppTheme.markSquareAsset,
+                    height: 92,
+                    semanticLabel: 'SoundCheck mark',
                   ),
-                  validator: Validators.email,
-                ),
-                const SizedBox(height: AppTheme.spacing16),
+                  const SizedBox(height: AppTheme.spacing16),
 
-                // Username Field
-                TextFormField(
-                  controller: _usernameController,
-                  keyboardType: TextInputType.text,
-                  autofillHints: const [AutofillHints.username],
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: 'Username *',
-                    hintText: 'Choose a username',
-                    prefixIcon: const Icon(Icons.person_outlined),
-                    suffixIcon: _isCheckingUsername
-                        ? const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          )
-                        : _usernameAvailabilityMessage != null
-                            ? const Icon(
-                                Icons.error_outline,
-                                color: AppTheme.error,
-                              )
-                            : _usernameController.text.trim().length >= 3
-                                ? const Icon(
-                                    Icons.check_circle_outline,
-                                    color: AppTheme.success,
-                                  )
-                                : null,
+                  Text(
+                    'Join SoundCheck',
+                    style: Theme.of(context).textTheme.displayMedium,
+                    textAlign: TextAlign.center,
                   ),
-                  validator: (value) {
-                    final formatError = Validators.username(value);
-                    if (formatError != null) return formatError;
-                    if (_usernameAvailabilityMessage != null) {
-                      return _usernameAvailabilityMessage;
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: AppTheme.spacing16),
+                  const SizedBox(height: AppTheme.spacing8),
 
-                // First Name Field
-                TextFormField(
-                  controller: _firstNameController,
-                  keyboardType: TextInputType.name,
-                  autofillHints: const [AutofillHints.givenName],
-                  textInputAction: TextInputAction.next,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'First Name (optional)',
-                    hintText: 'Enter your first name',
-                    prefixIcon: Icon(Icons.person_outline),
+                  Text(
+                    'Start checking in to live shows',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
-                ),
-                const SizedBox(height: AppTheme.spacing16),
+                  const SizedBox(height: AppTheme.spacing32),
 
-                // Last Name Field
-                TextFormField(
-                  controller: _lastNameController,
-                  keyboardType: TextInputType.name,
-                  autofillHints: const [AutofillHints.familyName],
-                  textInputAction: TextInputAction.next,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Last Name (optional)',
-                    hintText: 'Enter your last name',
-                    prefixIcon: Icon(Icons.person_outline),
+                  // Email Field
+                  TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    autofillHints: const [AutofillHints.email],
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Email *',
+                      hintText: 'Enter your email',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                    validator: Validators.email,
                   ),
-                ),
-                const SizedBox(height: AppTheme.spacing16),
+                  const SizedBox(height: AppTheme.spacing16),
 
-                // Password Field
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  autofillHints: const [AutofillHints.newPassword],
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: 'Password *',
-                    hintText: 'Create a password',
-                    prefixIcon: const Icon(Icons.lock_outlined),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
-                      tooltip: 'Toggle password visibility',
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
+                  // Username Field
+                  TextFormField(
+                    controller: _usernameController,
+                    keyboardType: TextInputType.text,
+                    autofillHints: const [AutofillHints.username],
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: 'Username *',
+                      hintText: 'Choose a username',
+                      prefixIcon: const Icon(Icons.person_outlined),
+                      suffixIcon: _isCheckingUsername
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            )
+                          : _usernameAvailabilityMessage != null
+                          ? const Icon(
+                              Icons.error_outline,
+                              color: AppTheme.error,
+                            )
+                          : _usernameController.text.trim().length >= 3
+                          ? const Icon(
+                              Icons.check_circle_outline,
+                              color: AppTheme.success,
+                            )
+                          : null,
+                    ),
+                    validator: (value) {
+                      final formatError = Validators.username(value);
+                      if (formatError != null) return formatError;
+                      if (_usernameAvailabilityMessage != null) {
+                        return _usernameAvailabilityMessage;
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: AppTheme.spacing16),
+
+                  // First Name Field
+                  TextFormField(
+                    controller: _firstNameController,
+                    keyboardType: TextInputType.name,
+                    autofillHints: const [AutofillHints.givenName],
+                    textInputAction: TextInputAction.next,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'First Name (optional)',
+                      hintText: 'Enter your first name',
+                      prefixIcon: Icon(Icons.person_outline),
                     ),
                   ),
-                  validator: Validators.password,
-                ),
-                if (_passwordController.text.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: _passwordStrength,
-                            backgroundColor: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHigh,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              _passwordStrengthColor,
+                  const SizedBox(height: AppTheme.spacing16),
+
+                  // Last Name Field
+                  TextFormField(
+                    controller: _lastNameController,
+                    keyboardType: TextInputType.name,
+                    autofillHints: const [AutofillHints.familyName],
+                    textInputAction: TextInputAction.next,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Last Name (optional)',
+                      hintText: 'Enter your last name',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacing16),
+
+                  // Password Field
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    autofillHints: const [AutofillHints.newPassword],
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: 'Password *',
+                      hintText: 'Create a password',
+                      prefixIcon: const Icon(Icons.lock_outlined),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                        tooltip: 'Toggle password visibility',
+                        onPressed: () {
+                          setState(() => _obscurePassword = !_obscurePassword);
+                        },
+                      ),
+                    ),
+                    validator: Validators.password,
+                  ),
+                  if (_passwordController.text.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: _passwordStrength,
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHigh,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _passwordStrengthColor,
+                              ),
+                              minHeight: 4,
                             ),
-                            minHeight: 4,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        _passwordStrengthLabel,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: _passwordStrengthColor,
-                          fontWeight: FontWeight.w600,
+                        const SizedBox(width: 12),
+                        Text(
+                          _passwordStrengthLabel,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _passwordStrengthColor,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: AppTheme.spacing16),
+
+                  // Confirm Password Field
+                  TextFormField(
+                    controller: _confirmPasswordController,
+                    obscureText: _obscureConfirmPassword,
+                    autofillHints: const [AutofillHints.newPassword],
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _handleRegister(),
+                    decoration: InputDecoration(
+                      labelText: 'Confirm Password *',
+                      hintText: 'Re-enter your password',
+                      prefixIcon: const Icon(Icons.lock_outlined),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmPassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                        tooltip: 'Toggle password visibility',
+                        onPressed: () {
+                          setState(
+                            () => _obscureConfirmPassword =
+                                !_obscureConfirmPassword,
+                          );
+                        },
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please confirm your password';
+                      }
+                      if (value != _passwordController.text) {
+                        return 'Passwords do not match';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: AppTheme.spacing32),
+
+                  // Register Button
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _handleRegister,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : const Text('Create Account'),
+                  ),
+                  const SizedBox(height: AppTheme.spacing16),
+
+                  // Login Link
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Already have an account? ',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      TextButton(
+                        onPressed: () => context.pop(),
+                        child: const Text('Login'),
                       ),
                     ],
                   ),
                 ],
-                const SizedBox(height: AppTheme.spacing16),
-
-                // Confirm Password Field
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
-                  autofillHints: const [AutofillHints.newPassword],
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => _handleRegister(),
-                  decoration: InputDecoration(
-                    labelText: 'Confirm Password *',
-                    hintText: 'Re-enter your password',
-                    prefixIcon: const Icon(Icons.lock_outlined),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
-                      tooltip: 'Toggle password visibility',
-                      onPressed: () {
-                        setState(
-                          () => _obscureConfirmPassword =
-                              !_obscureConfirmPassword,
-                        );
-                      },
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please confirm your password';
-                    }
-                    if (value != _passwordController.text) {
-                      return 'Passwords do not match';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: AppTheme.spacing32),
-
-                // Register Button
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _handleRegister,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text('Create Account'),
-                ),
-                const SizedBox(height: AppTheme.spacing16),
-
-                // Login Link
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Already have an account? ',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    TextButton(
-                      onPressed: () => context.pop(),
-                      child: const Text('Login'),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
         ),

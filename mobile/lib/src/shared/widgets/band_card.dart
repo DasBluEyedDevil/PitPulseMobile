@@ -3,17 +3,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/bands/domain/band.dart';
 import '../utils/haptic_feedback.dart';
+import 'brand_widgets.dart';
 import 'star_rating.dart';
 
 class BandCard extends StatelessWidget {
   final Band band;
   final VoidCallback? onTap;
 
-  const BandCard({
-    required this.band,
-    super.key,
-    this.onTap,
-  });
+  const BandCard({required this.band, super.key, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -24,9 +21,12 @@ class BandCard extends StatelessWidget {
           'Band: ${band.name}${band.genre != null ? ', genre: ${band.genre}' : ''}, ${band.averageRating.toStringAsFixed(1)} star rating',
       child: Card(
         elevation: 4,
-        shadowColor: Colors.black.withValues(alpha: 0.2),
+        shadowColor: AppTheme.neonMagenta.withValues(alpha: 0.18),
         clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: AppTheme.neonCyan.withValues(alpha: 0.18)),
+        ),
         child: InkWell(
           onTap: onTap != null
               ? () async {
@@ -107,7 +107,7 @@ class BandCard extends StatelessWidget {
                       Row(
                         children: [
                           const Icon(
-                            Icons.music_note,
+                            Icons.graphic_eq,
                             color: AppTheme.accentTeal,
                             size: 14,
                           ),
@@ -165,15 +165,11 @@ class BandCard extends StatelessWidget {
   }
 
   Widget _buildPlaceholder(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      child: const Center(
-        child: Icon(
-          Icons.music_video,
-          size: 48,
-          color: AppTheme.textSecondary,
-        ),
-      ),
+    return const BrandImagePlaceholder(
+      height: 200,
+      asset: AppTheme.cardMagentaAsset,
+      icon: Icons.music_video,
+      borderRadius: BorderRadius.zero,
     );
   }
 }

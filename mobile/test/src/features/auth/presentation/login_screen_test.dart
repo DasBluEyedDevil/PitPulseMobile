@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:soundcheck_flutter/src/core/theme/app_theme.dart';
 import 'package:soundcheck_flutter/src/features/auth/presentation/login_screen.dart';
 
 void main() {
@@ -10,28 +11,38 @@ void main() {
       // Mock the haptic feedback platform channel
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform, (message) async {
-        return null;
-      });
+            return null;
+          });
     });
 
-    testWidgets('displays all required UI elements',
-        (WidgetTester tester) async {
+    testWidgets('displays all required UI elements', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: LoginScreen(),
-          ),
-        ),
+        const ProviderScope(child: MaterialApp(home: LoginScreen())),
       );
 
-      // Check for logo/icon
-      expect(find.byIcon(Icons.music_note), findsOneWidget);
+      // Check for branded logo image
+      expect(find.bySemanticsLabel('SoundCheck logo'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Image &&
+              widget.image is AssetImage &&
+              (widget.image as AssetImage).assetName == AppTheme.logoWideAsset,
+        ),
+        findsOneWidget,
+      );
 
-      // Check for app name
-      expect(find.text('SoundCheck'), findsOneWidget);
+      // The wordmark image carries the app name; do not render duplicate title
+      // text on top of it.
+      expect(find.text('SoundCheck'), findsNothing);
 
-      // Check for tagline
-      expect(find.text('Check In, Share, Connect'), findsOneWidget);
+      // Check for flash onboarding-style tagline
+      expect(
+        find.text('Check in. Share the moment. Relive every beat.'),
+        findsOneWidget,
+      );
 
       // Check for email field
       expect(find.widgetWithText(TextFormField, 'Email'), findsOneWidget);
@@ -40,46 +51,39 @@ void main() {
       expect(find.widgetWithText(TextFormField, 'Password'), findsOneWidget);
 
       // Check for login button
-      expect(find.widgetWithText(ElevatedButton, 'Login'), findsOneWidget);
+      expect(find.text('Login'), findsOneWidget);
 
       // Check for sign up link
       expect(find.text("Don't have an account? "), findsOneWidget);
       expect(find.widgetWithText(TextButton, 'Sign Up'), findsOneWidget);
     });
 
-    testWidgets('email field has correct keyboard type',
-        (WidgetTester tester) async {
+    testWidgets('email field has correct keyboard type', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: LoginScreen(),
-          ),
-        ),
+        const ProviderScope(child: MaterialApp(home: LoginScreen())),
       );
 
       final emailFieldFinder = find.widgetWithText(TextFormField, 'Email');
       final emailTextField = tester.widget<TextField>(
-        find.descendant(
-          of: emailFieldFinder,
-          matching: find.byType(TextField),
-        ),
+        find.descendant(of: emailFieldFinder, matching: find.byType(TextField)),
       );
 
       expect(emailTextField.keyboardType, TextInputType.emailAddress);
     });
 
-    testWidgets('password field is initially obscured',
-        (WidgetTester tester) async {
+    testWidgets('password field is initially obscured', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: LoginScreen(),
-          ),
-        ),
+        const ProviderScope(child: MaterialApp(home: LoginScreen())),
       );
 
-      final passwordFieldFinder =
-          find.widgetWithText(TextFormField, 'Password');
+      final passwordFieldFinder = find.widgetWithText(
+        TextFormField,
+        'Password',
+      );
       final passwordTextField = tester.widget<TextField>(
         find.descendant(
           of: passwordFieldFinder,
@@ -92,16 +96,14 @@ void main() {
 
     testWidgets('can toggle password visibility', (WidgetTester tester) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: LoginScreen(),
-          ),
-        ),
+        const ProviderScope(child: MaterialApp(home: LoginScreen())),
       );
 
       // Find the password field
-      final passwordFieldFinder =
-          find.widgetWithText(TextFormField, 'Password');
+      final passwordFieldFinder = find.widgetWithText(
+        TextFormField,
+        'Password',
+      );
 
       // Initially obscured
       TextField passwordTextField = tester.widget<TextField>(
@@ -132,15 +134,11 @@ void main() {
 
     testWidgets('validates empty email field', (WidgetTester tester) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: LoginScreen(),
-          ),
-        ),
+        const ProviderScope(child: MaterialApp(home: LoginScreen())),
       );
 
       // Tap login button without entering any data
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Login'));
+      await tester.tap(find.text('Login'));
       await tester.pumpAndSettle();
 
       // Should show validation error
@@ -149,11 +147,7 @@ void main() {
 
     testWidgets('validates invalid email format', (WidgetTester tester) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: LoginScreen(),
-          ),
-        ),
+        const ProviderScope(child: MaterialApp(home: LoginScreen())),
       );
 
       // Enter invalid email
@@ -163,7 +157,7 @@ void main() {
       );
 
       // Tap login button
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Login'));
+      await tester.tap(find.text('Login'));
       await tester.pumpAndSettle();
 
       // Should show validation error
@@ -172,11 +166,7 @@ void main() {
 
     testWidgets('validates empty password field', (WidgetTester tester) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: LoginScreen(),
-          ),
-        ),
+        const ProviderScope(child: MaterialApp(home: LoginScreen())),
       );
 
       // Enter valid email but no password
@@ -186,21 +176,18 @@ void main() {
       );
 
       // Tap login button
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Login'));
+      await tester.tap(find.text('Login'));
       await tester.pumpAndSettle();
 
       // Should show password validation error
       expect(find.text('Password is required'), findsOneWidget);
     });
 
-    testWidgets('validates password minimum length',
-        (WidgetTester tester) async {
+    testWidgets('validates password minimum length', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: LoginScreen(),
-          ),
-        ),
+        const ProviderScope(child: MaterialApp(home: LoginScreen())),
       );
 
       // Enter valid email but short password
@@ -214,7 +201,7 @@ void main() {
       );
 
       // Tap login button
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Login'));
+      await tester.tap(find.text('Login'));
       await tester.pumpAndSettle();
 
       // Should show password validation error
@@ -224,14 +211,11 @@ void main() {
       );
     });
 
-    testWidgets('accepts valid email and password',
-        (WidgetTester tester) async {
+    testWidgets('accepts valid email and password', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
-            home: LoginScreen(),
-          ),
-        ),
+        const ProviderScope(child: MaterialApp(home: LoginScreen())),
       );
 
       // Enter valid credentials (must meet all backend requirements)
@@ -254,7 +238,7 @@ void main() {
       expect(find.text('Password must be at least 8 characters'), findsNothing);
 
       // Verify the login button is enabled and visible
-      final loginButton = find.widgetWithText(ElevatedButton, 'Login');
+      final loginButton = find.text('Login');
       expect(loginButton, findsOneWidget);
     });
   });

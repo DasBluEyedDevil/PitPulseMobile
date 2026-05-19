@@ -1,0 +1,33 @@
+---
+interface Props {
+  size?: 'default' | 'large';
+  class?: string;
+}
+
+const { size = 'default', class: className = '' } = Astro.props;
+
+const playUrl = 'https://play.google.com/store/apps/details?id=com.soundcheck.app';
+const appStoreUrl = 'https://apps.apple.com/app/soundcheck/id000000000';
+
+const btnClass =
+  size === 'large'
+    ? 'flex min-h-[56px] items-center gap-3 rounded-2xl border border-cyan/20 bg-surface-raised px-6 py-4 transition hover:border-cyan/40 hover:shadow-neon-sm'
+    : 'flex min-h-[48px] items-center gap-2 rounded-xl border border-cyan/20 bg-surface-raised px-4 py-3 text-sm transition hover:border-cyan/40';
+---
+
+<div class={`flex flex-wrap items-center gap-4 ${className}`}>
+  <a href={playUrl} class={btnClass} target="_blank" rel="noopener noreferrer">
+    <img src="/brand/mark.png" alt="" class="h-8 w-8 shrink-0" width="32" height="32" />
+    <span class="text-left">
+      <span class="block font-body text-xs text-muted">Get it on</span>
+      <span class="block font-display font-bold text-chrome">Google Play</span>
+    </span>
+  </a>
+  <a href={appStoreUrl} class={btnClass} target="_blank" rel="noopener noreferrer">
+    <img src="/brand/mark.png" alt="" class="h-8 w-8 shrink-0" width="32" height="32" />
+    <span class="text-left">
+      <span class="block font-body text-xs text-muted">Download on the</span>
+      <span class="block font-display font-bold text-chrome">App Store</span>
+    </span>
+  </a>
+</div>

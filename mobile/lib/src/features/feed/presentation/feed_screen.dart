@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/widgets/empty_state_widget.dart';
 import '../../../shared/widgets/error_state_widget.dart';
 import 'providers/feed_providers.dart';
@@ -57,19 +58,25 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
 
     if (tabIndex == 1) {
       // Friends tab
-      ref.read(feedRepositoryProvider).markFeedRead(
+      ref
+          .read(feedRepositoryProvider)
+          .markFeedRead(
             'friends',
             feedItems.first.createdAt,
             lastSeenCheckinId: feedItems.first.id,
           );
     } else if (tabIndex == 2) {
       // Merged Events tab — mark both event and happening_now as read
-      ref.read(feedRepositoryProvider).markFeedRead(
+      ref
+          .read(feedRepositoryProvider)
+          .markFeedRead(
             'event',
             feedItems.first.createdAt,
             lastSeenCheckinId: feedItems.first.id,
           );
-      ref.read(feedRepositoryProvider).markFeedRead(
+      ref
+          .read(feedRepositoryProvider)
+          .markFeedRead(
             'happening_now',
             feedItems.first.createdAt,
             lastSeenCheckinId: feedItems.first.id,
@@ -86,86 +93,77 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          // App Bar with SOUNDCHECK branding
-          SliverAppBar(
-            floating: true,
-            pinned: true,
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            title: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'SOUNDCHECK',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      letterSpacing: 1.5,
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.feedBackdropAsset,
+        heroOpacity: 0.26,
+        child: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            // App Bar with SOUNDCHECK branding
+            SliverAppBar(
+              floating: true,
+              pinned: true,
+              toolbarHeight: 70,
+              backgroundColor: AppTheme.stageBlack.withValues(alpha: 0.86),
+              title: const Row(
+                children: [
+                  SizedBox(
+                    width: 164,
+                    child: BrandLogoImage(
+                      height: 46,
+                      alignment: Alignment.centerLeft,
                     ),
                   ),
+                ],
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  tooltip: 'Search',
+                  onPressed: () => context.push('/search'),
                 ),
               ],
+              bottom: TabBar(
+                controller: _tabController,
+                indicatorColor: AppTheme.voltLime,
+                labelColor: AppTheme.voltLime,
+                unselectedLabelColor: AppTheme.textTertiary,
+                indicatorSize: TabBarIndicatorSize.label,
+                labelStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                tabs: [
+                  const _TabWithBadge(label: 'Discover', count: 0),
+                  _TabWithBadge(
+                    label: 'Friends',
+                    count: unseenAsync.value?.friends ?? 0,
+                  ),
+                  _TabWithBadge(
+                    label: 'Events',
+                    count:
+                        (unseenAsync.value?.event ?? 0) +
+                        (unseenAsync.value?.happeningNow ?? 0),
+                    showLiveDot: (unseenAsync.value?.happeningNow ?? 0) > 0,
+                  ),
+                ],
+              ),
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.search),
-                tooltip: 'Search',
-                onPressed: () => context.push('/search'),
-              ),
-            ],
-            bottom: TabBar(
-              controller: _tabController,
-              indicatorColor: AppTheme.voltLime,
-              labelColor: AppTheme.voltLime,
-              unselectedLabelColor: AppTheme.textTertiary,
-              indicatorSize: TabBarIndicatorSize.label,
-              labelStyle: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-              tabs: [
-                const _TabWithBadge(
-                  label: 'Discover',
-                  count: 0,
-                ),
-                _TabWithBadge(
-                  label: 'Friends',
-                  count: unseenAsync.value?.friends ?? 0,
-                ),
-                _TabWithBadge(
-                  label: 'Events',
-                  count: (unseenAsync.value?.event ?? 0) +
-                      (unseenAsync.value?.happeningNow ?? 0),
-                  showLiveDot: (unseenAsync.value?.happeningNow ?? 0) > 0,
-                ),
-              ],
-            ),
-          ),
-        ],
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            // Discover (global) tab
-            const _GlobalFeedTab(),
-            // Friends tab
-            _FriendsTab(newCheckinCount: newCheckinCount),
-            // Events + Happening Now merged tab
-            const _MergedEventsTab(),
           ],
+          body: TabBarView(
+            controller: _tabController,
+            children: [
+              // Discover (global) tab
+              const _GlobalFeedTab(),
+              // Friends tab
+              _FriendsTab(newCheckinCount: newCheckinCount),
+              // Events + Happening Now merged tab
+              const _MergedEventsTab(),
+            ],
+          ),
         ),
       ),
     );
@@ -208,10 +206,7 @@ class _TabWithBadge extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               child: Container(
                 key: ValueKey(count),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppTheme.hotOrange,
                   borderRadius: BorderRadius.circular(10),
@@ -434,8 +429,9 @@ class _MergedEventsTabState extends ConsumerState<_MergedEventsTab> {
                 onSelected: (_) =>
                     setState(() => _filter = _EventsFilter.events),
                 selectedColor: AppTheme.voltLime,
-                backgroundColor:
-                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
                 labelStyle: TextStyle(
                   color: _filter == _EventsFilter.events
                       ? Theme.of(context).scaffoldBackgroundColor
@@ -470,8 +466,9 @@ class _MergedEventsTabState extends ConsumerState<_MergedEventsTab> {
                 onSelected: (_) =>
                     setState(() => _filter = _EventsFilter.happeningNow),
                 selectedColor: AppTheme.voltLime,
-                backgroundColor:
-                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
                 labelStyle: TextStyle(
                   color: _filter == _EventsFilter.happeningNow
                       ? Theme.of(context).scaffoldBackgroundColor
@@ -598,18 +595,9 @@ class _FeedLoadingState extends StatelessWidget {
     return ListView(
       children: List.generate(
         3,
-        (index) => Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          height: 280,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Center(
-            child: CircularProgressIndicator(
-              color: AppTheme.voltLime,
-            ),
-          ),
+        (index) => const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: FlashSkeleton(height: 280),
         ),
       ),
     );
@@ -617,10 +605,7 @@ class _FeedLoadingState extends StatelessWidget {
 }
 
 class _FeedErrorState extends StatelessWidget {
-  const _FeedErrorState({
-    required this.error,
-    required this.onRetry,
-  });
+  const _FeedErrorState({required this.error, required this.onRetry});
 
   final Object error;
   final VoidCallback onRetry;

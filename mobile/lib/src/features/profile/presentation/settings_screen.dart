@@ -8,6 +8,7 @@ import '../../../core/services/log_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/utils/app_info.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/widgets/error_state_widget.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -28,189 +29,195 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Settings'),
         elevation: 0,
-        backgroundColor: Theme.of(context).cardColor,
+        backgroundColor: Colors.transparent,
       ),
-      body: notificationSettings.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => RefreshIndicator(
-          onRefresh: () async => ref.invalidate(notificationSettingsProvider),
-          child: ListView(
-            children: [
-              ErrorStateWidget(
-                error: err,
-                stackTrace: stack,
-                onRetry: () => ref.invalidate(notificationSettingsProvider),
-              ),
-            ],
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.profileBackdropAsset,
+        heroOpacity: 0.24,
+        child: notificationSettings.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => RefreshIndicator(
+            onRefresh: () async => ref.invalidate(notificationSettingsProvider),
+            child: ListView(
+              children: [
+                ErrorStateWidget(
+                  error: err,
+                  stackTrace: stack,
+                  onRetry: () => ref.invalidate(notificationSettingsProvider),
+                ),
+              ],
+            ),
           ),
-        ),
-        data: (settings) {
-          final pushEnabled = settings.$1;
-          final emailEnabled = settings.$2;
+          data: (settings) {
+            final pushEnabled = settings.$1;
+            final emailEnabled = settings.$2;
 
-          return ListView(
-            children: [
-              // Appearance Section
-              const _SectionHeader(title: 'Appearance'),
-              const _SettingsTile(
-                title: 'Theme',
-                subtitle: 'Dark',
-                leading: Icon(Icons.palette_outlined),
-                trailing: Text(
-                  'Dark',
-                  style: TextStyle(color: AppTheme.textSecondary),
+            return ListView(
+              children: [
+                // Appearance Section
+                const _SectionHeader(title: 'Appearance'),
+                const _SettingsTile(
+                  title: 'Theme',
+                  subtitle: 'Dark',
+                  leading: Icon(Icons.palette_outlined),
+                  trailing: Text(
+                    'Dark',
+                    style: TextStyle(color: AppTheme.textSecondary),
+                  ),
                 ),
-              ),
-              const Divider(),
+                const Divider(),
 
-              // Notifications Section
-              const _SectionHeader(title: 'Notifications'),
-              _SettingsTile(
-                title: 'Push Notifications',
-                subtitle: 'New check-ins, badges, and followers',
-                leading: const Icon(Icons.notifications_outlined),
-                trailing: Switch(
-                  value: pushEnabled,
-                  onChanged: (value) {
-                    ref
-                        .read(notificationSettingsProvider.notifier)
-                        .setPushNotifications(value);
+                // Notifications Section
+                const _SectionHeader(title: 'Notifications'),
+                _SettingsTile(
+                  title: 'Push Notifications',
+                  subtitle: 'New check-ins, badges, and followers',
+                  leading: const Icon(Icons.notifications_outlined),
+                  trailing: Switch(
+                    value: pushEnabled,
+                    onChanged: (value) {
+                      ref
+                          .read(notificationSettingsProvider.notifier)
+                          .setPushNotifications(value);
+                    },
+                  ),
+                ),
+                _SettingsTile(
+                  title: 'Email Notifications',
+                  subtitle: 'Receive occasional updates',
+                  leading: const Icon(Icons.email_outlined),
+                  trailing: Switch(
+                    value: emailEnabled,
+                    onChanged: (value) {
+                      ref
+                          .read(notificationSettingsProvider.notifier)
+                          .setEmailNotifications(value);
+                    },
+                  ),
+                ),
+                const Divider(),
+
+                // Privacy Section
+                const _SectionHeader(title: 'Privacy & Legal'),
+                _SettingsTile(
+                  title: 'Privacy Policy',
+                  leading: const Icon(Icons.privacy_tip_outlined),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    _launchUrl('https://soundcheck.app/privacy');
                   },
                 ),
-              ),
-              _SettingsTile(
-                title: 'Email Notifications',
-                subtitle: 'Receive occasional updates',
-                leading: const Icon(Icons.email_outlined),
-                trailing: Switch(
-                  value: emailEnabled,
-                  onChanged: (value) {
-                    ref
-                        .read(notificationSettingsProvider.notifier)
-                        .setEmailNotifications(value);
+                _SettingsTile(
+                  title: 'Terms of Service',
+                  leading: const Icon(Icons.description_outlined),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    _launchUrl('https://soundcheck.app/terms');
                   },
                 ),
-              ),
-              const Divider(),
+                _SettingsTile(
+                  title: 'Blocked Users',
+                  subtitle: 'Manage blocked users',
+                  leading: const Icon(Icons.block),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/profile/settings/blocked-users'),
+                ),
+                _SettingsTile(
+                  title: 'My Claims',
+                  subtitle: 'View your venue and band claims',
+                  leading: const Icon(Icons.verified_outlined),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.push('/profile/settings/my-claims'),
+                ),
+                const Divider(),
 
-              // Privacy Section
-              const _SectionHeader(title: 'Privacy & Legal'),
-              _SettingsTile(
-                title: 'Privacy Policy',
-                leading: const Icon(Icons.privacy_tip_outlined),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  _launchUrl('https://soundcheck.app/privacy');
-                },
-              ),
-              _SettingsTile(
-                title: 'Terms of Service',
-                leading: const Icon(Icons.description_outlined),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  _launchUrl('https://soundcheck.app/terms');
-                },
-              ),
-              _SettingsTile(
-                title: 'Blocked Users',
-                subtitle: 'Manage blocked users',
-                leading: const Icon(Icons.block),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/profile/settings/blocked-users'),
-              ),
-              _SettingsTile(
-                title: 'My Claims',
-                subtitle: 'View your venue and band claims',
-                leading: const Icon(Icons.verified_outlined),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/profile/settings/my-claims'),
-              ),
-              const Divider(),
-
-              // About Section
-              const _SectionHeader(title: 'About'),
-              _SettingsTile(
-                title: 'About SoundCheck',
-                subtitle: 'Version ${AppInfo.version}',
-                leading: const Icon(Icons.info_outline),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  showAboutDialog(
-                    context: context,
-                    applicationName: 'SoundCheck',
-                    applicationVersion: AppInfo.version,
-                    applicationIcon: const Icon(
-                      Icons.music_note,
-                      size: 48,
-                      color: AppTheme.primary,
-                    ),
-                    children: [
-                      const Text(
-                        'Check in at live shows. Track your concert history. '
-                        'Share the moment with friends.',
+                // About Section
+                const _SectionHeader(title: 'About'),
+                _SettingsTile(
+                  title: 'About SoundCheck',
+                  subtitle: 'Version ${AppInfo.version}',
+                  leading: const Icon(Icons.info_outline),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    showAboutDialog(
+                      context: context,
+                      applicationName: 'SoundCheck',
+                      applicationVersion: AppInfo.version,
+                      applicationIcon: const Icon(
+                        Icons.music_note,
+                        size: 48,
+                        color: AppTheme.primary,
                       ),
-                    ],
-                  );
-                },
-              ),
-              _SettingsTile(
-                title: 'Contact Support',
-                leading: const Icon(Icons.support_agent_outlined),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  _launchUrl('mailto:support@soundcheck.app');
-                },
-              ),
-              const Divider(),
-
-              // Account Section
-              const _SectionHeader(title: 'Account'),
-              _SettingsTile(
-                title: 'Delete Account',
-                subtitle: 'Permanently remove your account and data',
-                leading:
-                    const Icon(Icons.delete_forever, color: AppTheme.error),
-                textColor: AppTheme.error,
-                onTap: () => _showDeleteAccountDialog(context, ref),
-              ),
-              _SettingsTile(
-                title: 'Logout',
-                leading: const Icon(Icons.logout, color: AppTheme.error),
-                textColor: AppTheme.error,
-                onTap: () async {
-                  final shouldLogout = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Logout'),
-                      content: const Text('Are you sure you want to logout?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(true),
-                          child: const Text(
-                            'Logout',
-                            style: TextStyle(color: AppTheme.error),
-                          ),
+                      children: [
+                        const Text(
+                          'Check in at live shows. Track your concert history. '
+                          'Share the moment with friends.',
                         ),
                       ],
-                    ),
-                  );
+                    );
+                  },
+                ),
+                _SettingsTile(
+                  title: 'Contact Support',
+                  leading: const Icon(Icons.support_agent_outlined),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    _launchUrl('mailto:support@soundcheck.app');
+                  },
+                ),
+                const Divider(),
 
-                  if (shouldLogout == true && context.mounted) {
-                    await ref.read(authStateProvider.notifier).logout();
-                    if (context.mounted) {
-                      context.go('/login');
+                // Account Section
+                const _SectionHeader(title: 'Account'),
+                _SettingsTile(
+                  title: 'Delete Account',
+                  subtitle: 'Permanently remove your account and data',
+                  leading: const Icon(
+                    Icons.delete_forever,
+                    color: AppTheme.error,
+                  ),
+                  textColor: AppTheme.error,
+                  onTap: () => _showDeleteAccountDialog(context, ref),
+                ),
+                _SettingsTile(
+                  title: 'Logout',
+                  leading: const Icon(Icons.logout, color: AppTheme.error),
+                  textColor: AppTheme.error,
+                  onTap: () async {
+                    final shouldLogout = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Logout'),
+                        content: const Text('Are you sure you want to logout?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: const Text(
+                              'Logout',
+                              style: TextStyle(color: AppTheme.error),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (shouldLogout == true && context.mounted) {
+                      await ref.read(authStateProvider.notifier).logout();
+                      if (context.mounted) {
+                        context.go('/login');
+                      }
                     }
-                  }
-                },
-              ),
-              const SizedBox(height: AppTheme.spacing32),
-            ],
-          );
-        },
+                  },
+                ),
+                const SizedBox(height: AppTheme.spacing32),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -288,10 +295,10 @@ class _SectionHeader extends StatelessWidget {
       child: Text(
         title.toUpperCase(),
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: AppTheme.primary,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.2,
-            ),
+          color: AppTheme.primary,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.2,
+        ),
       ),
     );
   }

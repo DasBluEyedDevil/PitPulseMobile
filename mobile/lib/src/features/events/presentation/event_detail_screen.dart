@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../discover/domain/discovery_models.dart';
 import 'rsvp_button.dart';
 import 'friends_going_widget.dart';
@@ -13,21 +14,18 @@ import 'friends_going_widget.dart';
 /// Reuses the DiscoveryRepository's existing event data via the discover endpoint.
 final eventDetailProvider = FutureProvider.autoDispose
     .family<DiscoverEvent, String>((ref, eventId) async {
-  final dioClient = ref.watch(dioClientProvider);
-  final response = await dioClient.get('/events/$eventId');
-  final data = response.data['data'] as Map<String, dynamic>;
-  return DiscoverEvent.fromEventJson(data);
-});
+      final dioClient = ref.watch(dioClientProvider);
+      final response = await dioClient.get('/events/$eventId');
+      final data = response.data['data'] as Map<String, dynamic>;
+      return DiscoverEvent.fromEventJson(data);
+    });
 
 /// Event Detail Screen
 /// Shows event info with RSVP button and friends-going section.
 class EventDetailScreen extends ConsumerWidget {
   final String eventId;
 
-  const EventDetailScreen({
-    required this.eventId,
-    super.key,
-  });
+  const EventDetailScreen({required this.eventId, super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,12 +33,16 @@ class EventDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: eventAsync.when(
-        data: (event) => _EventContent(event: event, eventId: eventId),
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppTheme.voltLime),
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.discoverBackdropAsset,
+        heroOpacity: 0.24,
+        child: eventAsync.when(
+          data: (event) => _EventContent(event: event, eventId: eventId),
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppTheme.voltLime),
+          ),
+          error: (error, _) => _buildErrorState(context, ref),
         ),
-        error: (error, _) => _buildErrorState(context, ref),
       ),
     );
   }
@@ -85,11 +87,11 @@ class _EventContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        // Cover header with band image
+        // Poster header with event art
         SliverAppBar(
-          expandedHeight: 240,
+          expandedHeight: 330,
           pinned: true,
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.transparent,
           flexibleSpace: FlexibleSpaceBar(
             background: Stack(
               fit: StackFit.expand,
@@ -104,19 +106,16 @@ class _EventContent extends StatelessWidget {
                 else
                   _buildGradientBg(),
                 // Gradient overlay for text readability
-                Container(
+                const DecoratedBox(
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Theme.of(context)
-                            .scaffoldBackgroundColor
-                            .withValues(alpha: 0.95),
-                      ],
-                    ),
+                    gradient: AppTheme.posterScrimGradient,
                   ),
+                ),
+                const Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 92,
+                  child: EqualizerDivider(height: 34),
                 ),
                 // Event title and venue info
                 Positioned(
@@ -163,21 +162,17 @@ class _EventContent extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Date and location row
-                _buildInfoRow(context),
+                NeonGlassPanel(child: _buildInfoRow(context)),
 
                 const SizedBox(height: 24),
 
                 // RSVP Button (primary action)
-                Center(
-                  child: RsvpButton(eventId: eventId),
-                ),
+                Center(child: RsvpButton(eventId: eventId)),
 
                 const SizedBox(height: 16),
 
                 // Friends going section
-                Center(
-                  child: FriendsGoingWidget(eventId: eventId),
-                ),
+                Center(child: FriendsGoingWidget(eventId: eventId)),
 
                 const SizedBox(height: 24),
 
@@ -210,17 +205,12 @@ class _EventContent extends StatelessWidget {
                 if (event.checkinCount > 0) ...[
                   Row(
                     children: [
-                      const Icon(
-                        Icons.people_outline,
-                        color: AppTheme.textSecondary,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${event.checkinCount} check-in${event.checkinCount == 1 ? '' : 's'}',
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 14,
+                      Expanded(
+                        child: StatGlowTile(
+                          value: '${event.checkinCount}',
+                          label:
+                              'check-in${event.checkinCount == 1 ? '' : 's'}',
+                          icon: Icons.people_outline,
                         ),
                       ),
                     ],
@@ -314,17 +304,10 @@ class _EventContent extends StatelessWidget {
   }
 
   Widget _buildGradientBg() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.voltLime.withValues(alpha: 0.4),
-            AppTheme.electricBlue.withValues(alpha: 0.3),
-          ],
-        ),
-      ),
+    return Image.asset(
+      AppTheme.flashStageMarkPortraitAsset,
+      fit: BoxFit.cover,
+      semanticLabel: 'SoundCheck event poster artwork',
     );
   }
 }

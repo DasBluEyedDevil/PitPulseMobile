@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/brand_widgets.dart';
 import '../../badges/domain/badge.dart';
 import '../../badges/presentation/badge_providers.dart';
 import '../../checkins/domain/checkin.dart';
@@ -34,10 +35,7 @@ class CelebrationParams {
 /// 4. Share card preview with platform-specific share buttons
 /// 5. Done button to dismiss
 class CelebrationScreen extends ConsumerStatefulWidget {
-  const CelebrationScreen({
-    required this.params,
-    super.key,
-  });
+  const CelebrationScreen({required this.params, super.key});
 
   final CelebrationParams params;
 
@@ -84,7 +82,7 @@ class _CelebrationScreenState extends ConsumerState<CelebrationScreen>
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.close),
           tooltip: 'Close',
@@ -96,115 +94,116 @@ class _CelebrationScreenState extends ConsumerState<CelebrationScreen>
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-
-            // Success animation
-            AnimatedBuilder(
-              animation: _animController,
-              builder: (context, child) => Transform.scale(
-                scale: _scaleAnimation.value,
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: child,
-                ),
-              ),
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: const BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.check,
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  size: 48,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // "You checked in!" heading
-            const Text(
-              'You checked in!',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Band name
-            Text(
-              params.bandName,
-              style: const TextStyle(
-                color: AppTheme.voltLime,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-
-            // Venue name
-            Text(
-              params.venueName,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-
-            // Share card preview - PRIMARY CTA (elevated above badges)
-            ShareCardPreview(
-              cardUrls: cardUrls,
-              shareText:
-                  'I just checked in at ${params.venueName} for ${params.bandName}!',
-              shareUrl:
-                  'https://soundcheck-app.up.railway.app/share/c/${params.checkinId}',
-            ),
-            const SizedBox(height: 24),
-
-            // Badge progress section (secondary)
-            if (params.earnedBadges.isNotEmpty) ...[
-              _buildBadgeSection(params.earnedBadges),
+      body: BrandGradientBackground(
+        heroAsset: AppTheme.checkInBackdropAsset,
+        heroOpacity: 0.34,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
               const SizedBox(height: 16),
-            ],
 
-            // Badge progress from existing provider
-            _buildBadgeProgressSection(),
-            const SizedBox(height: 24),
-
-            // Done button - DEMOTED to ghost/outlined style
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: OutlinedButton(
-                onPressed: () => context.pop(),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppTheme.textTertiary),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+              // Success animation
+              AnimatedBuilder(
+                animation: _animController,
+                builder: (context, child) => Transform.scale(
+                  scale: _scaleAnimation.value,
+                  child: FadeTransition(opacity: _fadeAnimation, child: child),
                 ),
-                child: const Text(
-                  'Done',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: AppTheme.textSecondary,
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: const BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check,
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    size: 48,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 32),
-          ],
+              const SizedBox(height: 16),
+
+              // "You checked in!" heading
+              const Text(
+                'You checked in!',
+                style: TextStyle(
+                  color: AppTheme.textPrimary,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Band name
+              Text(
+                params.bandName,
+                style: const TextStyle(
+                  color: AppTheme.voltLime,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+
+              // Venue name
+              Text(
+                params.venueName,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+
+              // Share card preview - PRIMARY CTA (elevated above badges)
+              ShareCardPreview(
+                cardUrls: cardUrls,
+                shareText:
+                    'I just checked in at ${params.venueName} for ${params.bandName}!',
+                shareUrl:
+                    'https://soundcheck-app.up.railway.app/share/c/${params.checkinId}',
+              ),
+              const SizedBox(height: 24),
+
+              // Badge progress section (secondary)
+              if (params.earnedBadges.isNotEmpty) ...[
+                _buildBadgeSection(params.earnedBadges),
+                const SizedBox(height: 16),
+              ],
+
+              // Badge progress from existing provider
+              _buildBadgeProgressSection(),
+              const SizedBox(height: 24),
+
+              // Done button - DEMOTED to ghost/outlined style
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: () => context.pop(),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppTheme.textTertiary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: const Text(
+                    'Done',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );
@@ -268,9 +267,9 @@ class _CelebrationScreenState extends ConsumerState<CelebrationScreen>
               ),
             ),
             const SizedBox(height: 8),
-            ...nearCompletion.take(3).map(
-                  (bp) => _BadgeProgressTile(progress: bp),
-                ),
+            ...nearCompletion
+                .take(3)
+                .map((bp) => _BadgeProgressTile(progress: bp)),
           ],
         );
       },
@@ -315,11 +314,8 @@ class _BadgeEarnedTile extends StatelessWidget {
                       width: 40,
                       height: 40,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Icon(
-                        Icons.emoji_events,
-                        color: color,
-                        size: 24,
-                      ),
+                      errorBuilder: (_, _, _) =>
+                          Icon(Icons.emoji_events, color: color, size: 24),
                     ),
                   )
                 : Icon(Icons.emoji_events, color: color, size: 24),
@@ -350,11 +346,7 @@ class _BadgeEarnedTile extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(
-            Icons.star,
-            color: AppTheme.toastGold,
-            size: 20,
-          ),
+          const Icon(Icons.star, color: AppTheme.toastGold, size: 20),
         ],
       ),
     );
@@ -407,8 +399,9 @@ class _BadgeProgressTile extends StatelessWidget {
                   lineHeight: 6,
                   percent: pct,
                   progressColor: AppTheme.voltLime,
-                  backgroundColor:
-                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest,
                   barRadius: const Radius.circular(3),
                   animation: true,
                   animationDuration: 600,

@@ -1,0 +1,98 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import GlassPanel from '../components/GlassPanel.astro';
+
+const faqs = [
+  {
+    q: 'How do I check in at a show?',
+    a: 'Open SoundCheck, tap the check-in button on the home screen, and select the event near you. You can add a rating, photo, and note before posting.',
+  },
+  {
+    q: 'How do I delete my account?',
+    a: 'You can delete your account in the app under Profile → Settings → Delete Account, or submit a request on our delete account page.',
+  },
+  {
+    q: 'Is SoundCheck free?',
+    a: 'SoundCheck is free to use. SoundCheck Pro offers optional premium features via in-app subscription.',
+  },
+];
+---
+
+<BaseLayout title="Support" description="Get help with SoundCheck — contact support and browse FAQs.">
+  <article class="mx-auto max-w-container px-5 py-12 md:px-8 md:py-16">
+    <header class="mb-10 text-center">
+      <h1 class="font-display text-4xl font-black text-chrome">Support</h1>
+      <p class="mt-4 font-body text-silver">
+        We're here to help. Reach out anytime at
+        <a href="mailto:support@soundcheck.app" class="text-cyan hover:underline"
+          >support@soundcheck.app</a
+        >.
+      </p>
+    </header>
+
+    <section id="faq" class="mb-12 scroll-mt-24">
+      <h2 class="mb-6 font-display text-2xl font-bold text-chrome">Frequently asked questions</h2>
+      <div class="space-y-4">
+        {
+          faqs.map((faq) => (
+            <GlassPanel>
+              <h3 class="font-display text-lg font-bold text-chrome">{faq.q}</h3>
+              <p class="mt-2 font-body text-sm text-muted">{faq.a}</p>
+            </GlassPanel>
+          ))
+        }
+      </div>
+    </section>
+
+    <section id="contact" class="scroll-mt-24">
+      <GlassPanel>
+        <h2 class="font-display text-2xl font-bold text-chrome">Contact us</h2>
+        <p class="mt-2 font-body text-muted">
+          Fill out the form below or email us directly. We typically respond within 2 business days.
+        </p>
+        <form id="support-form" class="mt-6 space-y-4">
+          <div>
+            <label for="email" class="block font-body text-sm font-medium text-silver">Email</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              required
+              placeholder="you@example.com"
+              class="mt-1 w-full rounded-xl border border-stroke-glass/50 bg-surface-high px-4 py-3 font-body text-chrome placeholder:text-muted focus:border-cyan focus:outline-none focus:ring-1 focus:ring-cyan"
+            />
+          </div>
+          <div>
+            <label for="message" class="block font-body text-sm font-medium text-silver">Message</label>
+            <textarea
+              id="message"
+              name="body"
+              rows="5"
+              required
+              placeholder="How can we help?"
+              class="mt-1 w-full rounded-xl border border-stroke-glass/50 bg-surface-high px-4 py-3 font-body text-chrome placeholder:text-muted focus:border-cyan focus:outline-none focus:ring-1 focus:ring-cyan"
+            />
+          </div>
+          <button type="submit" class="btn-neon">Send message</button>
+          <p class="font-body text-xs text-muted">
+            <!-- TODO: Wire to POST /api/support on backend when endpoint is available -->
+            Form opens your email client. For account deletion, use the
+            <a href="/delete-account" class="text-cyan hover:underline">delete account page</a>.
+          </p>
+        </form>
+      </GlassPanel>
+    </section>
+  </article>
+</BaseLayout>
+
+<script>
+  const form = document.getElementById('support-form') as HTMLFormElement;
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const email = (document.getElementById('email') as HTMLInputElement).value;
+    const message = (document.getElementById('message') as HTMLTextAreaElement).value;
+    const subject = encodeURIComponent(`Support request from ${email}`);
+    const body = encodeURIComponent(message);
+    window.location.href = `mailto:support@soundcheck.app?subject=${subject}&body=${body}`;
+  });
+</script>
