@@ -9,14 +9,14 @@ const { size = 'default', class: className = '' } = Astro.props;
 const playUrl = 'https://play.google.com/store/apps/details?id=com.soundcheck.app';
 const appStoreUrl = 'https://apps.apple.com/app/soundcheck/id000000000';
 
-// Official badges: same rendered height, width follows each asset aspect ratio.
+// Normalized PNGs from scripts/optimize-store-badges.mjs (same 48px source height).
 const badgeClass = size === 'large' ? 'h-12 w-auto' : 'h-10 w-auto';
 ---
 
 <div class={`flex flex-wrap items-center gap-4 ${className}`}>
   <a href={playUrl} target="_blank" rel="noopener noreferrer" class="transition opacity-90 hover:opacity-100">
     <img
-      src="/store/google-play-badge.png"
+      src="/store/google-play.png"
       alt="Get it on Google Play"
       class={badgeClass}
       loading="lazy"
@@ -25,7 +25,7 @@ const badgeClass = size === 'large' ? 'h-12 w-auto' : 'h-10 w-auto';
   </a>
   <a href={appStoreUrl} target="_blank" rel="noopener noreferrer" class="transition opacity-90 hover:opacity-100">
     <img
-      src="/store/app-store-badge.svg"
+      src="/store/app-store.png"
       alt="Download on the App Store"
       class={badgeClass}
       loading="lazy"

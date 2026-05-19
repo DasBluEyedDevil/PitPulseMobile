@@ -6,9 +6,10 @@
   "scripts": {
     "sync:legal": "node scripts/sync-legal.mjs",
     "sync:brand": "node scripts/sync-brand.mjs",
-    "predev": "npm run sync:legal && npm run sync:brand",
+    "optimize:store-badges": "node scripts/optimize-store-badges.mjs",
+    "predev": "npm run sync:legal && npm run sync:brand && npm run optimize:store-badges",
     "dev": "astro dev --host 127.0.0.1",
-    "prebuild": "npm run sync:legal && npm run sync:brand",
+    "prebuild": "npm run sync:legal && npm run sync:brand && npm run optimize:store-badges",
     "build": "astro build",
     "preview": "astro preview --host 127.0.0.1"
   },
