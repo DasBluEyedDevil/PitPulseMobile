@@ -8,86 +8,28 @@ const { size = 'default', class: className = '' } = Astro.props;
 
 const playUrl = 'https://play.google.com/store/apps/details?id=com.soundcheck.app';
 const appStoreUrl = 'https://apps.apple.com/app/soundcheck/id000000000';
+
+// Official badges: same rendered height, width follows each asset aspect ratio.
+const badgeClass = size === 'large' ? 'h-12 w-auto' : 'h-10 w-auto';
 ---
 
-<div class:list={['store-badges', size === 'large' && 'store-badges--large', className]}>
-  <a
-    href={playUrl}
-    target="_blank"
-    rel="noopener noreferrer"
-    class="store-badge-slot store-badge-slot--google"
-  >
+<div class={`flex flex-wrap items-center gap-4 ${className}`}>
+  <a href={playUrl} target="_blank" rel="noopener noreferrer" class="transition opacity-90 hover:opacity-100">
     <img
       src="/store/google-play-badge.png"
       alt="Get it on Google Play"
-      class="store-badge-image store-badge-image--google"
+      class={badgeClass}
       loading="lazy"
       decoding="async"
     />
   </a>
-  <a
-    href={appStoreUrl}
-    target="_blank"
-    rel="noopener noreferrer"
-    class="store-badge-slot store-badge-slot--apple"
-  >
+  <a href={appStoreUrl} target="_blank" rel="noopener noreferrer" class="transition opacity-90 hover:opacity-100">
     <img
-      src="/store/app-store-badge-official.svg"
+      src="/store/app-store-badge.svg"
       alt="Download on the App Store"
-      class="store-badge-image store-badge-image--apple"
+      class={badgeClass}
       loading="lazy"
       decoding="async"
     />
   </a>
 </div>
-
-<style>
-  .store-badges {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 0.875rem;
-  }
-
-  /* Shared slot — both badges are painted into the same footprint. */
-  .store-badge-slot {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    width: 8.75rem;
-    height: 2.5rem;
-    opacity: 0.92;
-    transition: opacity 150ms ease;
-  }
-
-  .store-badge-slot:hover {
-    opacity: 1;
-  }
-
-  .store-badges--large .store-badge-slot {
-    width: 10.5rem;
-    height: 3rem;
-  }
-
-  .store-badge-image {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    object-position: center;
-  }
-
-  /* Play asset has extra transparent padding in the PNG. */
-  .store-badge-image--google {
-    transform: scale(1.14);
-    transform-origin: center;
-  }
-
-  /* Apple SVG includes a gray outline that reads larger at equal box size. */
-  .store-badge-image--apple {
-    transform: scale(0.9);
-    transform-origin: center;
-  }
-</style>
