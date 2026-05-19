@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.16",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "wrangler": "^4.92.0"
   }
 }
