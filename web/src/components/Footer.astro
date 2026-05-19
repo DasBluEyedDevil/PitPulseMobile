@@ -1,4 +1,6 @@
 ---
+import Wordmark from './Wordmark.astro';
+
 const footerLinks = [
   { href: '/privacy', label: 'Privacy' },
   { href: '/terms', label: 'Terms' },
@@ -13,9 +15,8 @@ const footerLinks = [
   <div class="mx-auto max-w-container px-5 md:px-8">
     <div class="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
       <div>
-        <a href="/" class="flex items-center gap-2">
-          <img src="/brand/mark.png" alt="" class="h-8 w-8" width="32" height="32" />
-          <span class="font-display text-lg font-bold text-chrome">SoundCheck</span>
+        <a href="/" class="inline-block">
+          <Wordmark class="text-xl" />
         </a>
         <p class="mt-3 max-w-sm font-body text-sm text-muted">
           Live music. Real connection. The social app for concert check-ins, ratings, and your live

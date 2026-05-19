@@ -1,0 +1,14 @@
+---
+interface Props {
+  class?: string;
+}
+const { class: className = '' } = Astro.props;
+---
+
+<span
+  class:list={[
+    'font-display font-black tracking-tight text-chrome select-none',
+    className,
+  ]}
+  aria-label="SoundCheck"
+>Sound<span class="gradient-text">Check</span></span>
