@@ -167,10 +167,8 @@ export const requirePremium = () => {
  * Rate limiting middleware
  *
  * Uses Redis when available for distributed rate limiting across instances.
- * Falls back to in-memory when Redis is unavailable.
- *
- * SECURITY: Critical endpoints fail CLOSED when Redis is unavailable
- * to prevent DDoS attacks through degraded infrastructure.
+ * Falls back to bounded in-memory limits when Redis is unavailable so auth
+ * endpoints fail degraded instead of taking the API offline.
  */
 const inMemoryRateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
@@ -179,7 +177,7 @@ const inMemoryRateLimitStore = new Map<string, { count: number; resetTime: numbe
 // fallback case. If this limit is reached, expired entries are purged first.
 const MAX_RATE_LIMIT_ENTRIES = 10_000;
 
-// Critical endpoints that fail closed when Redis is unavailable
+// Sensitive endpoints worth surfacing when Redis-backed limits degrade.
 const CRITICAL_ENDPOINTS = [
   '/auth/login',
   '/auth/register',
@@ -202,7 +200,7 @@ const CRITICAL_ENDPOINTS = [
 ];
 
 /**
- * Check if endpoint is critical (should fail closed)
+ * Check if endpoint is sensitive.
  */
 function isCriticalEndpoint(path: string): boolean {
   return CRITICAL_ENDPOINTS.some((endpoint) => path.startsWith(endpoint));
@@ -220,11 +218,12 @@ function checkInMemoryRateLimit(
   clientIP: string,
   windowMs: number,
   maxRequests: number
-): { allowed: boolean; remaining: number } {
+): { allowed: boolean; remaining: number; resetAt: number } {
   const now = Date.now();
   const clientData = inMemoryRateLimitStore.get(clientIP);
 
   if (!clientData || now > clientData.resetTime) {
+    const resetTime = now + windowMs;
     // Enforce max size before adding new entries
     if (
       inMemoryRateLimitStore.size >= MAX_RATE_LIMIT_ENTRIES &&
@@ -239,22 +238,45 @@ function checkInMemoryRateLimit(
       // If still at capacity after purge, allow request without tracking
       // (fail-open for memory safety)
       if (inMemoryRateLimitStore.size >= MAX_RATE_LIMIT_ENTRIES) {
-        return { allowed: true, remaining: maxRequests - 1 };
+        return { allowed: true, remaining: maxRequests - 1, resetAt: resetTime };
       }
     }
     inMemoryRateLimitStore.set(clientIP, {
       count: 1,
-      resetTime: now + windowMs,
+      resetTime,
     });
-    return { allowed: true, remaining: maxRequests - 1 };
+    return { allowed: true, remaining: maxRequests - 1, resetAt: resetTime };
   }
 
   if (clientData.count >= maxRequests) {
-    return { allowed: false, remaining: 0 };
+    return { allowed: false, remaining: 0, resetAt: clientData.resetTime };
   }
 
   clientData.count++;
-  return { allowed: true, remaining: maxRequests - clientData.count };
+  return {
+    allowed: true,
+    remaining: maxRequests - clientData.count,
+    resetAt: clientData.resetTime,
+  };
+}
+
+function setRateLimitHeaders(
+  res: Response,
+  maxRequests: number,
+  remaining: number,
+  resetAt: number
+): void {
+  res.setHeader('X-RateLimit-Limit', maxRequests.toString());
+  res.setHeader('X-RateLimit-Remaining', Math.max(0, remaining).toString());
+  res.setHeader('X-RateLimit-Reset', Math.ceil(resetAt / 1000).toString());
+}
+
+function sendRateLimitExceeded(res: Response): void {
+  const response: ApiResponse = {
+    success: false,
+    error: 'Too many requests, please try again later',
+  };
+  res.status(429).json(response);
 }
 
 export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number = 100) => {
@@ -269,17 +291,10 @@ export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number
         const key = `rate_limit:${clientIP}`;
         const result = await checkRateLimit(key, maxRequests, windowMs);
 
-        // Set rate limit headers
-        res.setHeader('X-RateLimit-Limit', maxRequests.toString());
-        res.setHeader('X-RateLimit-Remaining', Math.max(0, result.remaining).toString());
-        res.setHeader('X-RateLimit-Reset', Math.ceil(result.resetAt / 1000).toString());
+        setRateLimitHeaders(res, maxRequests, result.remaining, result.resetAt);
 
         if (!result.allowed) {
-          const response: ApiResponse = {
-            success: false,
-            error: 'Too many requests, please try again later',
-          };
-          res.status(429).json(response);
+          sendRateLimitExceeded(res);
           return;
         }
 
@@ -287,31 +302,18 @@ export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number
         return;
       }
 
-      // Redis unavailable - handle based on endpoint criticality
       if (isCritical) {
-        // CRITICAL ENDPOINTS: Fail closed (block requests)
-        logger.error('Rate limiting unavailable for critical endpoint, failing closed', {
+        logger.warn('Redis rate limiting unavailable for sensitive endpoint, using fallback', {
           path: requestPath,
           clientIP,
         });
-        const response: ApiResponse = {
-          success: false,
-          error: 'Service temporarily unavailable',
-          retryAfter: 60,
-        };
-        res.status(503).setHeader('Retry-After', '60').json(response);
-        return;
       }
 
-      // Non-critical endpoints: Use in-memory fallback
       const result = checkInMemoryRateLimit(clientIP, windowMs, maxRequests);
+      setRateLimitHeaders(res, maxRequests, result.remaining, result.resetAt);
 
       if (!result.allowed) {
-        const response: ApiResponse = {
-          success: false,
-          error: 'Too many requests, please try again later',
-        };
-        res.status(429).json(response);
+        sendRateLimitExceeded(res);
         return;
       }
 
@@ -322,22 +324,20 @@ export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number
         stack: error instanceof Error ? error.stack : undefined,
       });
 
-      // Redis unavailable - handle based on endpoint criticality
       if (isCritical) {
-        // CRITICAL ENDPOINTS: Fail closed (block requests)
-        const response: ApiResponse = {
-          success: false,
-          error: 'Service temporarily unavailable',
-          retryAfter: 60,
-        };
-        res.status(503).setHeader('Retry-After', '60').json(response);
+        logger.warn('Redis rate limiting failed for sensitive endpoint, using fallback', {
+          path: requestPath,
+          clientIP,
+        });
+      }
+
+      const result = checkInMemoryRateLimit(clientIP, windowMs, maxRequests);
+      setRateLimitHeaders(res, maxRequests, result.remaining, result.resetAt);
+      if (!result.allowed) {
+        sendRateLimitExceeded(res);
         return;
       }
 
-      // Non-critical endpoints: Allow through (fail-open with warning)
-      logger.warn('Rate limiting failed for non-critical endpoint, allowing request', {
-        path: requestPath,
-      });
       next();
     }
   };

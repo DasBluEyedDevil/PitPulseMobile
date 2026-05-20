@@ -8,6 +8,10 @@ keystore.properties
 .env
 .env.local
 .env.*.local
+.env.firebase
+.env.revenuecat
+mobile/.env.firebase
+mobile/.env.revenuecat
 backend/.env
 backend/.env.local
 
@@ -41,6 +45,23 @@ backend/logs/
 # Windows / accidental artifacts
 nul
 errors.txt
+
+# Fastlane local credentials and generated reports
+mobile/android/fastlane/.env
+mobile/android/fastlane/.env.*.local
+mobile/android/fastlane/play-store-credentials*.json
+mobile/android/fastlane/play-store-service-account*.json
+mobile/android/fastlane/report.xml
+mobile/android/fastlane/Preview.html
+mobile/android/fastlane/test_output/
+mobile/ios/fastlane/.env
+mobile/ios/fastlane/.env.*.local
+mobile/ios/fastlane/api_key_info*.json
+mobile/ios/fastlane/AuthKey_*.p8
+mobile/ios/fastlane/SubscriptionKey_*.p8
+mobile/ios/fastlane/report.xml
+mobile/ios/fastlane/Preview.html
+mobile/ios/fastlane/test_output/
 
 # Backup and temporary files
 *.bak

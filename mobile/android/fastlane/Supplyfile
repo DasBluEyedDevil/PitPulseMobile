@@ -1,0 +1,7 @@
+package_name("com.soundcheck.app")
+metadata_path("fastlane/metadata/android")
+track(ENV.fetch("SUPPLY_TRACK", "internal"))
+aab("../build/app/outputs/bundle/release/app-release.aab")
+
+json_key_file(ENV["SUPPLY_JSON_KEY_FILE"]) if ENV["SUPPLY_JSON_KEY_FILE"].to_s.strip.length > 0
+json_key_data(ENV["SUPPLY_JSON_KEY_DATA"]) if ENV["SUPPLY_JSON_KEY_DATA"].to_s.strip.length > 0

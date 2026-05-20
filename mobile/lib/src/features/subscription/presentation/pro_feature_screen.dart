@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../../../core/services/analytics_service.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/brand_widgets.dart';
-import 'subscription_service.dart';
 import 'subscription_providers.dart';
+import 'subscription_service.dart';
 
 class ProFeatureScreen extends ConsumerStatefulWidget {
   const ProFeatureScreen({super.key});
@@ -18,19 +18,9 @@ class ProFeatureScreen extends ConsumerStatefulWidget {
 }
 
 class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
-  bool _isPurchasing = false;
+  bool _isShowingPaywall = false;
+  bool _isOpeningCustomerCenter = false;
   bool _isRestoring = false;
-  Package? _selectedPackage;
-
-  Package? _pickDefaultPackage(List<Package> packages) {
-    Package? annual;
-    Package? monthly;
-    for (final p in packages) {
-      if (p.packageType == PackageType.annual) annual = p;
-      if (p.packageType == PackageType.monthly) monthly = p;
-    }
-    return annual ?? monthly ?? (packages.isNotEmpty ? packages.first : null);
-  }
 
   Future<void> _launchUrl(String url) async {
     final uri = Uri.parse(url);
@@ -45,38 +35,60 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
     AnalyticsService.logEvent(name: 'subscription_viewed');
   }
 
-  Future<void> _onSubscribe(List<Package> packages) async {
-    final pkg = _selectedPackage ?? _pickDefaultPackage(packages);
-    if (pkg == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Subscriptions not available')),
-        );
-      }
-      return;
+  void _applyCustomerInfo(CustomerInfo customerInfo) {
+    final hasUnlimited = SubscriptionService.hasUnlimitedEntitlement(
+      customerInfo,
+    );
+    ref.read(isPremiumProvider.notifier).set(hasUnlimited);
+    ref.invalidate(revenueCatCustomerInfoProvider);
+    ref.invalidate(serverSubscriptionStatusProvider);
+    AnalyticsService.setUserProperty(
+      name: 'plan',
+      value: hasUnlimited ? 'premium' : 'free',
+    );
+  }
+
+  Future<void> _refreshCustomerInfo({bool showSuccess = false}) async {
+    final customerInfo = await SubscriptionService.getCustomerInfo();
+    if (!mounted || customerInfo == null) return;
+
+    _applyCustomerInfo(customerInfo);
+    if (showSuccess &&
+        SubscriptionService.hasUnlimitedEntitlement(customerInfo)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('SoundCheck Unlimited unlocked')),
+      );
     }
-    setState(() => _isPurchasing = true);
+  }
+
+  Future<void> _onShowPaywall() async {
+    setState(() => _isShowingPaywall = true);
     try {
-      final customerInfo = await SubscriptionService.purchase(pkg);
-      if (customerInfo != null && mounted) {
-        final hasPro = customerInfo.entitlements.all['pro']?.isActive ?? false;
-        if (hasPro) {
-          ref.read(isPremiumProvider.notifier).set(true);
-          ref.invalidate(serverSubscriptionStatusProvider);
+      AnalyticsService.logEvent(name: 'paywall_viewed');
+      final result =
+          await SubscriptionService.presentUnlimitedPaywallIfNeeded();
+      if (!mounted) return;
+
+      switch (result) {
+        case PaywallResult.purchased:
           AnalyticsService.logEvent(name: 'subscription_started');
+          await _refreshCustomerInfo(showSuccess: true);
+        case PaywallResult.restored:
+          AnalyticsService.logEvent(name: 'subscription_restored');
+          await _refreshCustomerInfo(showSuccess: true);
+        case PaywallResult.notPresented:
+          await _refreshCustomerInfo();
+        case PaywallResult.cancelled:
+          break;
+        case PaywallResult.error:
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Welcome to SoundCheck Pro!')),
+            const SnackBar(
+              content: Text('Could not open subscription options'),
+            ),
           );
-        }
-      }
-    } on PlatformException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Purchase failed: ${e.message}')),
-        );
       }
     } finally {
-      if (mounted) setState(() => _isPurchasing = false);
+      if (mounted) setState(() => _isShowingPaywall = false);
     }
   }
 
@@ -84,30 +96,56 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
     setState(() => _isRestoring = true);
     try {
       final customerInfo = await SubscriptionService.restorePurchases();
-      if (mounted) {
-        if (customerInfo != null) {
-          final hasPro =
-              customerInfo.entitlements.all['pro']?.isActive ?? false;
-          if (hasPro) {
-            ref.read(isPremiumProvider.notifier).set(true);
-            ref.invalidate(serverSubscriptionStatusProvider);
-            AnalyticsService.logEvent(name: 'subscription_restored');
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Purchases restored!')),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No active subscription found')),
-            );
-          }
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No previous purchases found')),
-          );
-        }
+      if (!mounted) return;
+
+      if (customerInfo == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No previous purchases found')),
+        );
+        return;
+      }
+
+      _applyCustomerInfo(customerInfo);
+      if (SubscriptionService.hasUnlimitedEntitlement(customerInfo)) {
+        AnalyticsService.logEvent(name: 'subscription_restored');
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Purchases restored')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No active subscription found')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isRestoring = false);
+    }
+  }
+
+  Future<void> _onOpenCustomerCenter() async {
+    setState(() => _isOpeningCustomerCenter = true);
+    try {
+      await SubscriptionService.presentCustomerCenter(
+        onRestoreCompleted: (customerInfo) {
+          if (!mounted) return;
+          _applyCustomerInfo(customerInfo);
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Purchases restored')));
+        },
+        onPromotionalOfferSucceeded: (customerInfo, _, _) {
+          if (!mounted) return;
+          _applyCustomerInfo(customerInfo);
+        },
+      );
+      await _refreshCustomerInfo();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open Customer Center')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isOpeningCustomerCenter = false);
     }
   }
 
@@ -124,7 +162,7 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('SoundCheck Pro'),
+        title: const Text(SubscriptionService.entitlementDisplayName),
         backgroundColor: Colors.transparent,
       ),
       body: BrandGradientBackground(
@@ -138,11 +176,12 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
               const BrandLogoImage(
                 asset: AppTheme.markSquareAsset,
                 height: 96,
-                semanticLabel: 'SoundCheck Pro mark',
+                semanticLabel: 'SoundCheck Unlimited mark',
               ),
               const SizedBox(height: 16),
               const Text(
-                'SoundCheck Pro',
+                SubscriptionService.entitlementDisplayName,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppTheme.voltLime,
                   fontSize: 28,
@@ -153,9 +192,10 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
               Text(
                 isPremium
                     ? isSyncingPremium
-                          ? 'Your purchase is syncing. Pro access may take a moment.'
-                          : "You're a Pro member!"
-                    : 'Unlock the full concert experience',
+                          ? 'Your purchase is syncing. Unlimited access may take a moment.'
+                          : "You're an Unlimited member."
+                    : 'Unlock the full concert experience.',
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 16,
@@ -164,121 +204,51 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
               const SizedBox(height: 32),
               const _PerkCard(
                 icon: Icons.analytics_outlined,
-                title: 'Detailed Wrapped Analytics',
+                title: 'Detailed Wrapped analytics',
                 description:
-                    'Monthly breakdown, genre evolution, friend overlap',
+                    'Monthly breakdown, genre evolution, and friend overlap.',
               ),
               const _PerkCard(
                 icon: Icons.share_outlined,
-                title: 'Per-Stat Share Cards',
-                description: 'Share individual Wrapped stats to social',
+                title: 'Per-stat share cards',
+                description: 'Share individual Wrapped stats to social.',
               ),
               const _PerkCard(
                 icon: Icons.history,
-                title: 'Wrapped Archive',
-                description: "Browse previous years' Wrapped",
+                title: 'Wrapped archive',
+                description: "Browse previous years' Wrapped.",
               ),
               const _PerkCard(
                 icon: Icons.insights,
-                title: 'Year-Round Analytics',
-                description: 'Detailed concert analytics anytime',
+                title: 'Year-round analytics',
+                description: 'Detailed concert analytics anytime.',
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
               if (!isPremium) ...[
-                packagesAsync.when(
-                  data: (packages) {
-                    if (packages.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          'Subscriptions are not available on this build.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: AppTheme.textSecondary),
-                        ),
-                      );
-                    }
-                    final effective =
-                        _selectedPackage ?? _pickDefaultPackage(packages)!;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const Text(
-                          'Choose a plan',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: packages.map((p) {
-                            final selected =
-                                effective.identifier == p.identifier;
-                            return FilterChip(
-                              label: Text(
-                                '${p.storeProduct.title} · ${p.storeProduct.priceString}',
-                              ),
-                              selected: selected,
-                              onSelected: _isPurchasing
-                                  ? null
-                                  : (_) => setState(() => _selectedPackage = p),
-                              selectedColor: AppTheme.voltLime.withValues(
-                                alpha: 0.35,
-                              ),
-                              checkmarkColor: AppTheme.voltLime,
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _isPurchasing
-                                ? null
-                                : () => _onSubscribe(packages),
-                            child: _isPurchasing
-                                ? SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Theme.of(
-                                        context,
-                                      ).scaffoldBackgroundColor,
-                                    ),
-                                  )
-                                : const Text('Subscribe'),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                  loading: () => const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: AppTheme.voltLime,
-                      ),
-                    ),
-                  ),
-                  error: (e, _) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
-                      'Could not load plans: $e',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppTheme.error),
-                    ),
+                _AvailablePlans(packagesAsync: packagesAsync),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isShowingPaywall ? null : _onShowPaywall,
+                    child: _isShowingPaywall
+                        ? SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Theme.of(context).scaffoldBackgroundColor,
+                            ),
+                          )
+                        : const Text('View plans'),
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 TextButton(
                   style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
                   onPressed: _isRestoring ? null : _onRestore,
                   child: Text(
-                    _isRestoring ? 'Restoring...' : 'Restore Purchases',
+                    _isRestoring ? 'Restoring...' : 'Restore purchases',
                   ),
                 ),
               ] else ...[
@@ -293,11 +263,23 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
                 Text(
                   isSyncingPremium
                       ? 'Waiting for backend confirmation before unlocking server-gated features.'
-                      : 'All Pro features are unlocked',
+                      : 'All Unlimited features are unlocked.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: _isOpeningCustomerCenter
+                      ? null
+                      : _onOpenCustomerCenter,
+                  icon: const Icon(Icons.manage_accounts_outlined),
+                  label: Text(
+                    _isOpeningCustomerCenter
+                        ? 'Opening...'
+                        : 'Manage subscription',
                   ),
                 ),
               ],
@@ -334,6 +316,121 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
   }
 }
 
+class _AvailablePlans extends StatelessWidget {
+  const _AvailablePlans({required this.packagesAsync});
+
+  final AsyncValue<List<Package>> packagesAsync;
+
+  @override
+  Widget build(BuildContext context) {
+    return packagesAsync.when(
+      data: (packages) {
+        if (packages.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              'Plans are configured in RevenueCat and will appear here when available.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Available plans',
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...packages.map((package) => _PlanRow(package: package)),
+          ],
+        );
+      },
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: CircularProgressIndicator(color: AppTheme.voltLime),
+        ),
+      ),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          'Could not load plans: $e',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: AppTheme.error),
+        ),
+      ),
+    );
+  }
+}
+
+class _PlanRow extends StatelessWidget {
+  const _PlanRow({required this.package});
+
+  final Package package;
+
+  String get _name {
+    final productId = package.storeProduct.identifier;
+    if (package.packageType == PackageType.lifetime ||
+        productId == SubscriptionService.productLifetime) {
+      return 'Lifetime';
+    }
+    if (package.packageType == PackageType.annual ||
+        productId == SubscriptionService.productYearly) {
+      return 'Yearly';
+    }
+    if (package.packageType == PackageType.monthly ||
+        productId == SubscriptionService.productMonthly) {
+      return 'Monthly';
+    }
+    return package.storeProduct.title;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.voltLime.withValues(alpha: 0.18)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _name,
+                  style: const TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Text(
+                package.storeProduct.priceString,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PerkCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -352,7 +449,7 @@ class _PerkCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [

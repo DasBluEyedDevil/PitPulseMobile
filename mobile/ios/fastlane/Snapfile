@@ -1,0 +1,8 @@
+workspace("Runner.xcworkspace")
+scheme("Runner")
+
+devices((ENV["SNAPSHOT_DEVICES"] || "iPhone 16 Pro Max").split(",").map(&:strip))
+languages(["en-US"])
+output_directory("fastlane/screenshots")
+clear_previous_screenshots(true)
+reinstall_app(true)

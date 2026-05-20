@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/providers/providers.dart';
 import '../data/subscription_repository.dart';
 import '../domain/subscription_state.dart';
+import 'subscription_service.dart';
 
 part 'subscription_providers.g.dart';
 
@@ -17,8 +18,13 @@ SubscriptionRepository subscriptionRepository(Ref ref) {
 /// Provider for packages available for purchase
 @riverpod
 Future<List<Package>> packages(Ref ref) async {
-  final offerings = await Purchases.getOfferings();
-  return offerings.current?.availablePackages ?? [];
+  return SubscriptionService.getPackages();
+}
+
+/// Provider for the latest RevenueCat customer info.
+@riverpod
+Future<CustomerInfo?> revenueCatCustomerInfo(Ref ref) async {
+  return SubscriptionService.getCustomerInfo();
 }
 
 /// Provider for server-side subscription status

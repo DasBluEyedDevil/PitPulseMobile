@@ -17,6 +17,8 @@ SoundCheck follows the OpenAI harness-engineering pattern: agents start from a s
 - Local/CI feedback loops and harness rules: `docs/agent/HARNESS.md`
 - Current quality gates and debt: `docs/agent/QUALITY.md`
 - Planning artifacts and update rules: `docs/agent/PLANS.md`
+- Mobile beta/store automation: `docs/STORE_SUBMISSION_FASTLANE.md`
+- RevenueCat subscriptions and paywall: `docs/REVENUECAT_FLUTTER.md`
 
 ## Maintenance Rules
 

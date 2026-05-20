@@ -18,6 +18,9 @@
     <!-- Vibration permission for haptic feedback -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- RevenueCat / Google Play Billing -->
+    <uses-permission android:name="com.android.vending.BILLING" />
+
     <application
         android:label="SoundCheck"
         android:name="${applicationName}"

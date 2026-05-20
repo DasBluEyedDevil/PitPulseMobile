@@ -83,13 +83,44 @@ type FeatureHealth = {
   error?: string;
 };
 
-async function getQueueHealth(queue: any, name: string) {
+type QueueHealth = {
+  queue: string;
+  status: 'healthy' | 'degraded' | 'disabled';
+  error?: string;
+} & Record<string, unknown>;
+
+type QueueHealthSource = {
+  getJobCounts: () => Promise<Record<string, number>>;
+};
+
+const HEALTH_CHECK_TIMEOUT_MS = 5000;
+
+async function withHealthTimeout<T>(operation: Promise<T>, name: string): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error(`${name} health check timeout`)),
+          HEALTH_CHECK_TIMEOUT_MS
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+async function getQueueHealth(queue: QueueHealthSource | null, name: string): Promise<QueueHealth> {
   if (!queue) {
     return { queue: name, status: 'disabled' };
   }
 
   try {
-    const counts = await queue.getJobCounts();
+    const counts = await withHealthTimeout(queue.getJobCounts(), name);
     return { queue: name, status: 'healthy', ...counts };
   } catch (error) {
     return {

@@ -1,0 +1,1 @@
+Initial invite-only beta build for testing authentication, discovery, profiles, notifications, check-ins, and live music flows.

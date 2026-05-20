@@ -13,6 +13,7 @@ jest.mock('../../utils/logger', () => ({
 }));
 
 import { rateLimit } from '../../middleware/auth';
+import { checkRateLimit, getRedis } from '../../utils/redisRateLimiter';
 
 describe('rateLimit security behavior', () => {
   let json: jest.Mock;
@@ -37,21 +38,23 @@ describe('rateLimit security behavior', () => {
     next = jest.fn();
   });
 
-  it('fails closed for mounted token refresh paths when Redis is unavailable', async () => {
-    await rateLimit(15 * 60 * 1000, 10)(req, res, next);
+  it('uses the in-memory fallback for sensitive paths when Redis is unavailable', async () => {
+    await rateLimit(15 * 60 * 1000, 1)(req, res, next);
+    await rateLimit(15 * 60 * 1000, 1)(req, res, next);
 
-    expect(status).toHaveBeenCalledWith(503);
-    expect(setHeader).toHaveBeenCalledWith('Retry-After', '60');
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(status).toHaveBeenCalledWith(429);
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        error: 'Service temporarily unavailable',
+        error: 'Too many requests, please try again later',
       })
     );
-    expect(next).not.toHaveBeenCalled();
   });
 
   it('allows non-critical paths to use the in-memory fallback', async () => {
+    req.ip = '203.0.113.20';
+    req.socket.remoteAddress = '203.0.113.20';
     req.path = '/bands';
     req.originalUrl = '/api/bands';
 
@@ -59,5 +62,18 @@ describe('rateLimit security behavior', () => {
 
     expect(next).toHaveBeenCalled();
     expect(status).not.toHaveBeenCalled();
+  });
+
+  it('falls back instead of blocking when Redis check throws for a sensitive path', async () => {
+    req.ip = '203.0.113.30';
+    req.socket.remoteAddress = '203.0.113.30';
+    (getRedis as jest.Mock).mockReturnValue({});
+    (checkRateLimit as jest.Mock).mockRejectedValue(new Error('Redis command timed out') as never);
+
+    await rateLimit(15 * 60 * 1000, 10)(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(status).not.toHaveBeenCalled();
+    expect(setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', '10');
   });
 });

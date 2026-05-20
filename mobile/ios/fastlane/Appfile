@@ -1,0 +1,5 @@
+app_identifier("com.soundcheck.app")
+
+apple_id(ENV["APP_STORE_CONNECT_USERNAME"]) if ENV["APP_STORE_CONNECT_USERNAME"].to_s.strip.length > 0
+itc_team_id(ENV["APP_STORE_CONNECT_TEAM_ID"]) if ENV["APP_STORE_CONNECT_TEAM_ID"].to_s.strip.length > 0
+team_id(ENV["APPLE_DEVELOPER_TEAM_ID"]) if ENV["APPLE_DEVELOPER_TEAM_ID"].to_s.strip.length > 0

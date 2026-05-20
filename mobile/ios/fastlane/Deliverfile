@@ -1,0 +1,9 @@
+app_identifier("com.soundcheck.app")
+metadata_path("fastlane/metadata")
+screenshots_path("fastlane/screenshots")
+skip_binary_upload(true)
+submit_for_review(false)
+force(false)
+
+api_key_path(ENV["APP_STORE_CONNECT_API_KEY_JSON"]) if ENV["APP_STORE_CONNECT_API_KEY_JSON"].to_s.strip.length > 0
+username(ENV["APP_STORE_CONNECT_USERNAME"]) if ENV["APP_STORE_CONNECT_USERNAME"].to_s.strip.length > 0

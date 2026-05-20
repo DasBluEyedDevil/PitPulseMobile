@@ -1,0 +1,6 @@
+app_package_name("com.soundcheck.app")
+tests_package_name("com.soundcheck.app.test")
+
+locales(["en-US"])
+output_directory("fastlane/metadata/android")
+clear_previous_screenshots(true)

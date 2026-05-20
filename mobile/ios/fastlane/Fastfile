@@ -1,0 +1,259 @@
+default_platform(:ios)
+
+MOBILE_ROOT = File.expand_path("../..", __dir__)
+IOS_ROOT = File.expand_path("..", __dir__)
+IPA_PATH = File.join(MOBILE_ROOT, "build/ios/ipa/Runner.ipa")
+IOS_METADATA = File.expand_path("metadata", __dir__)
+IOS_SCREENSHOTS = File.expand_path("screenshots", __dir__)
+CURATED_IOS_SCREENSHOTS = File.join(MOBILE_ROOT, "store-assets/screenshots/ios/curated")
+
+require "json"
+require "shellwords"
+
+def truthy_env(name)
+  ["1", "true", "yes"].include?(ENV[name].to_s.strip.downcase)
+end
+
+def flutter_build_args
+  ENV["SOUNDCHECK_FLUTTER_BUILD_ARGS"].to_s.strip
+end
+
+def flutter_build_tokens
+  Shellwords.split(flutter_build_args)
+rescue ArgumentError
+  flutter_build_args.split(/\s+/)
+end
+
+def flutter_define_file_paths
+  paths = []
+  tokens = flutter_build_tokens
+
+  tokens.each_with_index do |token, index|
+    if token.start_with?("--dart-define-from-file=")
+      paths << token.split("=", 2)[1]
+    elsif token == "--dart-define-from-file" && tokens[index + 1]
+      paths << tokens[index + 1]
+    end
+  end
+
+  paths
+end
+
+def dart_define_file_has_key?(path_arg, name)
+  path = File.expand_path(path_arg, MOBILE_ROOT)
+  return false unless File.file?(path)
+
+  text = File.read(path)
+  if File.extname(path).downcase == ".json" || text.lstrip.start_with?("{")
+    return JSON.parse(text).key?(name)
+  end
+
+  text.each_line.any? do |line|
+    stripped = line.strip
+    !stripped.empty? && !stripped.start_with?("#") && stripped.match?(/\A#{Regexp.escape(name)}\s*=/)
+  end
+rescue JSON::ParserError
+  false
+end
+
+def dart_define_present?(name)
+  tokens = flutter_build_tokens
+  direct_define = tokens.each_with_index.any? do |token, index|
+    token.start_with?("--dart-define=#{name}=") ||
+      (token == "--dart-define" && tokens[index + 1].to_s.start_with?("#{name}="))
+  end
+
+  direct_define || flutter_define_file_paths.any? { |path| dart_define_file_has_key?(path, name) }
+end
+
+def require_flutter_dart_defines!(*names)
+  missing = names.reject { |name| dart_define_present?(name) }
+
+  return if missing.empty?
+
+  UI.user_error!(
+    "Set SOUNDCHECK_FLUTTER_BUILD_ARGS with #{missing.map { |name| "--dart-define=#{name}=..." }.join(' ')} directly or through --dart-define-from-file before building a beta release"
+  )
+end
+
+def compact_hash(hash)
+  hash.reject { |_, value| value.nil? || value.to_s.strip.empty? }
+end
+
+def from_mobile_root(command)
+  Dir.chdir(MOBILE_ROOT) do
+    if Gem.win_platform?
+      sh(ENV["COMSPEC"] || "C:/Windows/System32/cmd.exe", "/c", command)
+    else
+      sh(command)
+    end
+  end
+end
+
+def metadata_text(file_name)
+  path = File.join(IOS_METADATA, "default", file_name)
+  File.exist?(path) ? File.read(path).strip : nil
+end
+
+def ios_path(path)
+  File.expand_path(path, IOS_ROOT)
+end
+
+def app_store_auth_options
+  api_key_json = ENV["APP_STORE_CONNECT_API_KEY_JSON"].to_s.strip
+  return { api_key_path: api_key_json } unless api_key_json.empty?
+
+  key_id = ENV["APP_STORE_CONNECT_API_KEY_ID"].to_s.strip
+  issuer_id = ENV["APP_STORE_CONNECT_API_ISSUER_ID"].to_s.strip
+  key_path = ENV["APP_STORE_CONNECT_API_KEY_PATH"].to_s.strip
+  p8_auth_values = {
+    "APP_STORE_CONNECT_API_KEY_ID" => key_id,
+    "APP_STORE_CONNECT_API_ISSUER_ID" => issuer_id,
+    "APP_STORE_CONNECT_API_KEY_PATH" => key_path
+  }
+
+  if p8_auth_values.values.any? { |value| !value.empty? }
+    missing = p8_auth_values.select { |_, value| value.empty? }.keys
+    UI.user_error!("Set #{missing.join(', ')} for App Store Connect API key auth") unless missing.empty?
+    UI.user_error!("App Store Connect API key file missing at #{ios_path(key_path)}") unless File.file?(ios_path(key_path))
+
+    return {
+      api_key: app_store_connect_api_key(
+        key_id: key_id,
+        issuer_id: issuer_id,
+        key_filepath: ios_path(key_path),
+        in_house: truthy_env("APP_STORE_CONNECT_API_KEY_IN_HOUSE")
+      )
+    }
+  end
+
+  username = ENV["APP_STORE_CONNECT_USERNAME"].to_s.strip
+  username.empty? ? {} : { username: username }
+end
+
+def localized_app_info
+  {
+    "default" => compact_hash({
+      feedback_email: ENV.fetch("BETA_APP_FEEDBACK_EMAIL", "support@soundcheck.app"),
+      marketing_url: metadata_text("marketing_url.txt"),
+      privacy_policy_url: metadata_text("privacy_url.txt"),
+      description: metadata_text("description.txt")
+    })
+  }
+end
+
+def localized_build_info
+  {
+    "default" => compact_hash({
+      whats_new: metadata_text("release_notes.txt")
+    })
+  }
+end
+
+def beta_review_info
+  return nil unless truthy_env("SUBMIT_BETA_REVIEW")
+
+  required = [
+    "BETA_REVIEW_CONTACT_EMAIL",
+    "BETA_REVIEW_CONTACT_FIRST_NAME",
+    "BETA_REVIEW_CONTACT_LAST_NAME",
+    "BETA_REVIEW_CONTACT_PHONE"
+  ]
+  missing = required.select { |name| ENV[name].to_s.strip.empty? }
+  UI.user_error!("Set #{missing.join(', ')} before submitting external beta review") unless missing.empty?
+
+  compact_hash({
+    contact_email: ENV["BETA_REVIEW_CONTACT_EMAIL"],
+    contact_first_name: ENV["BETA_REVIEW_CONTACT_FIRST_NAME"],
+    contact_last_name: ENV["BETA_REVIEW_CONTACT_LAST_NAME"],
+    contact_phone: ENV["BETA_REVIEW_CONTACT_PHONE"],
+    demo_account_name: ENV["BETA_DEMO_ACCOUNT_NAME"],
+    demo_account_password: ENV["BETA_DEMO_ACCOUNT_PASSWORD"],
+    notes: ENV["BETA_REVIEW_NOTES"]
+  })
+end
+
+def sync_curated_ios_screenshots
+  require "fileutils"
+
+  UI.user_error!("No curated iOS screenshot directory found at #{CURATED_IOS_SCREENSHOTS}") unless Dir.exist?(CURATED_IOS_SCREENSHOTS)
+
+  screenshots = Dir[File.join(CURATED_IOS_SCREENSHOTS, "*.png")].sort
+  UI.user_error!("No iOS PNG screenshots found at #{CURATED_IOS_SCREENSHOTS}") if screenshots.empty?
+
+  target = File.join(IOS_SCREENSHOTS, "en-US")
+  FileUtils.mkdir_p(target)
+  Dir[File.join(target, "*.png")].each { |file| FileUtils.rm_f(file) }
+  screenshots.each do |screenshot|
+    FileUtils.cp(screenshot, File.join(target, File.basename(screenshot)))
+  end
+
+  UI.message("Copied #{screenshots.length} iOS screenshots into #{target}")
+end
+
+platform :ios do
+  desc "Build the iOS IPA used by TestFlight"
+  lane :build_beta do
+    require_flutter_dart_defines!("FIREBASE_IOS_API_KEY", "RC_APPLE_KEY")
+    from_mobile_root("flutter pub get")
+
+    extra_args = flutter_build_args
+    command = ["flutter build ipa --release", extra_args].reject(&:empty?).join(" ")
+    from_mobile_root(command)
+
+    UI.user_error!("Expected IPA missing at #{IPA_PATH}") unless File.exist?(IPA_PATH)
+  end
+
+  desc "Copy curated iOS screenshots into Fastlane's App Store screenshot folder"
+  lane :screenshots do
+    sync_curated_ios_screenshots
+  end
+
+  desc "Capture iOS screenshots with snapshot on macOS"
+  lane :capture_store_screenshots do
+    capture_screenshots(
+      workspace: "Runner.xcworkspace",
+      scheme: "Runner",
+      output_directory: IOS_SCREENSHOTS,
+      clear_previous_screenshots: true
+    )
+  end
+
+  desc "Upload App Store metadata and screenshots without uploading a binary"
+  lane :deliver_metadata do
+    upload_options = {
+      app_identifier: "com.soundcheck.app",
+      metadata_path: IOS_METADATA,
+      screenshots_path: IOS_SCREENSHOTS,
+      skip_binary_upload: true,
+      submit_for_review: false,
+      force: false
+    }.merge(app_store_auth_options)
+
+    upload_to_app_store(upload_options)
+  end
+
+  desc "Upload the IPA and beta details to TestFlight"
+  lane :beta do
+    build_beta unless truthy_env("SKIP_IOS_BUILD")
+    UI.user_error!("Expected IPA missing at #{IPA_PATH}") unless File.exist?(IPA_PATH)
+
+    upload_options = {
+      app_identifier: "com.soundcheck.app",
+      ipa: IPA_PATH,
+      changelog: metadata_text("release_notes.txt"),
+      beta_app_description: metadata_text("description.txt"),
+      beta_app_feedback_email: ENV.fetch("BETA_APP_FEEDBACK_EMAIL", "support@soundcheck.app"),
+      localized_app_info: localized_app_info,
+      localized_build_info: localized_build_info,
+      submit_beta_review: truthy_env("SUBMIT_BETA_REVIEW"),
+      skip_waiting_for_build_processing: truthy_env("SKIP_WAITING_FOR_BUILD_PROCESSING"),
+      uses_non_exempt_encryption: truthy_env("USES_NON_EXEMPT_ENCRYPTION")
+    }.merge(app_store_auth_options)
+
+    review_info = beta_review_info
+    upload_options[:beta_app_review_info] = review_info unless review_info.nil?
+
+    upload_to_testflight(upload_options)
+  end
+end

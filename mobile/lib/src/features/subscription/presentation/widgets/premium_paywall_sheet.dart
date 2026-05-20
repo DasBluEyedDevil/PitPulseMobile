@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/analytics_service.dart';
@@ -35,31 +35,24 @@ class _PremiumPaywallSheetState extends ConsumerState<PremiumPaywallSheet> {
   Future<void> _onSubscribe() async {
     setState(() => _isPurchasing = true);
     try {
-      final packages = await ref.read(packagesProvider.future);
-      if (packages.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Subscriptions not available')),
-          );
-        }
-        return;
-      }
-      final customerInfo = await SubscriptionService.purchase(packages.first);
-      if (customerInfo != null && mounted) {
-        final hasPro = customerInfo.entitlements.all['pro']?.isActive ?? false;
-        if (hasPro) {
+      final result =
+          await SubscriptionService.presentUnlimitedPaywallIfNeeded();
+      if (!mounted) return;
+
+      if (result == PaywallResult.purchased ||
+          result == PaywallResult.restored) {
+        final customerInfo = await SubscriptionService.getCustomerInfo();
+        if (customerInfo != null &&
+            SubscriptionService.hasUnlimitedEntitlement(customerInfo)) {
           ref.read(isPremiumProvider.notifier).set(true);
-          // Sync premium status with backend immediately
+          ref.invalidate(revenueCatCustomerInfoProvider);
           ref.invalidate(serverSubscriptionStatusProvider);
           AnalyticsService.logEvent(name: 'subscription_started');
-          Navigator.of(context).pop();
+          if (mounted) Navigator.of(context).pop();
         }
-      }
-      // null = user cancelled, do nothing silently
-    } on PlatformException catch (e) {
-      if (mounted) {
+      } else if (result == PaywallResult.error) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Purchase failed: ${e.message}')),
+          const SnackBar(content: Text('Could not open subscription options')),
         );
       }
     } finally {
@@ -73,10 +66,12 @@ class _PremiumPaywallSheetState extends ConsumerState<PremiumPaywallSheet> {
       final customerInfo = await SubscriptionService.restorePurchases();
       if (mounted) {
         if (customerInfo != null) {
-          final hasPro =
-              customerInfo.entitlements.all['pro']?.isActive ?? false;
-          if (hasPro) {
+          final hasUnlimited = SubscriptionService.hasUnlimitedEntitlement(
+            customerInfo,
+          );
+          if (hasUnlimited) {
             ref.read(isPremiumProvider.notifier).set(true);
+            ref.invalidate(revenueCatCustomerInfoProvider);
             ref.invalidate(serverSubscriptionStatusProvider);
             AnalyticsService.logEvent(name: 'subscription_restored');
             Navigator.of(context).pop();
@@ -118,7 +113,7 @@ class _PremiumPaywallSheetState extends ConsumerState<PremiumPaywallSheet> {
             ),
             const SizedBox(height: 24),
             const Text(
-              'Unlock SoundCheck Pro',
+              'Unlock SoundCheck Unlimited',
               style: TextStyle(
                 color: AppTheme.voltLime,
                 fontSize: 22,
@@ -177,10 +172,7 @@ class _PremiumPaywallSheetState extends ConsumerState<PremiumPaywallSheet> {
           const SizedBox(width: 12),
           Text(
             text,
-            style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 14,
-            ),
+            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
           ),
         ],
       ),

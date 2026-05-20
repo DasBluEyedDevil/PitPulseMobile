@@ -84,6 +84,7 @@ dependencies:
 
   # Hooks
   flutter_hooks: ^0.21.3+1
+  purchases_ui_flutter: ^10.1.0
 
 dev_dependencies:
   flutter_test:

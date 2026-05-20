@@ -240,7 +240,9 @@ class AuthState extends _$AuthState {
     // Clear RevenueCat identity and premium state
     try {
       await SubscriptionService.logout();
+      SubscriptionService.setCustomerInfoUpdateListener(null);
       ref.read(isPremiumProvider.notifier).set(false);
+      ref.invalidate(revenueCatCustomerInfoProvider);
       ref.invalidate(serverSubscriptionStatusProvider);
     } catch (_) {}
 
@@ -312,6 +314,14 @@ class AuthState extends _$AuthState {
   /// Sync RevenueCat identity and refresh premium state
   Future<void> _syncSubscriptionState(String userId) async {
     try {
+      SubscriptionService.setCustomerInfoUpdateListener((customerInfo) {
+        final isPremium = SubscriptionService.hasUnlimitedEntitlement(
+          customerInfo,
+        );
+        ref.read(isPremiumProvider.notifier).set(isPremium);
+        ref.invalidate(revenueCatCustomerInfoProvider);
+        ref.invalidate(serverSubscriptionStatusProvider);
+      });
       await SubscriptionService.login(userId);
       final isPremium = await SubscriptionService.isPremium();
       ref.read(isPremiumProvider.notifier).set(isPremium);

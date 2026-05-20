@@ -23,6 +23,13 @@
     "check:mobile": "cd mobile && flutter pub run build_runner build --delete-conflicting-outputs && flutter analyze && flutter test",
     "check:web": "npm run build --prefix web",
     "check": "npm run harness:check && npm run check:backend && npm run check:web && npm run check:mobile",
+    "fastlane:check": "node scripts/check-fastlane-store-assets.mjs",
+    "fastlane:android:screenshots": "node scripts/run-fastlane.mjs android screenshots",
+    "fastlane:android:capture-screenshots": "node scripts/run-fastlane.mjs android capture_store_screenshots",
+    "fastlane:android:beta": "node scripts/run-fastlane.mjs android beta",
+    "fastlane:ios:screenshots": "node scripts/run-fastlane.mjs ios screenshots",
+    "fastlane:ios:capture-screenshots": "node scripts/run-fastlane.mjs ios capture_store_screenshots",
+    "fastlane:ios:beta": "node scripts/run-fastlane.mjs ios beta",
     "prepare": "node .husky/install.mjs"
   },
   "lint-staged": {

@@ -15,6 +15,15 @@ import logger from './logger';
 
 let redis: Redis | null = null;
 
+const DEFAULT_REDIS_COMMAND_TIMEOUT_MS = 1000;
+
+function redisCommandTimeoutMs(): number {
+  const configured = parseInt(process.env.REDIS_COMMAND_TIMEOUT_MS || '', 10);
+  return Number.isNaN(configured) || configured < 100
+    ? DEFAULT_REDIS_COMMAND_TIMEOUT_MS
+    : configured;
+}
+
 /**
  * Initialize Redis connection
  * Returns null if REDIS_URL is not configured (graceful fallback)
@@ -29,6 +38,9 @@ export function initRedis(): Redis | null {
 
   try {
     redis = new Redis(redisUrl, {
+      commandTimeout: redisCommandTimeoutMs(),
+      connectTimeout: redisCommandTimeoutMs(),
+      enableOfflineQueue: false,
       maxRetriesPerRequest: 3,
       retryStrategy(times) {
         const delay = Math.min(times * 100, 3000);
@@ -64,10 +76,14 @@ export function initRedis(): Redis | null {
 }
 
 /**
- * Get the current Redis instance
+ * Get the current ready Redis instance.
+ *
+ * ioredis keeps an object around while reconnecting. Returning that reconnecting
+ * client lets middleware queue commands behind a broken connection and hang an
+ * HTTP request, so callers should fall back unless Redis is actually ready.
  */
 export function getRedis(): Redis | null {
-  return redis;
+  return redis?.status === 'ready' ? redis : null;
 }
 
 export interface RateLimitResult {
@@ -85,7 +101,8 @@ export async function checkRateLimit(
   maxRequests: number,
   windowMs: number
 ): Promise<RateLimitResult> {
-  if (!redis) {
+  const client = getRedis();
+  if (!client) {
     // Fail-open: allow requests when Redis is unavailable.
     // The route-level rateLimit middleware in auth.ts has an in-memory
     // fallback that provides basic protection. Blocking ALL traffic when
@@ -105,7 +122,7 @@ export async function checkRateLimit(
     // At beta scale (~2,000 users), key accumulation is negligible.
     // If scaling beyond ~50k concurrent users, consider switching to
     // a fixed-window counter (INCR + EXPIREAT) to reduce memory.
-    const pipeline = redis.pipeline();
+    const pipeline = client.pipeline();
     pipeline.zremrangebyscore(key, 0, windowStart);
     pipeline.zcard(key);
     pipeline.zadd(key, now, `${now}-${Math.random()}`);
@@ -221,8 +238,9 @@ export class RedisRateLimiter {
    */
   async getRequestCount(ip: string): Promise<number> {
     const key = `rate_limit:${ip}`;
+    const client = getRedis();
 
-    if (!redis) {
+    if (!client) {
       return 0;
     }
 
@@ -230,8 +248,8 @@ export class RedisRateLimiter {
       const now = Date.now();
       const windowStart = now - this.windowMs;
 
-      await redis.zremrangebyscore(key, 0, windowStart);
-      return await redis.zcard(key);
+      await client.zremrangebyscore(key, 0, windowStart);
+      return await client.zcard(key);
     } catch (error) {
       logger.error('Error getting request count', {
         error: error instanceof Error ? error.message : String(error),
@@ -246,10 +264,11 @@ export class RedisRateLimiter {
    */
   async reset(ip: string): Promise<void> {
     const key = `rate_limit:${ip}`;
+    const client = getRedis();
 
-    if (redis) {
+    if (client) {
       try {
-        await redis.del(key);
+        await client.del(key);
       } catch (error) {
         logger.error('Error resetting rate limit', {
           error: error instanceof Error ? error.message : String(error),
@@ -306,8 +325,9 @@ export class EnumerationRateLimiter {
   ): Promise<RateLimitResult & { requiresCaptcha: boolean }> {
     const key = this.getKey(ip, endpoint);
     const captchaKey = this.getCaptchaKey(ip);
+    const client = getRedis();
 
-    if (!redis) {
+    if (!client) {
       // Fallback: use in-memory tracking when Redis unavailable
       return {
         allowed: true,
@@ -322,7 +342,7 @@ export class EnumerationRateLimiter {
 
     try {
       // Use pipeline for atomic operations
-      const pipeline = redis.pipeline();
+      const pipeline = client.pipeline();
 
       // Clean expired entries from rate limit window
       pipeline.zremrangebyscore(key, 0, windowStart);
@@ -388,11 +408,12 @@ export class EnumerationRateLimiter {
    * Reset enumeration limits for an IP
    */
   async reset(ip: string, endpoint?: string): Promise<void> {
-    if (!redis) return;
+    const client = getRedis();
+    if (!client) return;
 
     try {
       if (endpoint) {
-        await redis.del(this.getKey(ip, endpoint));
+        await client.del(this.getKey(ip, endpoint));
       } else {
         // Use SCAN instead of KEYS to avoid blocking Redis
         const pattern = `enum-*:${ip}*`;
@@ -400,7 +421,7 @@ export class EnumerationRateLimiter {
         const keysToDelete: string[] = [];
 
         do {
-          const result = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+          const result = await client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
           cursor = result[0];
           const keys = result[1];
           if (keys.length > 0) {
@@ -412,7 +433,9 @@ export class EnumerationRateLimiter {
         const BATCH_SIZE = 100;
         for (let i = 0; i < keysToDelete.length; i += BATCH_SIZE) {
           const batch = keysToDelete.slice(i, i + BATCH_SIZE);
-          await redis.unlink(...batch); // Use UNLINK (non-blocking) instead of DEL
+          if (batch.length > 0) {
+            await client.unlink(...batch); // Use UNLINK (non-blocking) instead of DEL
+          }
         }
       }
     } catch (error) {

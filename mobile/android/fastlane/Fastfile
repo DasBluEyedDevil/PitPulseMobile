@@ -1,0 +1,172 @@
+default_platform(:android)
+
+MOBILE_ROOT = File.expand_path("../..", __dir__)
+AAB_PATH = File.join(MOBILE_ROOT, "build/app/outputs/bundle/release/app-release.aab")
+ANDROID_METADATA = File.expand_path("metadata/android", __dir__)
+CURATED_ANDROID_SCREENSHOTS = File.join(MOBILE_ROOT, "store-assets/screenshots/android/curated")
+PLAY_PHONE_SCREENSHOTS = File.join(ANDROID_METADATA, "en-US/images/phoneScreenshots")
+
+require "json"
+require "shellwords"
+
+def truthy_env(name)
+  ["1", "true", "yes"].include?(ENV[name].to_s.strip.downcase)
+end
+
+def flutter_build_args
+  ENV["SOUNDCHECK_FLUTTER_BUILD_ARGS"].to_s.strip
+end
+
+def flutter_build_tokens
+  Shellwords.split(flutter_build_args)
+rescue ArgumentError
+  flutter_build_args.split(/\s+/)
+end
+
+def flutter_define_file_paths
+  paths = []
+  tokens = flutter_build_tokens
+
+  tokens.each_with_index do |token, index|
+    if token.start_with?("--dart-define-from-file=")
+      paths << token.split("=", 2)[1]
+    elsif token == "--dart-define-from-file" && tokens[index + 1]
+      paths << tokens[index + 1]
+    end
+  end
+
+  paths
+end
+
+def dart_define_file_has_key?(path_arg, name)
+  path = File.expand_path(path_arg, MOBILE_ROOT)
+  return false unless File.file?(path)
+
+  text = File.read(path)
+  if File.extname(path).downcase == ".json" || text.lstrip.start_with?("{")
+    return JSON.parse(text).key?(name)
+  end
+
+  text.each_line.any? do |line|
+    stripped = line.strip
+    !stripped.empty? && !stripped.start_with?("#") && stripped.match?(/\A#{Regexp.escape(name)}\s*=/)
+  end
+rescue JSON::ParserError
+  false
+end
+
+def dart_define_present?(name)
+  tokens = flutter_build_tokens
+  direct_define = tokens.each_with_index.any? do |token, index|
+    token.start_with?("--dart-define=#{name}=") ||
+      (token == "--dart-define" && tokens[index + 1].to_s.start_with?("#{name}="))
+  end
+
+  direct_define || flutter_define_file_paths.any? { |path| dart_define_file_has_key?(path, name) }
+end
+
+def require_flutter_dart_defines!(*names)
+  missing = names.reject { |name| dart_define_present?(name) }
+
+  return if missing.empty?
+
+  UI.user_error!(
+    "Set SOUNDCHECK_FLUTTER_BUILD_ARGS with #{missing.map { |name| "--dart-define=#{name}=..." }.join(' ')} directly or through --dart-define-from-file before building a beta release"
+  )
+end
+
+def from_mobile_root(command)
+  Dir.chdir(MOBILE_ROOT) do
+    if Gem.win_platform?
+      sh(ENV["COMSPEC"] || "C:/Windows/System32/cmd.exe", "/c", command)
+    else
+      sh(command)
+    end
+  end
+end
+
+def play_credentials_options
+  options = {}
+  options[:json_key] = ENV["SUPPLY_JSON_KEY_FILE"] if ENV["SUPPLY_JSON_KEY_FILE"].to_s.strip.length > 0
+  options[:json_key_data] = ENV["SUPPLY_JSON_KEY_DATA"] if ENV["SUPPLY_JSON_KEY_DATA"].to_s.strip.length > 0
+  options
+end
+
+def copy_curated_android_screenshots
+  require "fileutils"
+
+  UI.user_error!("No curated Android screenshot directory found at #{CURATED_ANDROID_SCREENSHOTS}") unless Dir.exist?(CURATED_ANDROID_SCREENSHOTS)
+
+  screenshots = Dir[File.join(CURATED_ANDROID_SCREENSHOTS, "*.png")].sort
+  UI.user_error!("No Android PNG screenshots found at #{CURATED_ANDROID_SCREENSHOTS}") if screenshots.empty?
+
+  FileUtils.mkdir_p(PLAY_PHONE_SCREENSHOTS)
+  Dir[File.join(PLAY_PHONE_SCREENSHOTS, "*.png")].each { |file| FileUtils.rm_f(file) }
+  screenshots.each do |screenshot|
+    FileUtils.cp(screenshot, File.join(PLAY_PHONE_SCREENSHOTS, File.basename(screenshot)))
+  end
+
+  UI.message("Copied #{screenshots.length} Android screenshots into #{PLAY_PHONE_SCREENSHOTS}")
+end
+
+platform :android do
+  desc "Build the Android App Bundle used by Google Play beta tracks"
+  lane :build_beta do
+    require_flutter_dart_defines!("FIREBASE_ANDROID_API_KEY", "RC_GOOGLE_KEY")
+    from_mobile_root("flutter pub get")
+
+    extra_args = flutter_build_args
+    command = ["flutter build appbundle --release", extra_args].reject(&:empty?).join(" ")
+    from_mobile_root(command)
+
+    UI.user_error!("Expected Android App Bundle missing at #{AAB_PATH}") unless File.exist?(AAB_PATH)
+  end
+
+  desc "Copy curated Android screenshots into Fastlane Play metadata"
+  lane :screenshots do
+    copy_curated_android_screenshots
+  end
+
+  desc "Capture Android screenshots from an emulator or device with screengrab"
+  lane :capture_store_screenshots do
+    gradle(task: "assembleDebug", project_dir: ".")
+    gradle(task: "assembleAndroidTest", project_dir: ".")
+    capture_android_screenshots(
+      app_package_name: "com.soundcheck.app",
+      tests_package_name: "com.soundcheck.app.test",
+      locales: ["en-US"],
+      output_directory: "fastlane/metadata/android",
+      clear_previous_screenshots: true
+    )
+  end
+
+  desc "Upload metadata, screenshots, and the AAB to a Google Play beta track"
+  lane :beta do |options|
+    screenshots
+    build_beta unless truthy_env("SKIP_ANDROID_BUILD")
+    UI.user_error!("Expected Android App Bundle missing at #{AAB_PATH}") unless File.exist?(AAB_PATH)
+
+    track_name = options[:track] || ENV.fetch("SUPPLY_TRACK", "internal")
+    upload_options = {
+      package_name: "com.soundcheck.app",
+      aab: AAB_PATH,
+      track: track_name,
+      metadata_path: ANDROID_METADATA,
+      skip_upload_apk: true,
+      skip_upload_changelogs: false,
+      skip_upload_metadata: false,
+      skip_upload_images: false,
+      skip_upload_screenshots: false
+    }.merge(play_credentials_options)
+
+    upload_to_play_store(upload_options)
+  end
+
+  desc "Validate Google Play service account credentials without uploading"
+  lane :validate_play_credentials do
+    key_path = ENV["SUPPLY_JSON_KEY_FILE"]
+    UI.user_error!("Set SUPPLY_JSON_KEY_FILE before running this lane") if key_path.to_s.strip.empty?
+
+    validate_play_store_json_key(json_key: key_path)
+  end
+end

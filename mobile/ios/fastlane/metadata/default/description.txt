@@ -1,0 +1,10 @@
+SoundCheck is a live music companion for fans who want to discover venues and bands, follow what is happening nearby, and remember the shows they have been part of.
+
+Use SoundCheck to:
+- Find venues and bands worth checking out
+- Discover local live music activity
+- Check in at concerts and save memories
+- Build a profile around shows, badges, and concert credibility
+- Share concert moments with friends
+
+SoundCheck is built for invite-only beta testing while we refine discovery, profiles, check-ins, and live event features.
