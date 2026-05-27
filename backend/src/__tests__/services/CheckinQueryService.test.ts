@@ -1,5 +1,6 @@
 import { CheckinQueryService } from '../../services/checkin/CheckinQueryService';
 import Database from '../../config/database';
+import { BlockService } from '../../services/BlockService';
 
 // Mock dependencies
 jest.mock('../../config/database');
@@ -13,10 +14,13 @@ const mockDb = {
 
 describe('CheckinQueryService', () => {
   let checkinQueryService: CheckinQueryService;
+  const mockGetBlockFilterSQL = BlockService.prototype.getBlockFilterSQL as jest.Mock;
 
   beforeEach(() => {
+    mockGetBlockFilterSQL.mockReturnValue('AND BLOCK_FILTER(c.user_id)');
     checkinQueryService = new CheckinQueryService();
     jest.clearAllMocks();
+    mockGetBlockFilterSQL.mockReturnValue('AND BLOCK_FILTER(c.user_id)');
   });
 
   describe('getCheckinById', () => {
@@ -65,6 +69,8 @@ describe('CheckinQueryService', () => {
       expect(query).toContain('json_agg');
       expect(query).toContain('checkin_band_ratings');
       expect(query).toContain('band_ratings');
+      expect(query).toContain('AND BLOCK_FILTER(c.user_id)');
+      expect(mockGetBlockFilterSQL).toHaveBeenCalledWith(mockUserId, 'c.user_id');
 
       // Verify correct parameters
       expect(params).toEqual([mockCheckinId, mockUserId]);
@@ -149,6 +155,7 @@ describe('CheckinQueryService', () => {
       expect(mockDb.query).toHaveBeenCalledTimes(1);
       const [, params] = mockDb.query.mock.calls[0];
       expect(params).toEqual([mockCheckinId]);
+      expect(mockGetBlockFilterSQL).not.toHaveBeenCalled();
     });
 
     it('should throw error when checkin not found', async () => {
@@ -239,6 +246,22 @@ describe('CheckinQueryService', () => {
       expect(query).toContain('venue_id = $1');
       expect(query).toContain('band_id = $2');
       expect(query).toContain('user_id = $3');
+    });
+
+    it('should apply block filtering when a current viewer is supplied', async () => {
+      mockDb.query.mockResolvedValueOnce({ rows: [] });
+
+      await checkinQueryService.getCheckins({
+        userId: '550e8400-e29b-41d4-a716-446655440002',
+        currentUserId: '550e8400-e29b-41d4-a716-446655440003',
+      });
+
+      const [query] = mockDb.query.mock.calls[0];
+      expect(query).toContain('AND BLOCK_FILTER(c.user_id)');
+      expect(mockGetBlockFilterSQL).toHaveBeenCalledWith(
+        '550e8400-e29b-41d4-a716-446655440003',
+        'c.user_id'
+      );
     });
   });
 

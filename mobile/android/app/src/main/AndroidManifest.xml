@@ -50,12 +50,17 @@
             <meta-data
                 android:name="flutter_deeplinking_enabled"
                 android:value="true" />
-            <!-- Deep link handler for soundcheck:// custom scheme -->
-            <!-- Used for password reset links: soundcheck://reset-password?token=... -->
-            <!-- SEC-056: SECURITY WARNING — Custom URL schemes are vulnerable to
-                 URI hijacking. For production hardening, migrate to Android App Links
-                 with verified assetlinks.json. Never pass sensitive tokens via custom
-                 scheme without server-side validation. -->
+            <!-- Verified Android App Link for sensitive password reset links. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="soundcheck.app"
+                    android:pathPrefix="/reset-password" />
+            </intent-filter>
+            <!-- Non-sensitive compatibility handler for legacy app routes. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

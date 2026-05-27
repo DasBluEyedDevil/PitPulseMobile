@@ -119,12 +119,14 @@ class DioClient {
 
     // Add logging interceptor in dev mode only.
     // SEC-058: requestHeader: false prevents logging Authorization headers (JWTs).
+    // SEC-064: body logging is disabled so passwords, reset tokens, and refresh
+    // tokens are not written to local IDE, emulator, or CI logs.
     if (ApiConfig.isDev) {
       _dio.interceptors.add(
         LogInterceptor(
           requestHeader: false,
-          requestBody: true,
-          responseBody: true,
+          requestBody: false,
+          responseBody: false,
           error: true,
           logPrint: (object) => LogService.d(object.toString()),
         ),

@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "BDJDR669ZV.com.9thlevelsoftware.soundcheck",
+        "paths": ["/reset-password", "/reset-password/*"]
+      }
+    ]
+  }
+}

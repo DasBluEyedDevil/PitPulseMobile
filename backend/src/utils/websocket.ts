@@ -34,10 +34,7 @@ import IORedis from 'ioredis';
 import Database from '../config/database';
 import { createPubSubConnection } from '../config/redis';
 import winstonLogger from './logger';
-import {
-  REALTIME_DELIVERY_CHANNEL,
-  RealtimeDeliveryEnvelope,
-} from '../services/RealtimePublisher';
+import { REALTIME_DELIVERY_CHANNEL, RealtimeDeliveryEnvelope } from '../services/RealtimePublisher';
 
 interface Client {
   ws: WebSocket;
@@ -73,11 +70,7 @@ class WebSocketServer {
       server,
       verifyClient: (info: any, callback: any) => {
         try {
-          // Extract token from query string or Authorization header
-          const url = new URL(info.req.url || '', `http://${info.req.headers.host}`);
-          const token =
-            url.searchParams.get('token') ||
-            AuthUtils.extractTokenFromHeader(info.req.headers.authorization);
+          const token = AuthUtils.extractTokenFromHeader(info.req.headers.authorization);
 
           if (!token) {
             callback(false, 401, 'Authentication required');

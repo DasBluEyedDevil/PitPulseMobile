@@ -11,6 +11,7 @@ export class EmailService {
   private resend: Resend | null = null;
   private fromAddress: string;
   private configured: boolean;
+  private passwordResetBaseUrl: string;
 
   constructor() {
     const apiKey = process.env.RESEND_API_KEY;
@@ -20,11 +21,13 @@ export class EmailService {
       );
       this.configured = false;
       this.fromAddress = '';
+      this.passwordResetBaseUrl = this.resolvePasswordResetBaseUrl();
       return;
     }
 
     this.resend = new Resend(apiKey);
     this.fromAddress = process.env.RESEND_FROM_ADDRESS || 'SoundCheck <noreply@resend.dev>';
+    this.passwordResetBaseUrl = this.resolvePasswordResetBaseUrl();
     this.configured = true;
     logInfo('EmailService initialized with Resend');
   }
@@ -47,7 +50,7 @@ export class EmailService {
       return;
     }
 
-    const resetUrl = `soundcheck://reset-password?token=${resetToken}`;
+    const resetUrl = this.buildPasswordResetUrl(resetToken);
 
     try {
       const { error } = await this.resend.emails.send({
@@ -116,5 +119,20 @@ export class EmailService {
       logError('Error sending password reset email', { to, error: err });
       throw err;
     }
+  }
+
+  private resolvePasswordResetBaseUrl(): string {
+    return (
+      process.env.PASSWORD_RESET_BASE_URL ||
+      process.env.WEB_BASE_URL ||
+      process.env.BASE_URL ||
+      'https://soundcheck.app'
+    ).replace(/\/+$/, '');
+  }
+
+  private buildPasswordResetUrl(resetToken: string): string {
+    const resetUrl = new URL('/reset-password', this.passwordResetBaseUrl);
+    resetUrl.searchParams.set('token', resetToken);
+    return resetUrl.toString();
   }
 }

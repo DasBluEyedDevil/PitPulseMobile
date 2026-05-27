@@ -10,15 +10,12 @@ title = "SoundCheck Secret Detection"
 # No custom rules needed — the defaults catch the patterns we care about.
 
 [allowlist]
-description = "Global allowlist for test fixtures and example files"
+description = "Narrow allowlist for generated outputs and non-secret sentinel strings"
 paths = [
-  '''\.env\.example$''',
-  '''backend/\.env\.example$''',
   '''\.gitleaks\.toml$''',
   '''node_modules/''',
   '''backend/dist/''',
   '''mobile/build/''',
-  '''\.planning/''',
 ]
 
 # Allow the bcrypt sentinel reference in migration comments/strings

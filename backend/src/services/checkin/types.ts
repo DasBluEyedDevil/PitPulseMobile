@@ -130,6 +130,7 @@ export interface GetCheckinsOptions {
   venueId?: string;
   bandId?: string;
   userId?: string;
+  currentUserId?: string;
   page?: number;
   limit?: number;
 }

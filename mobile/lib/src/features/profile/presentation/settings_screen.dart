@@ -254,11 +254,28 @@ class SettingsScreen extends ConsumerWidget {
     if (shouldDelete == true && context.mounted) {
       try {
         final accountRepo = ref.read(accountRepositoryProvider);
-        await accountRepo.requestAccountDeletion();
-        await ref.read(authStateProvider.notifier).logout();
-        if (context.mounted) {
-          context.go('/login');
-        }
+        final result = await accountRepo.requestAccountDeletion();
+        await result.fold(
+          (failure) async {
+            LogService.e('Account deletion request failed', failure);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Unable to delete account. Please try again later or contact support.',
+                  ),
+                  backgroundColor: AppTheme.error,
+                ),
+              );
+            }
+          },
+          (_) async {
+            await ref.read(authStateProvider.notifier).logout();
+            if (context.mounted) {
+              context.go('/login');
+            }
+          },
+        );
       } catch (e) {
         // SEC-063: Log the raw exception for diagnostics but show a
         // generic user-facing message to avoid leaking internal details.

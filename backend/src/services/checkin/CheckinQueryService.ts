@@ -88,6 +88,10 @@ export class CheckinQueryService {
    */
   async getCheckinById(checkinId: string, currentUserId?: string): Promise<Checkin> {
     try {
+      const blockFilterSQL = currentUserId
+        ? this.blockService.getBlockFilterSQL(currentUserId, 'c.user_id')
+        : '';
+
       const hasUserToastedSQL = currentUserId
         ? `, EXISTS(
             SELECT 1 FROM toasts
@@ -126,6 +130,7 @@ export class CheckinQueryService {
         LEFT JOIN bands br ON br.id = cbr.band_id
         WHERE c.id = $1
           AND (c.is_hidden IS NOT TRUE)
+          ${blockFilterSQL}
         GROUP BY c.id, u.id, u.username, u.profile_image_url,
           v.id, v.name, v.city, v.state, v.image_url,
           b.id, b.name, b.genre, b.image_url,
@@ -164,9 +169,7 @@ export class CheckinQueryService {
    * Get check-ins with cursor pagination (v2 API)
    * Replaces offset-based getCheckins for better performance at scale
    */
-  async getCheckinsWithCursor(
-    options: GetCheckinsCursorOptions
-  ): Promise<CursorPaginatedCheckins> {
+  async getCheckinsWithCursor(options: GetCheckinsCursorOptions): Promise<CursorPaginatedCheckins> {
     try {
       const { venueId, bandId, userId, cursor, limit = 20, currentUserId } = options;
       const effectiveLimit = Math.min(limit, 100);
@@ -219,6 +222,10 @@ export class CheckinQueryService {
         ? `AND (c.created_at, c.id) < ($${paramMap.cursorCreatedAt}::timestamptz, $${paramMap.cursorId}::uuid)`
         : '';
 
+      const blockFilterSQL = currentUserId
+        ? this.blockService.getBlockFilterSQL(currentUserId, 'c.user_id')
+        : '';
+
       const query = `
         SELECT
           c.*,
@@ -236,6 +243,7 @@ export class CheckinQueryService {
         LEFT JOIN bands b ON c.band_id = b.id
         ${whereClause}
         AND (c.is_hidden IS NOT TRUE)
+        ${blockFilterSQL}
         ${cursorClause}
         ORDER BY c.created_at DESC, c.id DESC
         LIMIT $${limitParam}
@@ -502,7 +510,7 @@ export class CheckinQueryService {
    */
   async getCheckins(options: GetCheckinsOptions = {}): Promise<Checkin[]> {
     try {
-      const { venueId, bandId, userId, page = 1, limit = 20 } = options;
+      const { venueId, bandId, userId, currentUserId, page = 1, limit = 20 } = options;
       const offset = (page - 1) * limit;
       const params: any[] = [];
       let paramIndex = 1;
@@ -524,6 +532,10 @@ export class CheckinQueryService {
         params.push(userId);
       }
 
+      const blockFilterSQL = currentUserId
+        ? this.blockService.getBlockFilterSQL(currentUserId, 'c.user_id')
+        : '';
+
       const query = `
         SELECT
           c.*,
@@ -540,6 +552,7 @@ export class CheckinQueryService {
         LEFT JOIN bands b ON c.band_id = b.id
         ${whereClause}
         AND (c.is_hidden IS NOT TRUE)
+        ${blockFilterSQL}
         ORDER BY c.created_at DESC
         LIMIT $${paramIndex++} OFFSET $${paramIndex++}
       `;

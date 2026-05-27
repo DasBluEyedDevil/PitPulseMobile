@@ -53,7 +53,9 @@ describe('ShareCardService public card reuse', () => {
       date: '2026-05-17',
     } as any;
 
-    mockHeadObject.mockResolvedValueOnce({ exists: false }).mockResolvedValueOnce({ exists: false });
+    mockHeadObject
+      .mockResolvedValueOnce({ exists: false })
+      .mockResolvedValueOnce({ exists: false });
 
     const generated = await service.generateCheckinCard('checkin-1', data);
 
@@ -84,7 +86,9 @@ describe('ShareCardService public card reuse', () => {
       badgeIcon: 'moon',
     } as any;
 
-    mockHeadObject.mockResolvedValueOnce({ exists: false }).mockResolvedValueOnce({ exists: false });
+    mockHeadObject
+      .mockResolvedValueOnce({ exists: false })
+      .mockResolvedValueOnce({ exists: false });
 
     await service.generateBadgeCard('badge-award-1', data);
 
@@ -97,6 +101,67 @@ describe('ShareCardService public card reuse', () => {
     mockHeadObject.mockResolvedValueOnce({ exists: true }).mockResolvedValueOnce({ exists: true });
 
     await service.generateBadgeCard('badge-award-1', data);
+
+    expect(mockUploadBuffer).not.toHaveBeenCalled();
+  });
+
+  it('uses deterministic wrapped card keys and reuses existing R2 objects', async () => {
+    const service = new ShareCardService();
+    const data = {
+      username: 'alice',
+      year: 2026,
+      totalShows: 10,
+      uniqueBands: 8,
+      uniqueVenues: 5,
+      topGenre: 'Punk',
+      topArtist: 'Band',
+    } as any;
+
+    mockHeadObject
+      .mockResolvedValueOnce({ exists: false })
+      .mockResolvedValueOnce({ exists: false });
+
+    await service.generateWrappedCard('user-1', 2026, data);
+
+    expect(mockUploadBuffer.mock.calls.map((call) => call[1])).toEqual([
+      'cards/wrapped/user-1-2026-summary-og.png',
+      'cards/wrapped/user-1-2026-summary-stories.png',
+    ]);
+
+    mockUploadBuffer.mockClear();
+    mockHeadObject.mockResolvedValueOnce({ exists: true }).mockResolvedValueOnce({ exists: true });
+
+    await service.generateWrappedCard('user-1', 2026, data);
+
+    expect(mockUploadBuffer).not.toHaveBeenCalled();
+  });
+
+  it('uses deterministic wrapped stat card keys and reuses existing R2 objects', async () => {
+    const service = new ShareCardService();
+    const data = {
+      username: 'alice',
+      year: 2026,
+      statType: 'top-artist',
+      statLabel: '#1 Artist',
+      statValue: 'Band',
+      statDetail: 'Seen 10 times',
+    } as any;
+
+    mockHeadObject
+      .mockResolvedValueOnce({ exists: false })
+      .mockResolvedValueOnce({ exists: false });
+
+    await service.generateWrappedStatCard('user-1', 2026, data);
+
+    expect(mockUploadBuffer.mock.calls.map((call) => call[1])).toEqual([
+      'cards/wrapped/user-1-2026-top-artist-og.png',
+      'cards/wrapped/user-1-2026-top-artist-stories.png',
+    ]);
+
+    mockUploadBuffer.mockClear();
+    mockHeadObject.mockResolvedValueOnce({ exists: true }).mockResolvedValueOnce({ exists: true });
+
+    await service.generateWrappedStatCard('user-1', 2026, data);
 
     expect(mockUploadBuffer).not.toHaveBeenCalled();
   });

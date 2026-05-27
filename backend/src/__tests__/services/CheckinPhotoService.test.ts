@@ -45,13 +45,72 @@ describe('CheckinPhotoService', () => {
     service = new CheckinPhotoService();
   });
 
+  it('counts unexpired pending uploads before issuing new signed URLs', async () => {
+    mockDb.query
+      .mockResolvedValueOnce({
+        rows: [{ user_id: userId, image_urls: ['https://old.example.com/photo.jpg'] }],
+      })
+      .mockResolvedValueOnce({ rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ count: 1 }] })
+      .mockResolvedValueOnce({ rowCount: 2 });
+    mockR2Service.getPresignedUploadUrl
+      .mockResolvedValueOnce({
+        uploadUrl: 'https://upload.example.com/one',
+        objectKey: photoKeys[0],
+        publicUrl: `https://cdn.example.com/${photoKeys[0]}`,
+      })
+      .mockResolvedValueOnce({
+        uploadUrl: 'https://upload.example.com/two',
+        objectKey: photoKeys[1],
+        publicUrl: `https://cdn.example.com/${photoKeys[1]}`,
+      });
+
+    const result = await service.requestPhotoUploadUrls(checkinId, userId, [
+      'image/jpeg',
+      'image/jpeg',
+    ]);
+
+    expect(result.map((item) => item.objectKey)).toEqual(photoKeys);
+    expect(mockDb.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("created_at < NOW() - INTERVAL '15 minutes'"),
+      [checkinId, userId]
+    );
+    expect(mockDb.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('SELECT COUNT(*)::int AS count'),
+      [checkinId, userId]
+    );
+  });
+
+  it('rejects new signed URLs when attached plus pending plus requested photos exceed the cap', async () => {
+    mockDb.query
+      .mockResolvedValueOnce({
+        rows: [{ user_id: userId, image_urls: ['https://old.example.com/photo.jpg'] }],
+      })
+      .mockResolvedValueOnce({ rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ count: 2 }] });
+
+    await expect(
+      service.requestPhotoUploadUrls(checkinId, userId, ['image/jpeg', 'image/png'])
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    expect(mockR2Service.getPresignedUploadUrl).not.toHaveBeenCalled();
+  });
+
   it('HEADs all pending keys before storing URLs and deleting pending rows', async () => {
     mockDb.query
-      .mockResolvedValueOnce({ rows: [{ user_id: userId, image_urls: ['https://old.example.com/photo.jpg'] }] })
+      .mockResolvedValueOnce({
+        rows: [{ user_id: userId, image_urls: ['https://old.example.com/photo.jpg'] }],
+      })
       .mockResolvedValueOnce({ rows: photoKeys.map((object_key) => ({ object_key })) })
       .mockResolvedValueOnce({ rowCount: 1 })
       .mockResolvedValueOnce({ rowCount: 2 });
-    mockR2Service.headObject.mockResolvedValue({ exists: true, contentLength: 100, contentType: 'image/jpeg' });
+    mockR2Service.headObject.mockResolvedValue({
+      exists: true,
+      contentLength: 100,
+      contentType: 'image/jpeg',
+    });
 
     const result = await service.addPhotos(checkinId, userId, photoKeys);
 

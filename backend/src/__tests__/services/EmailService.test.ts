@@ -30,6 +30,9 @@ describe('EmailService', () => {
     process.env = { ...originalEnv };
     delete process.env.RESEND_API_KEY;
     delete process.env.RESEND_FROM_ADDRESS;
+    delete process.env.PASSWORD_RESET_BASE_URL;
+    delete process.env.WEB_BASE_URL;
+    delete process.env.BASE_URL;
   });
 
   afterAll(() => {
@@ -124,6 +127,7 @@ describe('EmailService', () => {
     beforeEach(() => {
       process.env.RESEND_API_KEY = 'test-api-key';
       process.env.RESEND_FROM_ADDRESS = 'SoundCheck <noreply@example.com>';
+      process.env.PASSWORD_RESET_BASE_URL = 'https://soundcheck.app';
 
       // Create service with mocked Resend for these tests
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -171,14 +175,15 @@ describe('EmailService', () => {
       expect(html).toContain('Password Reset');
     });
 
-    it('should construct correct deep link URL with token', async () => {
+    it('should construct a verified HTTPS reset URL with encoded token', async () => {
       mockResendSend.mockResolvedValueOnce({ data: { id: 'email-123' } });
 
       const token = 'my-secret-token-abc123';
       await emailService.sendPasswordResetEmail('user@example.com', token);
 
       const callArgs = mockResendSend.mock.calls[0][0];
-      expect(callArgs.html).toContain(`soundcheck://reset-password?token=${token}`);
+      expect(callArgs.html).toContain(`https://soundcheck.app/reset-password?token=${token}`);
+      expect(callArgs.html).not.toContain('soundcheck://reset-password');
     });
 
     it('should log success when email is sent', async () => {
@@ -287,8 +292,10 @@ describe('EmailService', () => {
       await emailService.sendPasswordResetEmail('user@example.com', token);
 
       const callArgs = mockResendSend.mock.calls[0][0];
-      // The token should be in the URL
-      expect(callArgs.html).toContain('soundcheck://reset-password');
+      expect(callArgs.html).toContain(
+        'https://soundcheck.app/reset-password?token=token%3Cwith%3E%26%22chars'
+      );
+      expect(callArgs.html).not.toContain(token);
     });
   });
 
@@ -296,6 +303,7 @@ describe('EmailService', () => {
     beforeEach(() => {
       process.env.RESEND_API_KEY = 'test-api-key';
       process.env.RESEND_FROM_ADDRESS = 'SoundCheck <noreply@example.com>';
+      process.env.PASSWORD_RESET_BASE_URL = 'https://soundcheck.app';
 
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { Resend } = require('resend');
@@ -351,6 +359,7 @@ describe('EmailService', () => {
     beforeEach(() => {
       process.env.RESEND_API_KEY = 'test-api-key';
       process.env.RESEND_FROM_ADDRESS = 'SoundCheck <noreply@example.com>';
+      process.env.PASSWORD_RESET_BASE_URL = 'https://soundcheck.app';
 
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { Resend } = require('resend');

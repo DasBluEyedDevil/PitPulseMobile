@@ -58,4 +58,5 @@ key.properties
 
 # Firebase config files - contain project-specific secrets
 /android/app/google-services.json
+/android/app/GoogleService-Info.plist
 /ios/Runner/GoogleService-Info.plist

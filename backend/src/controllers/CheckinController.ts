@@ -309,8 +309,13 @@ export class CheckinController {
    */
   getComments = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { id } = routeParams(req);
+    const userId = req.user?.id;
 
-    const comments = await this.checkinService.getComments(id);
+    if (!userId) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const comments = await this.checkinService.getComments(id, userId);
 
     const response: ApiResponse = {
       success: true,
@@ -349,6 +354,11 @@ export class CheckinController {
    */
   getCheckins = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { venueId, bandId, userId, page, limit } = req.query;
+    const currentUserId = req.user?.id;
+
+    if (!currentUserId) {
+      throw new UnauthorizedError('Authentication required');
+    }
 
     // API-014: Bounded parseInt with NaN handling
     const rawPage = parseInt(page as string, 10);
@@ -358,6 +368,7 @@ export class CheckinController {
       venueId: venueId as string,
       bandId: bandId as string,
       userId: userId as string,
+      currentUserId,
       page: isNaN(rawPage) ? 1 : Math.max(1, rawPage),
       limit: isNaN(rawLimitVal) ? 20 : Math.max(1, Math.min(100, rawLimitVal)),
     });
@@ -391,8 +402,13 @@ export class CheckinController {
    */
   getToasts = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { id } = routeParams(req);
+    const userId = req.user?.id;
 
-    const toasts = await this.checkinService.getToasts(id);
+    if (!userId) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const toasts = await this.checkinService.getToasts(id, userId);
 
     const response: ApiResponse = {
       success: true,

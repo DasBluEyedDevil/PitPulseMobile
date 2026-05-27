@@ -48,7 +48,7 @@ The web app is a static frontend surface. It should not own backend business log
 
 ## Realtime Contracts
 
-- WebSocket authentication happens during upgrade. Mobile builds the URL from `ApiConfig.wsBaseUrl` and sends the JWT as a URL-encoded `token` query parameter; the backend rejects missing/invalid JWTs before connection and sends `connected` plus `authenticated` for accepted sessions.
+- WebSocket authentication happens during upgrade. Mobile builds the URL from `ApiConfig.wsBaseUrl` and sends the JWT in the `Authorization: Bearer` header; the backend rejects missing/invalid JWTs before connection and sends `connected` plus `authenticated` for accepted sessions. Do not pass bearer tokens in WebSocket query strings.
 - The post-connect `auth` message remains compatibility-only. Logout/manual disconnect clears WebSocket credentials, desired rooms, timers, and suppresses reconnect; network disconnects may reconnect only while credentials remain active.
 - Room names are prefix-scoped and UUID-validated: `checkin:<uuid>`, `event:<uuid>`, `venue:<uuid>`, and `user:<uuid>`. `user:` rooms may only match the authenticated user. `event:` rooms represent active attendance, not event-detail browsing.
 - Multi-instance realtime delivery uses Redis Pub/Sub envelopes on the shared realtime channel: user-targeted envelopes carry `{ target: 'user', userId, type, payload }`; room-targeted envelopes carry `{ target: 'room', room, type, payload }`. WebSocket servers subscribe and deliver locally, with logs/health expected to surface Redis degradation.

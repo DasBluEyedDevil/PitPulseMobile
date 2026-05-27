@@ -32,15 +32,25 @@ const mockLogger = logger as unknown as { info: jest.Mock; warn: jest.Mock; erro
 
 describe('SubscriptionService', () => {
   let subscriptionService: SubscriptionService;
+  const originalRevenueCatEnvironment = process.env.REVENUECAT_WEBHOOK_ENVIRONMENT;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockDb.query.mockReset();
+    process.env.REVENUECAT_WEBHOOK_ENVIRONMENT = 'PRODUCTION';
     subscriptionService = new SubscriptionService();
     // Reset logger mocks
     mockLogger.info.mockClear();
     mockLogger.warn.mockClear();
     mockLogger.error.mockClear();
+  });
+
+  afterAll(() => {
+    if (originalRevenueCatEnvironment === undefined) {
+      delete process.env.REVENUECAT_WEBHOOK_ENVIRONMENT;
+    } else {
+      process.env.REVENUECAT_WEBHOOK_ENVIRONMENT = originalRevenueCatEnvironment;
+    }
   });
 
   describe('processWebhookEvent', () => {
@@ -49,6 +59,8 @@ describe('SubscriptionService', () => {
       type: 'INITIAL_PURCHASE',
       app_user_id: 'user-456',
       entitlement_ids: ['pro'],
+      environment: 'PRODUCTION',
+      expiration_at_ms: Date.now() + 3_600_000,
     };
 
     it('should process INITIAL_PURCHASE event and grant premium', async () => {
@@ -67,6 +79,53 @@ describe('SubscriptionService', () => {
         'user-456',
         true,
       ]);
+    });
+
+    it('should fail closed when expected RevenueCat environment is not configured', async () => {
+      delete process.env.REVENUECAT_WEBHOOK_ENVIRONMENT;
+      subscriptionService = new SubscriptionService();
+      mockDb.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
+
+      const result = await subscriptionService.processWebhookEvent(mockEvent);
+
+      expect(result).toEqual({ processed: true, reason: 'Ignored unexpected environment' });
+      expect(mockDb.query).not.toHaveBeenCalledWith(
+        'UPDATE users SET is_premium = $2 WHERE id = $1',
+        expect.anything()
+      );
+    });
+
+    it('should ignore grant events from unexpected RevenueCat environments', async () => {
+      mockDb.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
+
+      const result = await subscriptionService.processWebhookEvent({
+        ...mockEvent,
+        environment: 'SANDBOX',
+      });
+
+      expect(result).toEqual({ processed: true, reason: 'Ignored unexpected environment' });
+      expect(mockDb.query).not.toHaveBeenCalledWith(
+        'UPDATE users SET is_premium = $2 WHERE id = $1',
+        expect.anything()
+      );
+    });
+
+    it('should ignore grant events without a valid future expiration', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ id: 'user-456' }] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const result = await subscriptionService.processWebhookEvent({
+        ...mockEvent,
+        expiration_at_ms: null,
+      });
+
+      expect(result.processed).toBe(true);
+      expect(mockDb.query).not.toHaveBeenCalledWith(
+        'UPDATE users SET is_premium = $2 WHERE id = $1',
+        expect.anything()
+      );
     });
 
     it('should process RENEWAL event and maintain premium', async () => {
@@ -102,7 +161,11 @@ describe('SubscriptionService', () => {
     });
 
     it('should process EXPIRATION event and revoke premium', async () => {
-      const expirationEvent = { ...mockEvent, type: 'EXPIRATION', expiration_at_ms: Date.now() - 1000 };
+      const expirationEvent = {
+        ...mockEvent,
+        type: 'EXPIRATION',
+        expiration_at_ms: Date.now() - 1000,
+      };
       mockDb.query
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ id: 'user-456' }] })
@@ -296,6 +359,8 @@ describe('SubscriptionService', () => {
         type: 'INITIAL_PURCHASE',
         app_user_id: 'user-789',
         entitlement_ids: ['pro'],
+        environment: 'PRODUCTION',
+        expiration_at_ms: Date.now() + 3_600_000,
       });
 
       expect(mockDb.query).toHaveBeenCalledWith('UPDATE users SET is_premium = $2 WHERE id = $1', [
@@ -317,6 +382,7 @@ describe('SubscriptionService', () => {
         type: 'CANCELLATION',
         app_user_id: 'user-789',
         entitlement_ids: ['pro'],
+        environment: 'PRODUCTION',
       });
 
       // Should NOT have called update for premium
@@ -339,6 +405,7 @@ describe('SubscriptionService', () => {
         type: 'EXPIRATION',
         app_user_id: 'user-789',
         entitlement_ids: ['pro'],
+        environment: 'PRODUCTION',
         expiration_at_ms: Date.now() - 1000,
       });
 
@@ -359,6 +426,8 @@ describe('SubscriptionService', () => {
         type: 'UNCANCELLATION',
         app_user_id: 'user-abc',
         entitlement_ids: ['pro'],
+        environment: 'PRODUCTION',
+        expiration_at_ms: Date.now() + 3_600_000,
       });
 
       expect(mockDb.query).toHaveBeenCalledWith('UPDATE users SET is_premium = $2 WHERE id = $1', [
@@ -379,6 +448,8 @@ describe('SubscriptionService', () => {
         type: 'INITIAL_PURCHASE',
         app_user_id: 'user-race',
         entitlement_ids: ['pro'],
+        environment: 'PRODUCTION',
+        expiration_at_ms: Date.now() + 3_600_000,
       });
 
       expect(result1.processed).toBe(true);
@@ -392,6 +463,8 @@ describe('SubscriptionService', () => {
         type: 'INITIAL_PURCHASE',
         app_user_id: 'user-race',
         entitlement_ids: ['pro'],
+        environment: 'PRODUCTION',
+        expiration_at_ms: Date.now() + 3_600_000,
       });
 
       expect(result2.processed).toBe(false);
@@ -432,6 +505,8 @@ describe('SubscriptionService', () => {
           type: 'INITIAL_PURCHASE',
           app_user_id: userId,
           entitlement_ids: ['pro'],
+          environment: 'PRODUCTION',
+          expiration_at_ms: Date.now() + 3_600_000,
         });
 
         expect(mockDb.query).toHaveBeenCalledWith(
@@ -453,6 +528,8 @@ describe('SubscriptionService', () => {
         type: 'INITIAL_PURCHASE',
         app_user_id: specialUserId,
         entitlement_ids: ['pro'],
+        environment: 'PRODUCTION',
+        expiration_at_ms: Date.now() + 3_600_000,
       });
 
       expect(result.processed).toBe(true);
@@ -473,6 +550,8 @@ describe('SubscriptionService', () => {
           type: 'INITIAL_PURCHASE',
           app_user_id: 'user-err',
           entitlement_ids: ['pro'],
+          environment: 'PRODUCTION',
+          expiration_at_ms: Date.now() + 3_600_000,
         })
       ).rejects.toThrow('Database connection failed');
     });
@@ -486,6 +565,8 @@ describe('SubscriptionService', () => {
           type: 'INITIAL_PURCHASE',
           app_user_id: 'user-err',
           entitlement_ids: ['pro'],
+          environment: 'PRODUCTION',
+          expiration_at_ms: Date.now() + 3_600_000,
         })
       ).rejects.toThrow('Query timeout');
     });
@@ -502,6 +583,8 @@ describe('SubscriptionService', () => {
           type: 'INITIAL_PURCHASE',
           app_user_id: 'user-err',
           entitlement_ids: ['pro'],
+          environment: 'PRODUCTION',
+          expiration_at_ms: Date.now() + 3_600_000,
         })
       ).rejects.toThrow('Insert failed');
     });

@@ -13,12 +13,15 @@ import { Report, CreateReportRequest, ContentType } from '../types';
 import { mapDbRowToReport } from '../utils/dbMappers';
 import { moderationQueue } from '../jobs/moderationQueue';
 import { logInfo } from '../utils/logger';
+import { BlockService } from './BlockService';
 
 export class ReportService {
   private db: Database;
+  private blockService: BlockService;
 
   constructor(db?: Database) {
     this.db = db || Database.getInstance();
+    this.blockService = new BlockService(db);
   }
 
   /**
@@ -30,7 +33,11 @@ export class ReportService {
    */
   async createReport(reporterId: string, data: CreateReportRequest): Promise<Report> {
     // Validate content exists and resolve target user
-    const contentInfo = await this.validateContentExists(data.contentType, data.contentId);
+    const contentInfo = await this.validateContentExists(
+      reporterId,
+      data.contentType,
+      data.contentId
+    );
 
     try {
       const result = await this.db.query(
@@ -116,6 +123,7 @@ export class ReportService {
    * Returns the target user ID and image URL (for photo reports).
    */
   private async validateContentExists(
+    reporterId: string,
     contentType: ContentType,
     contentId: string
   ): Promise<{ targetUserId: string | null; imageUrl: string | null }> {
@@ -124,14 +132,35 @@ export class ReportService {
 
     switch (contentType) {
       case 'checkin':
-        query = `SELECT user_id FROM checkins WHERE id = $1`;
+        query = `
+          SELECT c.user_id
+          FROM checkins c
+          WHERE c.id = $1
+            AND (c.is_hidden IS NOT TRUE)
+            ${this.blockService.getBlockFilterSQL(reporterId, 'c.user_id')}
+        `;
         break;
       case 'comment':
-        query = `SELECT user_id FROM checkin_comments WHERE id = $1`;
+        query = `
+          SELECT cc.user_id
+          FROM checkin_comments cc
+          INNER JOIN checkins c ON c.id = cc.checkin_id
+          WHERE cc.id = $1
+            AND (cc.is_hidden IS NOT TRUE)
+            AND (c.is_hidden IS NOT TRUE)
+            ${this.blockService.getBlockFilterSQL(reporterId, 'c.user_id')}
+            ${this.blockService.getBlockFilterSQL(reporterId, 'cc.user_id')}
+        `;
         break;
       case 'photo':
         // Photos are stored as image_urls array on checkins
-        query = `SELECT user_id, image_urls FROM checkins WHERE id = $1`;
+        query = `
+          SELECT c.user_id, c.image_urls
+          FROM checkins c
+          WHERE c.id = $1
+            AND (c.is_hidden IS NOT TRUE)
+            ${this.blockService.getBlockFilterSQL(reporterId, 'c.user_id')}
+        `;
         break;
       case 'user':
         query = `SELECT id AS user_id FROM users WHERE id = $1`;

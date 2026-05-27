@@ -45,12 +45,14 @@ describe('CheckinController', () => {
 
     // Error handler middleware (must be last)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-      const statusCode = err.statusCode || err.status || 500;
-      res.status(statusCode).json({
-        error: err.message || 'Request failed',
-      });
-    });
+    app.use(
+      (err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+        const statusCode = err.statusCode || err.status || 500;
+        res.status(statusCode).json({
+          error: err.message || 'Request failed',
+        });
+      }
+    );
 
     return app;
   };
@@ -506,7 +508,7 @@ describe('CheckinController', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveLength(2);
-      expect(mockCheckinService.getComments).toHaveBeenCalledWith('checkin-123');
+      expect(mockCheckinService.getComments).toHaveBeenCalledWith('checkin-123', 'user-123');
     });
 
     it('should return 500 when service throws an error', async () => {
@@ -594,6 +596,7 @@ describe('CheckinController', () => {
         venueId: undefined,
         bandId: undefined,
         userId: undefined,
+        currentUserId: 'user-123',
         page: 1,
         limit: 20,
       });

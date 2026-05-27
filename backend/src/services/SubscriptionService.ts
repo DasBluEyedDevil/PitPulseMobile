@@ -70,12 +70,15 @@ export class SubscriptionService {
       case 'INITIAL_PURCHASE':
       case 'RENEWAL':
       case 'UNCANCELLATION':
-        if (this.isExpired(event)) {
-          logger.warn('SubscriptionService: Ignoring expired premium grant event', {
-            eventId: event.id,
-            eventType: event.type,
-            expirationAtMs: event.expiration_at_ms,
-          });
+        if (!this.hasValidFutureExpiration(event)) {
+          logger.warn(
+            'SubscriptionService: Ignoring premium grant event without valid future expiration',
+            {
+              eventId: event.id,
+              eventType: event.type,
+              expirationAtMs: event.expiration_at_ms,
+            }
+          );
           break;
         }
         await this.setUserPremium(event.app_user_id, true);
@@ -115,10 +118,18 @@ export class SubscriptionService {
 
   private matchesExpectedEnvironment(event: WebhookEvent): boolean {
     if (!this.expectedEnvironment) {
-      return true;
+      return false;
     }
 
     return event.environment === this.expectedEnvironment;
+  }
+
+  private hasValidFutureExpiration(event: WebhookEvent): boolean {
+    return (
+      typeof event.expiration_at_ms === 'number' &&
+      Number.isFinite(event.expiration_at_ms) &&
+      event.expiration_at_ms > Date.now()
+    );
   }
 
   private isExpired(event: WebhookEvent): boolean {

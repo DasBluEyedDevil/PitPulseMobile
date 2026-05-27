@@ -80,7 +80,7 @@ describe('WebSocket Authentication', () => {
       }
     });
 
-    test('valid query token is verified before upgrade and connection receives connected plus authenticated', () => {
+    test('valid Authorization header token is verified before upgrade and connection receives connected plus authenticated', () => {
       process.env.ENABLE_WEBSOCKET = 'true';
       httpServer = createServer();
       websocket.init(httpServer);
@@ -89,8 +89,8 @@ describe('WebSocket Authentication', () => {
       const verifyClient = wss.options.verifyClient;
       const callback = jest.fn();
       const req: any = {
-        url: '/ws?token=valid-token',
-        headers: { host: 'localhost' },
+        url: '/ws',
+        headers: { host: 'localhost', authorization: 'Bearer valid-token' },
       };
 
       verifyClient({ req }, callback);
@@ -107,22 +107,33 @@ describe('WebSocket Authentication', () => {
       expect(sentMessages[1].payload.userId).toBe(USER_123);
     });
 
-    test('missing and invalid tokens are rejected before upgrade', () => {
+    test('missing, query-string, and invalid tokens are rejected before upgrade', () => {
       process.env.ENABLE_WEBSOCKET = 'true';
       httpServer = createServer();
       websocket.init(httpServer);
 
       const verifyClient = (websocket as any).wss.options.verifyClient;
       const missingCallback = jest.fn();
+      const queryCallback = jest.fn();
       const invalidCallback = jest.fn();
 
       verifyClient({ req: { url: '/ws', headers: { host: 'localhost' } } }, missingCallback);
       verifyClient(
-        { req: { url: '/ws?token=invalid-token', headers: { host: 'localhost' } } },
+        { req: { url: '/ws?token=valid-token', headers: { host: 'localhost' } } },
+        queryCallback
+      );
+      verifyClient(
+        {
+          req: {
+            url: '/ws',
+            headers: { host: 'localhost', authorization: 'Bearer invalid-token' },
+          },
+        },
         invalidCallback
       );
 
       expect(missingCallback).toHaveBeenCalledWith(false, 401, 'Authentication required');
+      expect(queryCallback).toHaveBeenCalledWith(false, 401, 'Authentication required');
       expect(invalidCallback).toHaveBeenCalledWith(false, 401, 'Invalid or expired token');
     });
   });
@@ -201,9 +212,9 @@ describe('WebSocket Authentication', () => {
 
         const errorMessages = sentMessages.filter((message) => message.type === 'error');
         expect(errorMessages).toHaveLength(2);
-        expect(errorMessages.every((message) => message.payload.message === 'Authentication failed')).toBe(
-          true
-        );
+        expect(
+          errorMessages.every((message) => message.payload.message === 'Authentication failed')
+        ).toBe(true);
       } finally {
         clientsMap.delete(invalidClientId);
         clientsMap.delete(mismatchClientId);
@@ -410,9 +421,7 @@ describe('WebSocket Authentication', () => {
         });
 
         expect(delivered).toBe(1);
-        expect(sentMessages).toEqual([
-          { type: 'badge_earned', payload: { badgeId: 'badge-1' } },
-        ]);
+        expect(sentMessages).toEqual([{ type: 'badge_earned', payload: { badgeId: 'badge-1' } }]);
       } finally {
         clientsMap.delete(clientId);
         userClientsMap.delete(USER_123);
@@ -439,9 +448,7 @@ describe('WebSocket Authentication', () => {
         });
 
         expect(delivered).toBe(1);
-        expect(sentMessages).toEqual([
-          { type: 'new_comment', payload: { checkinId: CHECKIN_ID } },
-        ]);
+        expect(sentMessages).toEqual([{ type: 'new_comment', payload: { checkinId: CHECKIN_ID } }]);
       } finally {
         clientsMap.delete(clientId);
         roomsMap.delete(room);

@@ -159,8 +159,8 @@ export class CheckinService {
    * Get toasts for a check-in.
    * @deprecated Use CheckinToastService.getToasts() directly
    */
-  async getToasts(checkinId: string): Promise<Toast[]> {
-    return this.toastService.getToasts(checkinId);
+  async getToasts(checkinId: string, currentUserId: string): Promise<Toast[]> {
+    return this.toastService.getToasts(checkinId, currentUserId);
   }
 
   /**
@@ -175,8 +175,8 @@ export class CheckinService {
    * Get comments for a check-in.
    * @deprecated Use CheckinToastService.getComments() directly
    */
-  async getComments(checkinId: string): Promise<Comment[]> {
-    return this.toastService.getComments(checkinId);
+  async getComments(checkinId: string, currentUserId: string): Promise<Comment[]> {
+    return this.toastService.getComments(checkinId, currentUserId);
   }
 
   /**

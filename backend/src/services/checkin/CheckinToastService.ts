@@ -11,9 +11,12 @@
 import Database from '../../config/database';
 import { Toast, Comment } from './types';
 import logger from '../../utils/logger';
+import { NotFoundError } from '../../utils/errors';
+import { BlockService } from '../BlockService';
 
 export class CheckinToastService {
   private db = Database.getInstance();
+  private blockService = new BlockService();
 
   // ============================================
   // Toast operations
@@ -28,6 +31,8 @@ export class CheckinToastService {
     checkinId: string
   ): Promise<{ toastCount: number; ownerId: string }> {
     try {
+      const ownerId = await this.getVisibleCheckinOwner(checkinId, userId);
+
       // Atomic upsert — eliminates TOCTOU race between SELECT and INSERT (CFR-BE-001)
       const insertResult = await this.db.query(
         `INSERT INTO toasts (checkin_id, user_id)
@@ -43,7 +48,7 @@ export class CheckinToastService {
 
       // Get toast count and owner ID for WebSocket broadcast
       const result = await this.db.query(
-        `SELECT c.user_id as owner_id, COUNT(t.id) as toast_count
+        `SELECT COUNT(t.id) as toast_count
          FROM checkins c
          LEFT JOIN toasts t ON c.id = t.checkin_id
          WHERE c.id = $1
@@ -53,7 +58,7 @@ export class CheckinToastService {
 
       return {
         toastCount: parseInt(result.rows[0]?.toast_count || '0'),
-        ownerId: result.rows[0]?.owner_id,
+        ownerId,
       };
     } catch (error) {
       logger.error('Toast check-in error', {
@@ -85,8 +90,10 @@ export class CheckinToastService {
   /**
    * Get toasts for a check-in
    */
-  async getToasts(checkinId: string): Promise<Toast[]> {
+  async getToasts(checkinId: string, currentUserId: string): Promise<Toast[]> {
     try {
+      await this.getVisibleCheckinOwner(checkinId, currentUserId);
+
       const query = `
         SELECT
           t.*,
@@ -129,6 +136,8 @@ export class CheckinToastService {
    */
   async addComment(userId: string, checkinId: string, content: string): Promise<Comment> {
     try {
+      const ownerId = await this.getVisibleCheckinOwner(checkinId, userId);
+
       const query = `
         INSERT INTO checkin_comments (checkin_id, user_id, content)
         VALUES ($1, $2, $3)
@@ -137,17 +146,12 @@ export class CheckinToastService {
 
       const result = await this.db.query(query, [checkinId, userId, content]);
 
-      // Get check-in owner for WebSocket notification
-      const checkin = await this.db.query('SELECT user_id FROM checkins WHERE id = $1', [
-        checkinId,
-      ]);
-
       // Get comment with user details
       const comment = await this.getCommentById(result.rows[0].id);
 
       return {
         ...comment,
-        ownerId: checkin.rows[0]?.user_id,
+        ownerId,
       };
     } catch (error) {
       logger.error('Add comment error', {
@@ -161,8 +165,10 @@ export class CheckinToastService {
   /**
    * Get comments for a check-in
    */
-  async getComments(checkinId: string): Promise<Comment[]> {
+  async getComments(checkinId: string, currentUserId: string): Promise<Comment[]> {
     try {
+      await this.getVisibleCheckinOwner(checkinId, currentUserId);
+
       const query = `
         SELECT
           c.*,
@@ -267,5 +273,23 @@ export class CheckinToastService {
         profileImageUrl: row.profile_image_url,
       },
     };
+  }
+
+  private async getVisibleCheckinOwner(checkinId: string, viewerId: string): Promise<string> {
+    const query = `
+      SELECT c.user_id
+      FROM checkins c
+      WHERE c.id = $1
+        AND (c.is_hidden IS NOT TRUE)
+        ${this.blockService.getBlockFilterSQL(viewerId, 'c.user_id')}
+      LIMIT 1
+    `;
+
+    const result = await this.db.query(query, [checkinId]);
+    if (result.rows.length === 0) {
+      throw new NotFoundError('Check-in not found');
+    }
+
+    return result.rows[0].user_id;
   }
 }

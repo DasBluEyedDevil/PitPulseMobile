@@ -105,10 +105,26 @@ export class CheckinPhotoService {
 
       // Check existing photo count + requested count <= max
       const existingUrls: string[] = checkinResult.rows[0].image_urls || [];
-      const totalAfter = existingUrls.length + contentTypes.length;
+      await this.db.query(
+        `DELETE FROM pending_photo_uploads
+         WHERE checkin_id = $1
+           AND user_id = $2
+           AND created_at < NOW() - INTERVAL '15 minutes'`,
+        [checkinId, userId]
+      );
+
+      const pendingResult = await this.db.query(
+        `SELECT COUNT(*)::int AS count
+         FROM pending_photo_uploads
+         WHERE checkin_id = $1
+           AND user_id = $2`,
+        [checkinId, userId]
+      );
+      const pendingCount = Number(pendingResult.rows[0]?.count || 0);
+      const totalAfter = existingUrls.length + pendingCount + contentTypes.length;
       if (totalAfter > this.MAX_PHOTOS_PER_CHECKIN) {
         const err = new Error(
-          `Maximum ${this.MAX_PHOTOS_PER_CHECKIN} photos per check-in. Currently ${existingUrls.length}, requesting ${contentTypes.length}.`
+          `Maximum ${this.MAX_PHOTOS_PER_CHECKIN} photos per check-in. Currently ${existingUrls.length} attached and ${pendingCount} pending, requesting ${contentTypes.length}.`
         );
         (err as any).statusCode = 400;
         throw err;
@@ -116,9 +132,7 @@ export class CheckinPhotoService {
 
       // Generate presigned URLs for each content type
       const results = await Promise.all(
-        contentTypes.map((ct) =>
-          r2Service.getPresignedUploadUrl(ct, `checkins/${checkinId}`)
-        )
+        contentTypes.map((ct) => r2Service.getPresignedUploadUrl(ct, `checkins/${checkinId}`))
       );
 
       // Track each issued object key in `pending_photo_uploads` so
@@ -153,11 +167,7 @@ export class CheckinPhotoService {
    * Confirm photo uploads and store their public URLs in the check-in.
    * Combines existing URLs with new ones and enforces max photo count.
    */
-  async addPhotos(
-    checkinId: string,
-    userId: string,
-    photoKeys: string[]
-  ): Promise<string[]> {
+  async addPhotos(checkinId: string, userId: string, photoKeys: string[]): Promise<string[]> {
     try {
       // Verify checkin belongs to user
       const checkinResult = await this.db.query(
@@ -265,10 +275,9 @@ export class CheckinPhotoService {
    */
   async getPhotos(checkinId: string): Promise<string[]> {
     try {
-      const result = await this.db.query(
-        'SELECT image_urls FROM checkins WHERE id = $1',
-        [checkinId]
-      );
+      const result = await this.db.query('SELECT image_urls FROM checkins WHERE id = $1', [
+        checkinId,
+      ]);
 
       if (result.rows.length === 0) {
         return [];
@@ -287,7 +296,11 @@ export class CheckinPhotoService {
   /**
    * Delete photos from a check-in (admin/rollback function)
    */
-  async deletePhotos(checkinId: string, userId: string, photoUrlsToRemove: string[]): Promise<string[]> {
+  async deletePhotos(
+    checkinId: string,
+    userId: string,
+    photoUrlsToRemove: string[]
+  ): Promise<string[]> {
     try {
       // Verify checkin belongs to user
       const checkinResult = await this.db.query(
@@ -331,10 +344,9 @@ export class CheckinPhotoService {
    */
   async getRemainingPhotoSlots(checkinId: string): Promise<number> {
     try {
-      const result = await this.db.query(
-        'SELECT image_urls FROM checkins WHERE id = $1',
-        [checkinId]
-      );
+      const result = await this.db.query('SELECT image_urls FROM checkins WHERE id = $1', [
+        checkinId,
+      ]);
 
       if (result.rows.length === 0) {
         return 0;

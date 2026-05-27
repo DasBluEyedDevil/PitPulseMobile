@@ -137,9 +137,8 @@ export class ShareCardService {
       (err as any).statusCode = 503;
       throw err;
     }
-    const ts = Date.now();
-    const ogKey = `cards/wrapped/${userId}-${year}-summary-${ts}-og.png`;
-    const storiesKey = `cards/wrapped/${userId}-${year}-summary-${ts}-stories.png`;
+    const ogKey = `cards/wrapped/${userId}-${year}-summary-og.png`;
+    const storiesKey = `cards/wrapped/${userId}-${year}-summary-stories.png`;
     const [ogUrl, storiesUrl] = await Promise.all([
       this.renderAndUpload(wrappedSummaryCardOG(data), 1200, 630, ogKey),
       this.renderAndUpload(wrappedSummaryCardStories(data), 1080, 1920, storiesKey),
@@ -164,9 +163,8 @@ export class ShareCardService {
       (err as any).statusCode = 503;
       throw err;
     }
-    const ts = Date.now();
-    const ogKey = `cards/wrapped/${userId}-${year}-${data.statType}-${ts}-og.png`;
-    const storiesKey = `cards/wrapped/${userId}-${year}-${data.statType}-${ts}-stories.png`;
+    const ogKey = `cards/wrapped/${userId}-${year}-${data.statType}-og.png`;
+    const storiesKey = `cards/wrapped/${userId}-${year}-${data.statType}-stories.png`;
     const [ogUrl, storiesUrl] = await Promise.all([
       this.renderAndUpload(wrappedStatCardOG(data), 1200, 630, ogKey),
       this.renderAndUpload(wrappedStatCardStories(data), 1080, 1920, storiesKey),
