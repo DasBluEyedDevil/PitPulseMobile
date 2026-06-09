@@ -1,12 +1,10 @@
 import { defineConfig } from 'astro/config';
-import tailwind from '@astrojs/tailwind';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   site: 'https://soundcheck.app',
   output: 'static',
-  integrations: [
-    tailwind({
-      applyBaseStyles: false,
-    }),
-  ],
+  vite: {
+    plugins: [tailwindcss()],
+  },
 });

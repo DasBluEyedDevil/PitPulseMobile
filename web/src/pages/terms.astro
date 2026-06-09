@@ -1,11 +1,11 @@
 ---
-import { getEntry } from 'astro:content';
+import { getEntry, render } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import GlassPanel from '../components/GlassPanel.astro';
 
 const entry = await getEntry('legal', 'terms');
 if (!entry) throw new Error('Terms of service not found. Run npm run sync:legal');
-const { Content } = await entry.render();
+const { Content } = await render(entry);
 ---
 
 <BaseLayout title="Terms of Service" description="SoundCheck terms of service and user agreement.">

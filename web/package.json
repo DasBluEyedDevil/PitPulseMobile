@@ -14,12 +14,12 @@
     "preview": "astro preview --host 127.0.0.1"
   },
   "dependencies": {
-    "@astrojs/tailwind": "^6.0.2",
-    "astro": "^5.7.10",
-    "tailwindcss": "^3.4.17"
+    "astro": "^6.4.4"
   },
   "devDependencies": {
-    "@tailwindcss/typography": "^0.5.16",
+    "@tailwindcss/typography": "^0.5.20",
+    "@tailwindcss/vite": "^4.3.0",
+    "tailwindcss": "^4.3.0",
     "typescript": "^5.8.3",
     "wrangler": "^4.92.0"
   }
