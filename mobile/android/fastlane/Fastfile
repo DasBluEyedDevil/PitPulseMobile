@@ -120,6 +120,9 @@ platform :android do
     command = ["flutter build appbundle --release", extra_args].reject(&:empty?).join(" ")
     from_mobile_root(command)
 
+    gradle_verify_command = Gem.win_platform? ? "android\\gradlew.bat verifyReleaseCertificate" : "./android/gradlew verifyReleaseCertificate"
+    from_mobile_root(gradle_verify_command)
+
     UI.user_error!("Expected Android App Bundle missing at #{AAB_PATH}") unless File.exist?(AAB_PATH)
   end
 
@@ -146,6 +149,9 @@ platform :android do
     screenshots
     build_beta unless truthy_env("SKIP_ANDROID_BUILD")
     UI.user_error!("Expected Android App Bundle missing at #{AAB_PATH}") unless File.exist?(AAB_PATH)
+
+    gradle_verify_command = Gem.win_platform? ? "android\\gradlew.bat verifyReleaseCertificate" : "./android/gradlew verifyReleaseCertificate"
+    from_mobile_root(gradle_verify_command)
 
     track_name = options[:track] || ENV.fetch("SUPPLY_TRACK", "internal")
     upload_options = {

@@ -3,7 +3,8 @@
 # from this directory. All commands are relative to backend/.
 
 [phases.setup]
-nixPkgs = ["nodejs_24", "npm-11_x"]
+# nodejs_24 includes npm 11; do not add a separate npm derivation.
+nixPkgs = ["nodejs_24"]
 
 [phases.install]
 # --include=dev ensures devDependencies (including TypeScript) are installed

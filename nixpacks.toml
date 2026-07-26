@@ -3,7 +3,8 @@
 # is the authoritative config. This file is kept as a fallback only.
 
 [phases.setup]
-nixPkgs = ["nodejs_24", "npm-11_x"]
+# nodejs_24 includes npm 11; do not add a separate npm derivation.
+nixPkgs = ["nodejs_24"]
 
 [phases.install]
 cmds = ["(cd backend && npm ci --include=dev)"]

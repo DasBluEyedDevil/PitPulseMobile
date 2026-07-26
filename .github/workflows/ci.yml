@@ -107,6 +107,9 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Build migration artifacts
+      run: npm run build
+
     - name: Run migrations against disposable PostgreSQL
       run: npm run migrate:up
       env:
@@ -169,6 +172,37 @@ jobs:
 
     - name: Verify fail-closed Android release configuration
       run: node --test scripts/__tests__/prepare-android-release.test.mjs
+
+    - name: Create non-secret Android release fixtures
+      run: |
+        mkdir -p "$RUNNER_TEMP/soundcheck-android-release"
+        printf '{"project_info":{"project_number":"fixture"}}\n' > "$RUNNER_TEMP/soundcheck-android-release/google-services.json"
+        printf 'fixture-keystore' > "$RUNNER_TEMP/soundcheck-android-release/release.keystore"
+
+    - name: Verify Gradle release task wiring
+      working-directory: ./mobile/android
+      env:
+        SOUNDCHECK_GOOGLE_SERVICES_JSON_PATH: ${{ runner.temp }}/soundcheck-android-release/google-services.json
+        SOUNDCHECK_ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/soundcheck-android-release/release.keystore
+        SOUNDCHECK_ANDROID_KEYSTORE_PASSWORD: fixture-store-password
+        SOUNDCHECK_ANDROID_KEY_ALIAS: fixture-alias
+        SOUNDCHECK_ANDROID_KEY_PASSWORD: fixture-key-password
+      run: |
+        ./gradlew :app:validateReleaseInputs
+        ./gradlew :app:bundleRelease --dry-run | tee "$RUNNER_TEMP/bundle-release-plan.txt"
+        ./gradlew verifyReleaseCertificate --dry-run | tee "$RUNNER_TEMP/verify-release-certificate-plan.txt"
+        grep -F ':app:prepareReleaseGoogleServices' "$RUNNER_TEMP/bundle-release-plan.txt"
+        grep -F ':app:validateReleaseInputs' "$RUNNER_TEMP/bundle-release-plan.txt"
+        grep -F ':app:bundleRelease' "$RUNNER_TEMP/verify-release-certificate-plan.txt"
+
+    - name: Verify direct Gradle release fails closed without inputs
+      working-directory: ./mobile/android
+      run: |
+        if ./gradlew :app:bundleRelease > "$RUNNER_TEMP/android-release-without-inputs.txt" 2>&1; then
+          echo "Expected :app:bundleRelease to reject absent release inputs"
+          exit 1
+        fi
+        grep -F 'SOUNDCHECK_GOOGLE_SERVICES_JSON_PATH' "$RUNNER_TEMP/android-release-without-inputs.txt"
 
   web-build:
     runs-on: ubuntu-latest
