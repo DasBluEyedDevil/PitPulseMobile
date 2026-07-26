@@ -48,16 +48,80 @@ jobs:
       # `no-explicit-any` uses that we're paying down incrementally).
       run: npx eslint . --ext .ts
 
+    - name: Check formatting
+      run: npm run format:check
+
     - name: Type check
       run: npx tsc --noEmit
 
     - name: Build
       run: npm run build
 
-    - name: Run Tests
+    - name: Run fresh coverage
+      run: npm run test:coverage
+      env:
+        JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
+
+    - name: Audit production dependencies
+      run: npm audit --omit=dev --audit-level=low
+
+    - name: Verify declared production licenses
+      run: node ../scripts/check-production-licenses.mjs .
+
+  backend-integration:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: soundcheck_ci
+          POSTGRES_USER: soundcheck
+          POSTGRES_PASSWORD: soundcheck
+        options: >-
+          --health-cmd "pg_isready -U soundcheck -d soundcheck_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+    - name: Setup Node.js
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: '24'
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run migrations against disposable PostgreSQL
+      run: npm run migrate:up
+      env:
+        DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:5432/soundcheck_ci
+        DB_SSL: 'false'
+
+    - name: Run backend integration suite
       run: npm test
       env:
         JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
+        DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:5432/soundcheck_ci
+        DB_SSL: 'false'
+        REDIS_HOST: localhost
+        REDIS_PORT: '6379'
+        RUN_INTEGRATION_TESTS: 'true'
 
   mobile-analyze-and-test:
     runs-on: ubuntu-latest
@@ -81,11 +145,52 @@ jobs:
     - name: Run Code Generation
       run: flutter pub run build_runner build --delete-conflicting-outputs
 
+    - name: Check generated-code drift
+      run: git diff --exit-code -- lib test
+
+    - name: Check Dart formatting
+      run: dart format --output=none --set-exit-if-changed lib test
+
     - name: Analyze Code
       run: flutter analyze
 
-    - name: Run Tests
-      run: flutter test
+    - name: Run fresh coverage
+      run: flutter test --coverage
+
+  android-release-configuration:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+    - name: Setup Node.js
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: '24'
+
+    - name: Verify fail-closed Android release configuration
+      run: node --test scripts/__tests__/prepare-android-release.test.mjs
+
+  web-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web
+
+    steps:
+    - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+    - name: Setup Node.js
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: '24'
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build release-dependent web surface
+      run: npm run build
 
   secret-scan:
     runs-on: ubuntu-latest

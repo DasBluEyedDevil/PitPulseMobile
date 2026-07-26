@@ -1,4 +1,5 @@
 [build]
+# Railway uses backend/nixpacks.toml, which pins Node 24 and npm 11.
 builder = "NIXPACKS"
 rootDirectory = "backend"
 watchPaths = ["backend/**"]

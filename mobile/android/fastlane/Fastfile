@@ -113,6 +113,7 @@ platform :android do
   desc "Build the Android App Bundle used by Google Play beta tracks"
   lane :build_beta do
     require_flutter_dart_defines!("FIREBASE_ANDROID_API_KEY", "RC_GOOGLE_KEY")
+    from_mobile_root("node ../scripts/prepare-android-release.mjs")
     from_mobile_root("flutter pub get")
 
     extra_args = flutter_build_args

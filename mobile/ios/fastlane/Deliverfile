@@ -1,4 +1,4 @@
-app_identifier("com.soundcheck.app")
+app_identifier("com.9thlevelsoftware.soundcheck")
 metadata_path("fastlane/metadata")
 screenshots_path("fastlane/screenshots")
 skip_binary_upload(true)

@@ -10,7 +10,9 @@
   },
   "scripts": {
     "preinstall": "echo 'Installing from backend directory...'",
-    "install": "npm install --prefix backend",
+    "install": "npm ci --prefix backend",
+    "install:backend": "npm ci --prefix backend",
+    "install:web": "npm ci --prefix web",
     "build": "npm run build --prefix backend",
     "build:web": "npm run build --prefix web",
     "start": "npm start --prefix backend",

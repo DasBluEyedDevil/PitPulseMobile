@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Phase 29 reproducible release foundation; this is configuration evidence, not signed-artifact or device evidence.",
+  "baseline": {
+    "sha": "cfc9eb624691070ba578da8412ec89cda95c3beb",
+    "branch": "codex/open-beta-remediation",
+    "origin": "https://github.com/9thLevelSoftware/SoundCheck.git",
+    "originMainAfterFetch": "cfc9eb624691070ba578da8412ec89cda95c3beb"
+  },
+  "toolchain": {
+    "node": "24",
+    "npm": "11.14.1",
+    "flutter": "3.41.9",
+    "gradle": "8.13",
+    "androidGradlePlugin": "8.13.2",
+    "kotlin": "2.3.20"
+  },
+  "lockfileSha256": {
+    "package-lock.json": "cea8dd50148d10b23c17e40259aab69b37c00406a7a231c3b1aae2a9181b04b5",
+    "backend/package-lock.json": "fe9e994817f2924c9ed7bd5983d61b0277a3c7f9e2ea7dfb3518127e100c69c3",
+    "web/package-lock.json": "682ffe7c6d521debb6737b234d1ef47caed6c43ad467b66c4b9debaafce01c4a",
+    "mobile/android/gradle/wrapper/gradle-wrapper.jar": "81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f"
+  },
+  "credentialPresence": {
+    "redacted": true,
+    "SOUNDCHECK_GOOGLE_SERVICES_JSON_PATH": false,
+    "SOUNDCHECK_ANDROID_KEYSTORE_PATH": false,
+    "SOUNDCHECK_ANDROID_KEYSTORE_PASSWORD": false,
+    "SOUNDCHECK_ANDROID_KEY_ALIAS": false,
+    "SOUNDCHECK_ANDROID_KEY_PASSWORD": false,
+    "appStoreConnect": false,
+    "playServiceAccount": false
+  },
+  "authoritativeIdentities": {
+    "androidApplicationId": "com.soundcheck.app",
+    "iosBundleId": "com.9thlevelsoftware.soundcheck",
+    "appleTeamId": "BDJDR669ZV",
+    "publicDomain": "soundcheck.app"
+  },
+  "deploymentTargets": {
+    "backend": "Railway, rootDirectory=backend, Nixpacks",
+    "web": "static release-dependent web surface",
+    "android": "Google Play internal testing",
+    "ios": "TestFlight internal testing"
+  },
+  "evidenceBoundary": "No release secret, signing certificate, signed AAB/IPA, store upload, device validation, APNs delivery, or production deployment is represented by this snapshot."
+}

@@ -3,6 +3,11 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
+  "packageManager": "npm@11.14.1",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
   "scripts": {
     "sync:legal": "node scripts/sync-legal.mjs",
     "sync:brand": "node scripts/sync-brand.mjs",
