@@ -15,6 +15,7 @@ CI also runs `npm run build`, which writes `backend/dist/`. Do not treat `dist/`
 Phase 30 backend release gates:
 
 ```bash
+npm run test:dependency-compatibility
 npm run test:runtime-assets
 npm run test:startup:unhealthy
 npm audit --omit=dev

@@ -43,6 +43,9 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Verify dependency brace-glob compatibility
+      run: npm run test:dependency-compatibility
+
     - name: Lint
       # Errors block; warnings are informational (there is a backlog of
       # `no-explicit-any` uses that we're paying down incrementally).
