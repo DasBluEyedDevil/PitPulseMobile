@@ -15,4 +15,4 @@ cmds = ["npm ci --include=dev"]
 cmds = ["npm run build"]
 
 [start]
-cmd = "npm run migrate:up && npm start"
+cmd = "npm run migrate:deploy && npm start"

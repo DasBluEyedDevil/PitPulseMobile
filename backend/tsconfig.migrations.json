@@ -2,8 +2,8 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",
-    "outDir": "./dist/migrations",
-    "rootDir": "./migrations",
+    "outDir": "./dist",
+    "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -11,5 +11,5 @@
     "declaration": false,
     "sourceMap": false
   },
-  "include": ["migrations/**/*"]
+  "include": ["bootstrap-migrations/**/*", "migration-support/**/*", "migrations/**/*"]
 }

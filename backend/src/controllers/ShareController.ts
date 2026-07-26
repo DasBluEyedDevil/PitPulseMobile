@@ -14,7 +14,6 @@
 import { Request, Response } from 'express';
 import { routeParams } from '../utils/requestParams';
 import fs from 'fs';
-import path from 'path';
 import { ShareCardService } from '../services/ShareCardService';
 import { CheckinService } from '../services/CheckinService';
 import { BadgeService } from '../services/BadgeService';
@@ -22,6 +21,7 @@ import { ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
 import { UnauthorizedError, NotFoundError } from '../utils/errors';
 import { logWarn } from '../utils/logger';
+import { runtimeAssetPaths } from '../runtimeAssets';
 
 // ============================================
 // HTML sanitization
@@ -46,10 +46,7 @@ function escapeHtml(str: string): string {
 
 let landingTemplate: string;
 try {
-  landingTemplate = fs.readFileSync(
-    path.join(__dirname, '../templates/share-cards/landing-page.html'),
-    'utf-8'
-  );
+  landingTemplate = fs.readFileSync(runtimeAssetPaths().landingTemplate, 'utf-8');
 } catch {
   logWarn('ShareController: landing-page.html template not found');
   landingTemplate =
@@ -61,14 +58,20 @@ try {
 // ============================================
 
 export class ShareController {
-  private shareCardService: ShareCardService;
-  private checkinService: CheckinService;
-  private badgeService: BadgeService;
+  private shareCardService: Pick<ShareCardService, 'generateCheckinCard' | 'generateBadgeCard'>;
+  private checkinService: Pick<CheckinService, 'getCheckinById'>;
+  private badgeService: Pick<BadgeService, 'getUserBadges'>;
 
-  constructor() {
-    this.shareCardService = new ShareCardService();
-    this.checkinService = new CheckinService();
-    this.badgeService = new BadgeService();
+  constructor(
+    dependencies: {
+      shareCardService?: Pick<ShareCardService, 'generateCheckinCard' | 'generateBadgeCard'>;
+      checkinService?: Pick<CheckinService, 'getCheckinById'>;
+      badgeService?: Pick<BadgeService, 'getUserBadges'>;
+    } = {}
+  ) {
+    this.shareCardService = dependencies.shareCardService ?? new ShareCardService();
+    this.checkinService = dependencies.checkinService ?? new CheckinService();
+    this.badgeService = dependencies.badgeService ?? new BadgeService();
   }
 
   /**

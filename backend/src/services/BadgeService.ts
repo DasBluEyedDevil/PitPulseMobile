@@ -154,9 +154,12 @@ export class BadgeService {
           const earned = result.current >= threshold;
 
           if (earned) {
-            await this.awardBadge(userId, badge.id, result.metadata);
-            newBadges.push(badge);
+            const inserted = await this.awardBadge(userId, badge.id, result.metadata);
+            if (!inserted) {
+              continue;
+            }
 
+            newBadges.push(badge);
             // Audit log: badge awarded (fire-and-forget, no request context in batch jobs)
             this.auditService.logBadgeAwarded(userId, badge.id, badge.name);
           }
@@ -222,14 +225,24 @@ export class BadgeService {
    * Uses ON CONFLICT DO NOTHING to prevent duplicate awards.
    * Optionally stores metadata (e.g. superfan band info) in the metadata JSONB column.
    */
-  async awardBadge(userId: string, badgeId: string, metadata?: Record<string, any>): Promise<void> {
+  async awardBadge(
+    userId: string,
+    badgeId: string,
+    metadata?: Record<string, any>
+  ): Promise<boolean> {
     const query = `
       INSERT INTO user_badges (user_id, badge_id, metadata)
       VALUES ($1, $2, $3)
       ON CONFLICT (user_id, badge_id) DO NOTHING
+      RETURNING id
     `;
 
-    await this.db.query(query, [userId, badgeId, metadata ? JSON.stringify(metadata) : '{}']);
+    const result = await this.db.query(query, [
+      userId,
+      badgeId,
+      metadata ? JSON.stringify(metadata) : '{}',
+    ]);
+    return (result.rowCount ?? result.rows.length) > 0;
   }
 
   /**

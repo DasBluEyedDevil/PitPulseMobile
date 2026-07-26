@@ -12,6 +12,23 @@ npm test
 
 CI also runs `npm run build`, which writes `backend/dist/`. Do not treat `dist/` changes as source edits.
 
+Phase 30 backend release gates:
+
+```bash
+npm run test:runtime-assets
+npm run test:startup:unhealthy
+npm audit --omit=dev
+```
+
+The migration recovery matrix requires a disposable local PostgreSQL database
+whose name contains `phase30`; it drops and recreates that database's `public`
+schema:
+
+```bash
+PHASE30_DATABASE_URL=postgresql://soundcheck:soundcheck@localhost:5432/soundcheck_phase30 \
+  npm run test:migrations:integration
+```
+
 The Jest suite should pass without `--forceExit`. If Jest reports open handles, fix the lifecycle leak in the code or test setup instead of masking it.
 
 Targeted backend checks for the current realtime/contract hardening work:
