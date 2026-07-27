@@ -68,7 +68,7 @@ void main() {
 
       await tester.tap(_tab('Events'));
       await tester.pumpAndSettle();
-      expect(repository.markedTypes, ['friends', 'event', 'happening_now']);
+      expect(repository.markedTypes, ['friends', 'event']);
       expect(
         find.byWidgetPredicate(
           (widget) =>
@@ -80,6 +80,8 @@ void main() {
 
       await tester.tap(find.text('Happening Now'));
       await tester.pumpAndSettle();
+      expect(repository.markedTypes, ['friends', 'event', 'happening_now']);
+      expect(repository.markedAt['happening_now'], _group().lastCheckinAt);
       expect(find.text('Summer Fest'), findsOneWidget);
       expect(find.text('Alex at this show'), findsOneWidget);
 
@@ -258,6 +260,7 @@ class _ScreenFeedRepository extends FeedRepository {
     : super(dioClient: DioClient(secureStorage: const FlutterSecureStorage()));
 
   final markedTypes = <String>[];
+  final markedAt = <String, String>{};
 
   @override
   Future<Either<Failure, void>> markFeedRead(
@@ -266,6 +269,7 @@ class _ScreenFeedRepository extends FeedRepository {
     String? lastSeenCheckinId,
   }) async {
     markedTypes.add(feedType);
+    markedAt[feedType] = lastSeenAt;
     return const Right(null);
   }
 }

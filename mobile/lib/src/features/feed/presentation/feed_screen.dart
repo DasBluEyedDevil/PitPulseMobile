@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -65,20 +67,14 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
             lastSeenCheckinId: feedItems.first.id,
           );
     } else if (tabIndex == 2) {
-      // Merged Events tab — mark both event and happening_now as read
+      // The merged tab opens on Events. Happening Now has an independent
+      // cursor and is marked only when that inner filter is actually opened.
       final feedItems = ref.read(eventsFeedProvider).value;
       if (feedItems == null || feedItems.isEmpty) return;
       ref
           .read(feedRepositoryProvider)
           .markFeedRead(
             'event',
-            feedItems.first.createdAt,
-            lastSeenCheckinId: feedItems.first.id,
-          );
-      ref
-          .read(feedRepositoryProvider)
-          .markFeedRead(
-            'happening_now',
             feedItems.first.createdAt,
             lastSeenCheckinId: feedItems.first.id,
           );
@@ -415,6 +411,39 @@ class _MergedEventsTab extends ConsumerStatefulWidget {
 class _MergedEventsTabState extends ConsumerState<_MergedEventsTab> {
   _EventsFilter _filter = _EventsFilter.events;
 
+  void _selectFilter(_EventsFilter filter) {
+    if (_filter == filter) return;
+    setState(() => _filter = filter);
+    if (filter == _EventsFilter.happeningNow) {
+      unawaited(_markHappeningNowRead());
+    }
+  }
+
+  Future<void> _markHappeningNowRead() async {
+    try {
+      final groups = await ref.read(happeningNowProvider.future);
+      if (!mounted || _filter != _EventsFilter.happeningNow || groups.isEmpty) {
+        return;
+      }
+
+      final latestGroup = groups.reduce(
+        (latest, candidate) =>
+            candidate.lastCheckinAt.compareTo(latest.lastCheckinAt) > 0
+            ? candidate
+            : latest,
+      );
+      await ref
+          .read(feedRepositoryProvider)
+          .markFeedRead('happening_now', latestGroup.lastCheckinAt);
+      if (mounted && _filter == _EventsFilter.happeningNow) {
+        ref.invalidate(unseenCountsProvider);
+      }
+    } catch (_) {
+      // The visible provider error remains retryable; do not advance its read
+      // cursor when the live feed could not be loaded.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -427,8 +456,7 @@ class _MergedEventsTabState extends ConsumerState<_MergedEventsTab> {
               ChoiceChip(
                 label: const Text('Events'),
                 selected: _filter == _EventsFilter.events,
-                onSelected: (_) =>
-                    setState(() => _filter = _EventsFilter.events),
+                onSelected: (_) => _selectFilter(_EventsFilter.events),
                 selectedColor: AppTheme.voltLime,
                 backgroundColor: Theme.of(
                   context,
@@ -464,8 +492,7 @@ class _MergedEventsTabState extends ConsumerState<_MergedEventsTab> {
                   ],
                 ),
                 selected: _filter == _EventsFilter.happeningNow,
-                onSelected: (_) =>
-                    setState(() => _filter = _EventsFilter.happeningNow),
+                onSelected: (_) => _selectFilter(_EventsFilter.happeningNow),
                 selectedColor: AppTheme.voltLime,
                 backgroundColor: Theme.of(
                   context,
