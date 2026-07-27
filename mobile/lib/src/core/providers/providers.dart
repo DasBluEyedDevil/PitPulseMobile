@@ -224,8 +224,9 @@ class _DefaultAuthenticatedSessionIntegrations
   @override
   Future<void> connectWebSocket(User user) async {
     final token = await _ref
-        .read(secureStorageProvider)
-        .read(key: 'auth_token');
+        .read(dioClientProvider)
+        .authSessionStore
+        .readAccessToken();
     if (token == null || token.isEmpty) {
       throw StateError('Authenticated WebSocket token is unavailable');
     }
@@ -717,6 +718,7 @@ class AuthState extends _$AuthState {
 
   Future<void> logout() async {
     final generation = ++_sessionGeneration;
+    final previousUser = state.value ?? _activeSessionUser;
     state = const AsyncValue.loading();
     final authRepository = ref.read(authRepositoryProvider);
     await _scheduleSessionOperation(generation, () async {
@@ -769,13 +771,48 @@ class AuthState extends _$AuthState {
 
       final result = await authRepository.logout();
       if (!_isCurrentSession(generation)) return;
-      result.fold(
-        (failure) => LogService.e(
+      Object? invalidationFailure;
+      final invalidationResult = result.fold((failure) {
+        invalidationFailure = failure;
+        LogService.e(
           'Failed to clear stored authentication during logout',
           failure,
-        ),
-        (_) {},
-      );
+        );
+        return null;
+      }, (value) => value);
+      if (invalidationFailure != null) {
+        cleanupFailures.add(AuthenticatedSessionCleanupStep.localCredentials);
+        final statusNotifier = ref.read(
+          authenticatedSessionBootstrapStatusProvider.notifier,
+        );
+        if (previousUser != null) {
+          statusNotifier.complete(
+            previousUser.id,
+            const {},
+            failedCleanupSteps: cleanupFailures,
+            cleanupAttempts: cleanupAttempts,
+          );
+        }
+        state = AsyncValue.data(previousUser);
+        return;
+      }
+
+      var credentialCleanup = invalidationResult!;
+      if (credentialCleanup.hasResidualCredentials) {
+        cleanupAttempts++;
+        final retry = await authRepository.retryLogoutCredentialCleanup();
+        if (!_isCurrentSession(generation)) return;
+        credentialCleanup = retry.fold((failure) {
+          LogService.e(
+            'Failed to retry stored authentication cleanup during logout',
+            failure,
+          );
+          return credentialCleanup;
+        }, (value) => value);
+        if (credentialCleanup.hasResidualCredentials) {
+          cleanupFailures.add(AuthenticatedSessionCleanupStep.localCredentials);
+        }
+      }
       _activeSessionUser = null;
       _pendingTransitionCleanups.clear();
       ref
@@ -809,15 +846,29 @@ class AuthState extends _$AuthState {
   }
 
   Future<void> refreshUser() async {
+    final generation = _sessionGeneration;
+    final initiatingUser = _activeSessionUser ?? state.value;
+    if (initiatingUser == null) return;
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       final authRepository = ref.read(authRepositoryProvider);
       final result = await authRepository.getMe();
-      return result.fold(
+      final user = result.fold<User>(
         (failure) => throw Exception(failure.message),
         (user) => user,
       );
-    });
+      if (!_isCurrentSession(generation) ||
+          _activeSessionUser?.id != initiatingUser.id) {
+        return;
+      }
+      _activeSessionUser = user;
+      state = AsyncValue.data(user);
+    } catch (error, stackTrace) {
+      if (_isCurrentSession(generation) &&
+          _activeSessionUser?.id == initiatingUser.id) {
+        state = AsyncValue.error(error, stackTrace);
+      }
+    }
   }
 
   Future<void> retryAuthenticatedSessionBootstrap() async {

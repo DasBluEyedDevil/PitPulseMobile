@@ -14,6 +14,7 @@ enum AuthenticatedSessionBootstrapStep {
 }
 
 enum AuthenticatedSessionCleanupStep {
+  localCredentials,
   pushTokenUnregister,
   pushReset,
   webSocketDisconnect,

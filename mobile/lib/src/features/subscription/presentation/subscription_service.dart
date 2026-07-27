@@ -255,6 +255,37 @@ class DefaultSubscriptionSessionClient implements SubscriptionSessionClient {
   }
 }
 
+/// Executes RevenueCat logout while treating only its documented anonymous
+/// identity response as an idempotent success.
+class RevenueCatLogoutOperation {
+  const RevenueCatLogoutOperation({
+    required this.initialize,
+    required this.logout,
+    required this.errorCode,
+  });
+
+  final Future<bool> Function() initialize;
+  final Future<void> Function() logout;
+  final PurchasesErrorCode Function(PlatformException) errorCode;
+
+  Future<void> run() async {
+    try {
+      if (!await initialize()) return;
+      await logout();
+    } on PlatformException catch (error, stackTrace) {
+      if (errorCode(error) == PurchasesErrorCode.logOutWithAnonymousUserError) {
+        return;
+      }
+      LogService.e(
+        'SubscriptionService.logout error: $error',
+        error,
+        stackTrace,
+      );
+      rethrow;
+    }
+  }
+}
+
 class SubscriptionService {
   static const entitlementDisplayName = 'SoundCheck Unlimited';
   static const entitlementIdentifier = 'soundcheck_unlimited';
@@ -366,15 +397,11 @@ class SubscriptionService {
   }
 
   static Future<void> logout() async {
-    try {
-      if (!await initialize()) return;
-      await Purchases.logOut();
-    } on PlatformException catch (e) {
-      final errorCode = PurchasesErrorHelper.getErrorCode(e);
-      if (errorCode != PurchasesErrorCode.logOutWithAnonymousUserError) {
-        LogService.e('SubscriptionService.logout error: $e');
-      }
-    }
+    await const RevenueCatLogoutOperation(
+      initialize: initialize,
+      logout: Purchases.logOut,
+      errorCode: PurchasesErrorHelper.getErrorCode,
+    ).run();
   }
 
   static Future<bool> isPremium() async {

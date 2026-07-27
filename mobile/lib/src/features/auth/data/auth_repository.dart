@@ -4,18 +4,20 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/api/api_config.dart';
+import '../../../core/api/auth_session_store.dart';
 import '../../../core/error/failures.dart';
 import '../domain/user.dart';
 
 class AuthRepository {
   final DioClient _dioClient;
-  final FlutterSecureStorage _secureStorage;
+  final AuthSessionStore _authSessionStore;
 
   AuthRepository({
     required DioClient dioClient,
     required FlutterSecureStorage secureStorage,
+    AuthSessionStore? authSessionStore,
   }) : _dioClient = dioClient,
-       _secureStorage = secureStorage;
+       _authSessionStore = authSessionStore ?? dioClient.authSessionStore;
 
   /// Helper method to map errors to Failures
   Failure _mapErrorToFailure(Object e) {
@@ -68,57 +70,31 @@ class AuthRepository {
     AuthResponse response, {
     required bool Function() isCurrent,
   }) async {
-    var wroteCredentials = false;
     try {
-      if (!isCurrent()) return false;
-      await _secureStorage.write(
-        key: ApiConfig.tokenKey,
-        value: response.token,
+      return await _authSessionStore.commit(
+        accessToken: response.token,
+        refreshToken: response.refreshToken,
+        userJson: jsonEncode(response.user.toJson()),
+        isCurrent: isCurrent,
       );
-      wroteCredentials = true;
-      if (!isCurrent()) {
-        await _clearStoredAuthentication();
-        return false;
-      }
-
-      final refreshToken = response.refreshToken;
-      if (refreshToken != null && refreshToken.isNotEmpty) {
-        await _secureStorage.write(key: 'refresh_token', value: refreshToken);
-        if (!isCurrent()) {
-          await _clearStoredAuthentication();
-          return false;
-        }
-      }
-
-      await _secureStorage.write(
-        key: ApiConfig.userKey,
-        value: jsonEncode(response.user.toJson()),
-      );
-      if (!isCurrent()) {
-        await _clearStoredAuthentication();
-        return false;
-      }
-      return true;
     } catch (error) {
-      if (wroteCredentials && !isCurrent()) {
-        await _clearStoredAuthentication();
-        return false;
-      }
       throw _mapErrorToFailure(error);
     }
   }
 
-  Future<void> _clearStoredAuthentication() async {
-    await _secureStorage.delete(key: ApiConfig.tokenKey);
-    await _secureStorage.delete(key: ApiConfig.userKey);
-    await _secureStorage.delete(key: 'refresh_token');
+  /// Logout user
+  Future<Either<Failure, AuthSessionInvalidationResult>> logout() async {
+    try {
+      return Right(await _authSessionStore.invalidate());
+    } catch (e) {
+      return Left(_mapErrorToFailure(e));
+    }
   }
 
-  /// Logout user
-  Future<Either<Failure, void>> logout() async {
+  Future<Either<Failure, AuthSessionInvalidationResult>>
+  retryLogoutCredentialCleanup() async {
     try {
-      await _clearStoredAuthentication();
-      return const Right(null);
+      return Right(await _authSessionStore.retryResidualCleanup());
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -127,10 +103,10 @@ class AuthRepository {
   /// Get current user from storage
   Future<User?> getCurrentUser() async {
     try {
-      final userData = await _secureStorage.read(key: ApiConfig.userKey);
-      if (userData == null) return null;
+      final session = await _authSessionStore.readSession();
+      if (session == null) return null;
 
-      final userJson = jsonDecode(userData) as Map<String, dynamic>;
+      final userJson = jsonDecode(session.userJson) as Map<String, dynamic>;
       return User.fromJson(userJson);
     } catch (e) {
       return null;
@@ -139,11 +115,7 @@ class AuthRepository {
 
   /// Get current auth token
   Future<String?> getToken() async {
-    try {
-      return await _secureStorage.read(key: ApiConfig.tokenKey);
-    } catch (e) {
-      return null;
-    }
+    return _authSessionStore.readAccessToken();
   }
 
   /// Get current user from API
@@ -172,11 +144,12 @@ class AuthRepository {
       final data = response.data['data'] as Map<String, dynamic>;
       final user = User.fromJson(data);
 
-      // Update stored user data
-      await _secureStorage.write(
-        key: ApiConfig.userKey,
-        value: jsonEncode(user.toJson()),
+      final updated = await _authSessionStore.updateUserJson(
+        jsonEncode(user.toJson()),
       );
+      if (!updated) {
+        throw StateError('Cannot update an inactive authentication session');
+      }
 
       return Right(user);
     } catch (e) {

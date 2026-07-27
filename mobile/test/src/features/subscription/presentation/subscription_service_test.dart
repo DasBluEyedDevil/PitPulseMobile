@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:soundcheck_flutter/src/features/subscription/presentation/subscription_service.dart';
@@ -69,6 +70,30 @@ void main() {
       expect(binding.current, isNull);
       expect(added, [same(listener)]);
       expect(removed, [same(listener)]);
+    });
+  });
+
+  group('RevenueCatLogoutOperation', () {
+    test('rethrows non-anonymous PlatformException', () async {
+      final failure = PlatformException(code: 'network_error');
+      final operation = RevenueCatLogoutOperation(
+        initialize: () async => true,
+        logout: () async => throw failure,
+        errorCode: (_) => PurchasesErrorCode.networkError,
+      );
+
+      await expectLater(operation.run(), throwsA(same(failure)));
+    });
+
+    test('ignores the anonymous-user logout error', () async {
+      final operation = RevenueCatLogoutOperation(
+        initialize: () async => true,
+        logout: () async =>
+            throw PlatformException(code: 'anonymous_user_logout'),
+        errorCode: (_) => PurchasesErrorCode.logOutWithAnonymousUserError,
+      );
+
+      await expectLater(operation.run(), completes);
     });
   });
 }

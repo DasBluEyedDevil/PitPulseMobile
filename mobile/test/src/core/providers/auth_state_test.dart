@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:soundcheck_flutter/src/core/api/auth_session_store.dart';
 import 'package:soundcheck_flutter/src/core/api/dio_client.dart';
 import 'package:soundcheck_flutter/src/core/error/failures.dart';
 import 'package:soundcheck_flutter/src/core/providers/providers.dart';
@@ -476,6 +477,39 @@ void main() {
     });
 
     test(
+      'profile refresh during bootstrap does not cancel remaining steps',
+      () async {
+        final harness = await _AuthHarness.create();
+        addTearDown(harness.dispose);
+        harness.repository.loginResponses.add(_authResponse(_userA));
+        harness.repository.meResponses.add(
+          _userA.copyWith(firstName: 'Updated'),
+        );
+        final delayedWebSocket = harness.integrations.delay(
+          AuthenticatedSessionBootstrapStep.webSocket,
+          _userA,
+        );
+
+        final login = harness.notifier.login('a@example.com', 'Password1!');
+        await delayedWebSocket.entered.future;
+        expect(harness.container.read(authStateProvider).value, _userA);
+
+        await harness.notifier.refreshUser();
+        delayedWebSocket.release.complete();
+        await login;
+
+        expect(
+          harness.integrations.bootstrapCalls,
+          _expectedBootstrapCalls(_userA),
+        );
+        expect(
+          harness.container.read(authStateProvider).value?.firstName,
+          'Updated',
+        );
+      },
+    );
+
+    test(
       'integration failures preserve auth and known premium until retry',
       () async {
         final previousDebugPrint = debugPrint;
@@ -671,9 +705,9 @@ class _FakeAuthRepository extends AuthRepository {
   }
 
   @override
-  Future<Either<Failure, void>> logout() async {
+  Future<Either<Failure, AuthSessionInvalidationResult>> logout() async {
     logoutCalls++;
-    return const Right(null);
+    return const Right(AuthSessionInvalidationResult({}));
   }
 }
 

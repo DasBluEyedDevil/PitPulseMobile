@@ -11,10 +11,13 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:soundcheck_flutter/src/core/api/api_config.dart';
+import 'package:soundcheck_flutter/src/core/api/auth_session_store.dart';
 import 'package:soundcheck_flutter/src/core/api/dio_client.dart';
+import 'package:soundcheck_flutter/src/core/error/failures.dart';
 import 'package:soundcheck_flutter/src/core/providers/providers.dart';
 import 'package:soundcheck_flutter/src/core/services/push_notification_service.dart';
 import 'package:soundcheck_flutter/src/core/services/websocket_service.dart';
+import 'package:soundcheck_flutter/src/core/session/authenticated_session.dart';
 import 'package:soundcheck_flutter/src/features/auth/data/auth_repository.dart';
 import 'package:soundcheck_flutter/src/features/auth/data/social_auth_service.dart';
 import 'package:soundcheck_flutter/src/features/auth/domain/user.dart';
@@ -77,7 +80,7 @@ void main() {
           response.complete(_authResponseBody(_userA, token: 'token-a'));
           await authentication;
 
-          expect(storagePlatform.values, isEmpty);
+          _expectDurablyLoggedOut(storagePlatform);
           expect(harness.container.read(authStateProvider).value, isNull);
         },
       );
@@ -101,7 +104,7 @@ void main() {
       delayedRead.release.complete();
       await Future.wait([restoration, logout]);
 
-      expect(storagePlatform.values, isEmpty);
+      _expectDurablyLoggedOut(storagePlatform);
       expect(harness.container.read(authStateProvider).value, isNull);
     });
 
@@ -141,11 +144,588 @@ void main() {
           response.complete(_authResponseBody(_userA, token: 'token-a'));
           await authentication;
 
-          expect(storagePlatform.values, isEmpty);
+          _expectDurablyLoggedOut(storagePlatform);
           expect(harness.container.read(authStateProvider).value, isNull);
         },
       );
     }
+
+    for (final failedKey in ['refresh_token', ApiConfig.userKey]) {
+      test(
+        'current B $failedKey write failure exposes no mixed A/B session',
+        () async {
+          storagePlatform.values.addAll({
+            ApiConfig.tokenKey: 'token-a',
+            'refresh_token': 'refresh-token-a',
+            ApiConfig.userKey: jsonEncode(_userA.toJson()),
+          });
+          String? probeAuthorization;
+          final adapter = _RouteAdapter((options) {
+            if (options.path == '${ApiConfig.auth}/login') {
+              return _authResponseBody(_userB, token: 'token-b');
+            }
+            if (options.path == '/probe') {
+              probeAuthorization = options.headers['Authorization'] as String?;
+              return _jsonResponseBody({'success': true, 'data': null});
+            }
+            return _defaultIntegrationResponse(options);
+          });
+          final harness = await _ProductionAuthHarness.create(adapter: adapter);
+          addTearDown(harness.dispose);
+          storagePlatform.failNextWrite(failedKey);
+
+          await harness.notifier.login(_userB.email, 'Password1!');
+
+          expect(
+            await harness.container
+                .read(authRepositoryProvider)
+                .getCurrentUser(),
+            isNull,
+          );
+          await harness.dioClient.get('/probe');
+          expect(probeAuthorization, isNull);
+        },
+      );
+    }
+
+    test('complete legacy credentials migrate to an active revision', () async {
+      storagePlatform.values.addAll({
+        ApiConfig.tokenKey: 'token-a',
+        'refresh_token': 'refresh-token-a',
+        ApiConfig.userKey: jsonEncode(_userA.toJson()),
+      });
+      final harness = await _ProductionAuthHarness.create(
+        adapter: _RouteAdapter(_defaultIntegrationResponse),
+      );
+      addTearDown(harness.dispose);
+
+      expect(harness.container.read(authStateProvider).value, _userA);
+      expect(
+        storagePlatform.values[AuthSessionStore.visibilityKey],
+        startsWith('active:'),
+      );
+    });
+
+    for (final legacyValues in [
+      {ApiConfig.tokenKey: 'token-a'},
+      {ApiConfig.userKey: jsonEncode(_userA.toJson())},
+    ]) {
+      test(
+        'incomplete legacy credentials fail closed: $legacyValues',
+        () async {
+          storagePlatform.values.addAll(legacyValues);
+          final harness = await _ProductionAuthHarness.create(
+            adapter: _RouteAdapter((options) {
+              throw StateError('Unexpected request: ${options.path}');
+            }),
+          );
+          addTearDown(harness.dispose);
+
+          expect(harness.container.read(authStateProvider).value, isNull);
+          expect(
+            storagePlatform.values[AuthSessionStore.visibilityKey],
+            isNull,
+          );
+        },
+      );
+    }
+
+    test('reader rejects a revision changed during tuple reads', () async {
+      storagePlatform.values.addAll({
+        AuthSessionStore.visibilityKey: 'active:revision-a',
+        ApiConfig.tokenKey: 'token-a',
+        'refresh_token': 'refresh-token-a',
+        ApiConfig.userKey: jsonEncode(_userA.toJson()),
+      });
+      final delayedRead = storagePlatform.delayNextRead(ApiConfig.userKey);
+      final store = AuthSessionStore(const FlutterSecureStorage());
+
+      final sessionRead = store.readSession();
+      await delayedRead.entered.future;
+      storagePlatform.values[AuthSessionStore.visibilityKey] =
+          'active:revision-b';
+      delayedRead.release.complete();
+
+      expect(await sessionRead, isNull);
+    });
+
+    test(
+      'secure-storage read failures fail closed for restoration and Dio',
+      () async {
+        storagePlatform.values.addAll({
+          ApiConfig.tokenKey: 'token-a',
+          'refresh_token': 'refresh-token-a',
+          ApiConfig.userKey: jsonEncode(_userA.toJson()),
+        });
+        String? probeAuthorization;
+        final adapter = _RouteAdapter((options) {
+          if (options.path == '/probe') {
+            probeAuthorization = options.headers['Authorization'] as String?;
+            return _jsonResponseBody({'success': true, 'data': null});
+          }
+          return _defaultIntegrationResponse(options);
+        });
+        final harness = await _ProductionAuthHarness.create(adapter: adapter);
+        addTearDown(harness.dispose);
+
+        storagePlatform.failNextRead(ApiConfig.tokenKey);
+        expect(
+          await harness.container.read(authRepositoryProvider).getCurrentUser(),
+          isNull,
+        );
+        storagePlatform.failNextRead(AuthSessionStore.visibilityKey);
+        await harness.dioClient.get('/probe');
+        expect(probeAuthorization, isNull);
+      },
+    );
+
+    test('delayed Dio refresh for A cannot overwrite committed B', () async {
+      storagePlatform.values.addAll({
+        ApiConfig.tokenKey: 'token-a',
+        'refresh_token': 'refresh-token-a',
+        ApiConfig.userKey: jsonEncode(_userA.toJson()),
+      });
+      final refreshEntered = Completer<void>();
+      final refreshResponse = Completer<ResponseBody>();
+      final adapter = _RouteAdapter((options) {
+        if (options.path == '/protected') {
+          final authorization = options.headers['Authorization'];
+          return _jsonResponseBody(
+            authorization == 'Bearer token-a'
+                ? {'success': false, 'message': 'expired'}
+                : {'success': true, 'data': null},
+            statusCode: authorization == 'Bearer token-a' ? 401 : 200,
+          );
+        }
+        if (options.path == '/tokens/refresh') {
+          refreshEntered.complete();
+          return refreshResponse.future;
+        }
+        throw StateError('Unexpected request: ${options.path}');
+      });
+      final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+        ..httpClientAdapter = adapter;
+      final refreshDio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+        ..httpClientAdapter = adapter;
+      final client = DioClient(
+        secureStorage: const FlutterSecureStorage(),
+        dio: dio,
+        refreshDio: refreshDio,
+      );
+      expect(
+        (await client.authSessionStore.readSession())!.accessToken,
+        'token-a',
+      );
+
+      final request = client.get('/protected');
+      await refreshEntered.future;
+      await client.authSessionStore.commit(
+        accessToken: 'token-b',
+        refreshToken: 'refresh-token-b',
+        userJson: jsonEncode(_userB.toJson()),
+        isCurrent: () => true,
+      );
+      refreshResponse.complete(
+        _jsonResponseBody({
+          'success': true,
+          'data': {
+            'accessToken': 'refreshed-token-a',
+            'refreshToken': 'refreshed-refresh-token-a',
+          },
+        }),
+      );
+
+      await expectLater(request, throwsA(isA<AuthFailure>()));
+      final session = await client.authSessionStore.readSession();
+      expect(session!.accessToken, 'token-b');
+      expect(jsonDecode(session.userJson)['id'], _userB.id);
+    });
+
+    test('legacy activation cannot race past a logout tombstone', () async {
+      storagePlatform.values.addAll({
+        ApiConfig.tokenKey: 'token-a',
+        'refresh_token': 'refresh-token-a',
+        ApiConfig.userKey: jsonEncode(_userA.toJson()),
+      });
+      final delayedActivation = storagePlatform.delayNextWrite(
+        AuthSessionStore.visibilityKey,
+      );
+      final store = AuthSessionStore(const FlutterSecureStorage());
+
+      final migration = store.readSession();
+      await delayedActivation.entered.future;
+      final logout = store.invalidate();
+      delayedActivation.release.complete();
+      await Future.wait([migration, logout]);
+
+      expect(
+        storagePlatform.values[AuthSessionStore.visibilityKey],
+        startsWith('loggedOut:'),
+      );
+      expect(await store.readSession(), isNull);
+    });
+
+    test(
+      'logout tombstone hides undeleted residue from restoration and Dio',
+      () async {
+        storagePlatform.values.addAll({
+          ApiConfig.tokenKey: 'token-a',
+          'refresh_token': 'refresh-token-a',
+          ApiConfig.userKey: jsonEncode(_userA.toJson()),
+        });
+        final harness = await _ProductionAuthHarness.create(
+          adapter: _RouteAdapter(_defaultIntegrationResponse),
+        );
+        addTearDown(harness.dispose);
+        storagePlatform.failDeletes(ApiConfig.tokenKey, 2);
+
+        await harness.notifier.logout();
+
+        expect(storagePlatform.values[ApiConfig.tokenKey], 'token-a');
+        expect(
+          storagePlatform.values[AuthSessionStore.visibilityKey],
+          startsWith('loggedOut:'),
+        );
+        expect(harness.container.read(authStateProvider).value, isNull);
+        expect(
+          harness.container
+              .read(authenticatedSessionBootstrapStatusProvider)
+              .failedCleanupSteps,
+          contains(AuthenticatedSessionCleanupStep.localCredentials),
+        );
+
+        String? probeAuthorization;
+        final freshDio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = _RouteAdapter((options) {
+            probeAuthorization = options.headers['Authorization'] as String?;
+            return _jsonResponseBody({'success': true, 'data': null});
+          });
+        final freshClient = DioClient(
+          secureStorage: const FlutterSecureStorage(),
+          dio: freshDio,
+        );
+        final freshRepository = AuthRepository(
+          dioClient: freshClient,
+          secureStorage: const FlutterSecureStorage(),
+        );
+
+        expect(await freshRepository.getCurrentUser(), isNull);
+        await freshClient.get('/probe');
+        expect(probeAuthorization, isNull);
+      },
+    );
+
+    test('logout marker failure retains the published session', () async {
+      storagePlatform.values.addAll({
+        ApiConfig.tokenKey: 'token-a',
+        'refresh_token': 'refresh-token-a',
+        ApiConfig.userKey: jsonEncode(_userA.toJson()),
+      });
+      final harness = await _ProductionAuthHarness.create(
+        adapter: _RouteAdapter(_defaultIntegrationResponse),
+      );
+      addTearDown(harness.dispose);
+      storagePlatform.failNextWrite(AuthSessionStore.visibilityKey);
+
+      await harness.notifier.logout();
+
+      expect(harness.container.read(authStateProvider).value, _userA);
+      expect(
+        await harness.dioClient.authSessionStore.readAccessToken(),
+        'token-a',
+      );
+      expect(
+        harness.container
+            .read(authenticatedSessionBootstrapStatusProvider)
+            .failedCleanupSteps,
+        contains(AuthenticatedSessionCleanupStep.localCredentials),
+      );
+    });
+
+    test('Dio 401 tombstone hides residue when raw deletion fails', () async {
+      storagePlatform.values.addAll({
+        ApiConfig.tokenKey: 'token-a',
+        'refresh_token': 'refresh-token-a',
+        ApiConfig.userKey: jsonEncode(_userA.toJson()),
+      });
+      var authFailureCalls = 0;
+      final adapter = _RouteAdapter((options) {
+        if (options.path == '/protected') {
+          return _jsonResponseBody({
+            'success': false,
+            'message': 'expired',
+          }, statusCode: 401);
+        }
+        if (options.path == '/tokens/refresh') {
+          return _jsonResponseBody({
+            'success': false,
+            'message': 'expired',
+          }, statusCode: 401);
+        }
+        throw StateError('Unexpected request: ${options.path}');
+      });
+      final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+        ..httpClientAdapter = adapter;
+      final refreshDio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+        ..httpClientAdapter = adapter;
+      final client = DioClient(
+        secureStorage: const FlutterSecureStorage(),
+        dio: dio,
+        refreshDio: refreshDio,
+        onAuthFailure: () => authFailureCalls++,
+      );
+      expect(await client.authSessionStore.readSession(), isNotNull);
+      storagePlatform.failDeletes(ApiConfig.tokenKey, 1);
+
+      await expectLater(client.get('/protected'), throwsA(isA<AuthFailure>()));
+
+      expect(authFailureCalls, 1);
+      expect(storagePlatform.values[ApiConfig.tokenKey], 'token-a');
+      expect(await client.authSessionStore.readSession(), isNull);
+    });
+
+    test(
+      'Dio 401 marker failure preserves A and does not signal logout',
+      () async {
+        storagePlatform.values.addAll({
+          ApiConfig.tokenKey: 'token-a',
+          'refresh_token': 'refresh-token-a',
+          ApiConfig.userKey: jsonEncode(_userA.toJson()),
+        });
+        var authFailureCalls = 0;
+        final adapter = _RouteAdapter((options) {
+          if (options.path == '/protected' ||
+              options.path == '/tokens/refresh') {
+            return _jsonResponseBody({
+              'success': false,
+              'message': 'expired',
+            }, statusCode: 401);
+          }
+          throw StateError('Unexpected request: ${options.path}');
+        });
+        final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        final refreshDio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        final client = DioClient(
+          secureStorage: const FlutterSecureStorage(),
+          dio: dio,
+          refreshDio: refreshDio,
+          onAuthFailure: () => authFailureCalls++,
+        );
+        expect(await client.authSessionStore.readSession(), isNotNull);
+        storagePlatform.failNextWrite(AuthSessionStore.visibilityKey);
+
+        await expectLater(
+          client.get('/protected'),
+          throwsA(isA<AuthFailure>()),
+        );
+
+        expect(authFailureCalls, 0);
+        expect(
+          (await client.authSessionStore.readSession())!.accessToken,
+          'token-a',
+        );
+      },
+    );
+
+    test('logout fences an older in-flight refreshUser response', () async {
+      final refreshEntered = Completer<void>();
+      final refreshResponse = Completer<ResponseBody>();
+      final adapter = _RouteAdapter((options) {
+        if (options.path == '${ApiConfig.auth}/login') {
+          return _authResponseBody(_userA, token: 'token-a');
+        }
+        if (options.path == '${ApiConfig.auth}/me') {
+          refreshEntered.complete();
+          return refreshResponse.future;
+        }
+        return _defaultIntegrationResponse(options);
+      });
+      final harness = await _ProductionAuthHarness.create(adapter: adapter);
+      addTearDown(harness.dispose);
+      await harness.notifier.login(_userA.email, 'Password1!');
+
+      final refresh = harness.notifier.refreshUser();
+      await refreshEntered.future;
+      await harness.notifier.logout();
+      refreshResponse.complete(
+        _jsonResponseBody({'success': true, 'data': _userC.toJson()}),
+      );
+      await refresh;
+
+      expect(harness.container.read(authStateProvider).value, isNull);
+      expect(await harness.dioClient.authSessionStore.readSession(), isNull);
+    });
+
+    test(
+      'new login B fences an older in-flight refreshUser response',
+      () async {
+        final refreshEntered = Completer<void>();
+        final refreshResponse = Completer<ResponseBody>();
+        var loginCount = 0;
+        final adapter = _RouteAdapter((options) {
+          if (options.path == '${ApiConfig.auth}/login') {
+            loginCount++;
+            return _authResponseBody(
+              loginCount == 1 ? _userA : _userB,
+              token: loginCount == 1 ? 'token-a' : 'token-b',
+            );
+          }
+          if (options.path == '${ApiConfig.auth}/me') {
+            refreshEntered.complete();
+            return refreshResponse.future;
+          }
+          return _defaultIntegrationResponse(options);
+        });
+        final harness = await _ProductionAuthHarness.create(adapter: adapter);
+        addTearDown(harness.dispose);
+        await harness.notifier.login(_userA.email, 'Password1!');
+
+        final refresh = harness.notifier.refreshUser();
+        await refreshEntered.future;
+        await harness.notifier.login(_userB.email, 'Password1!');
+        refreshResponse.complete(
+          _jsonResponseBody({'success': true, 'data': _userC.toJson()}),
+        );
+        await refresh;
+
+        expect(harness.container.read(authStateProvider).value, _userB);
+        expect(
+          jsonDecode(
+            (await harness.dioClient.authSessionStore.readSession())!.userJson,
+          )['id'],
+          _userB.id,
+        );
+      },
+    );
+
+    test(
+      'default logout retries a transient RevenueCat PlatformException',
+      () async {
+        final adapter = _RouteAdapter((options) {
+          if (options.path == '${ApiConfig.auth}/login') {
+            return _authResponseBody(_userA, token: 'token-a');
+          }
+          return _defaultIntegrationResponse(options);
+        });
+        final harness = await _ProductionAuthHarness.create(adapter: adapter);
+        addTearDown(harness.dispose);
+        await harness.notifier.login(_userA.email, 'Password1!');
+        harness.revenueCat.logoutFailures.add(
+          PlatformException(code: 'network_error'),
+        );
+
+        await harness.notifier.logout();
+
+        expect(harness.revenueCat.logoutCalls, 2);
+        final status = harness.container.read(
+          authenticatedSessionBootstrapStatusProvider,
+        );
+        expect(status.cleanupAttempts, 2);
+        expect(status.failedCleanupSteps, isEmpty);
+        expect(harness.container.read(authStateProvider).value, isNull);
+      },
+    );
+
+    test(
+      'default logout reports permanent RevenueCat cleanup degradation',
+      () async {
+        final adapter = _RouteAdapter((options) {
+          if (options.path == '${ApiConfig.auth}/login') {
+            return _authResponseBody(_userA, token: 'token-a');
+          }
+          return _defaultIntegrationResponse(options);
+        });
+        final harness = await _ProductionAuthHarness.create(adapter: adapter);
+        addTearDown(harness.dispose);
+        await harness.notifier.login(_userA.email, 'Password1!');
+        harness.revenueCat.logoutFailures.addAll([
+          PlatformException(code: 'network_error'),
+          PlatformException(code: 'network_error'),
+        ]);
+
+        await harness.notifier.logout();
+
+        expect(harness.revenueCat.logoutCalls, 2);
+        final status = harness.container.read(
+          authenticatedSessionBootstrapStatusProvider,
+        );
+        expect(status.cleanupAttempts, 2);
+        expect(
+          status.failedCleanupSteps,
+          contains(AuthenticatedSessionCleanupStep.revenueCatLogout),
+        );
+        expect(harness.container.read(authStateProvider).value, isNull);
+        expect(await harness.dioClient.authSessionStore.readSession(), isNull);
+      },
+    );
+
+    test('successful registration uses the full default bootstrap', () async {
+      final adapter = _RouteAdapter((options) {
+        if (options.path == '${ApiConfig.auth}/register') {
+          return _authResponseBody(_userA, token: 'token-a');
+        }
+        return _defaultIntegrationResponse(options);
+      });
+      final harness = await _ProductionAuthHarness.create(adapter: adapter);
+      addTearDown(harness.dispose);
+
+      await harness.notifier.register(
+        email: _userA.email,
+        password: 'Password1!',
+        username: _userA.username,
+      );
+
+      await _expectSuccessfulDefaultBootstrap(harness, _userA);
+    });
+
+    for (final provider in ['google', 'apple']) {
+      test(
+        'successful $provider auth uses the full default bootstrap',
+        () async {
+          final adapter = _RouteAdapter((options) {
+            if (options.path == '/auth/social/state') {
+              return _jsonResponseBody({
+                'success': true,
+                'data': {'state': 's' * 64},
+              });
+            }
+            if (options.path == '/auth/social/$provider') {
+              return _authResponseBody(_userA, token: 'token-a');
+            }
+            return _defaultIntegrationResponse(options);
+          });
+          final harness = await _ProductionAuthHarness.create(adapter: adapter);
+          addTearDown(harness.dispose);
+          final service = SocialAuthService(
+            dioClient: harness.dioClient,
+            platform: _SocialAuthPlatformFake(),
+          );
+
+          final user = provider == 'google'
+              ? await harness.notifier.signInWithGoogle(service)
+              : await harness.notifier.signInWithApple(service);
+
+          expect(user, _userA);
+          await _expectSuccessfulDefaultBootstrap(harness, _userA);
+        },
+      );
+    }
+
+    test('stored restoration uses the full default bootstrap', () async {
+      storagePlatform.values.addAll({
+        ApiConfig.tokenKey: 'token-a',
+        'refresh_token': 'refresh-token-a',
+        ApiConfig.userKey: jsonEncode(_userA.toJson()),
+      });
+      final harness = await _ProductionAuthHarness.create(
+        adapter: _RouteAdapter(_defaultIntegrationResponse),
+      );
+      addTearDown(harness.dispose);
+
+      await _expectSuccessfulDefaultBootstrap(harness, _userA);
+    });
 
     test(
       'stale mid-write rollback finishes before newer credentials commit',
@@ -264,12 +844,14 @@ class _ProductionAuthHarness {
     required this.dioClient,
     required this.webSocket,
     required this.pushNotifications,
+    required this.revenueCat,
   });
 
   final ProviderContainer container;
   final DioClient dioClient;
   final WebSocketService webSocket;
   final PushNotificationService pushNotifications;
+  final _RevenueCatSdkAdapterFake revenueCat;
 
   AuthState get notifier => container.read(authStateProvider.notifier);
 
@@ -306,15 +888,14 @@ class _ProductionAuthHarness {
       messagingClient: _PushMessagingClient(pushTokens),
       localNotificationsInitializer: () async {},
     );
+    final revenueCat = _RevenueCatSdkAdapterFake();
     final container = ProviderContainer(
       overrides: [
         dioClientProvider.overrideWithValue(dioClient),
         authRepositoryProvider.overrideWithValue(repository),
         webSocketServiceProvider.overrideWithValue(webSocket),
         pushNotificationServiceProvider.overrideWithValue(pushNotifications),
-        revenueCatSdkAdapterProvider.overrideWithValue(
-          _RevenueCatSdkAdapterFake(),
-        ),
+        revenueCatSdkAdapterProvider.overrideWithValue(revenueCat),
       ],
     );
     return _ProductionAuthHarness._(
@@ -322,6 +903,7 @@ class _ProductionAuthHarness {
       dioClient: dioClient,
       webSocket: webSocket,
       pushNotifications: pushNotifications,
+      revenueCat: revenueCat,
     );
   }
 
@@ -334,17 +916,28 @@ class _ProductionAuthHarness {
 
 class _RevenueCatSdkAdapterFake extends RevenueCatSdkAdapter {
   CustomerInfoUpdateListener? listener;
+  final logoutFailures = <Object>[];
+  final loginUsers = <String>[];
+  int logoutCalls = 0;
+  int customerInfoCalls = 0;
 
   @override
-  Future<bool> login(String userId) async => true;
+  Future<bool> login(String userId) async {
+    loginUsers.add(userId);
+    return true;
+  }
 
   @override
   Future<CustomerInfo?> getCustomerInfo() async {
+    customerInfoCalls++;
     return _inactiveCustomerInfo();
   }
 
   @override
-  Future<void> logout() async {}
+  Future<void> logout() async {
+    logoutCalls++;
+    if (logoutFailures.isNotEmpty) throw logoutFailures.removeAt(0);
+  }
 
   @override
   void setCustomerInfoUpdateListener(CustomerInfoUpdateListener? value) {
@@ -486,6 +1079,9 @@ class _SecureStoragePlatformFake {
   final operations = <String>[];
   final _delayedReads = <String, _StorageDelay>{};
   final _delayedWrites = <String, _StorageDelay>{};
+  final _failedReads = <String, int>{};
+  final _failedWrites = <String, int>{};
+  final _failedDeletes = <String, int>{};
 
   _StorageDelay delayNextRead(String key) {
     final delay = _StorageDelay();
@@ -499,11 +1095,28 @@ class _SecureStoragePlatformFake {
     return delay;
   }
 
+  void failNextWrite(String key) {
+    _failedWrites[key] = (_failedWrites[key] ?? 0) + 1;
+  }
+
+  void failNextRead(String key) {
+    _failedReads[key] = (_failedReads[key] ?? 0) + 1;
+  }
+
+  void failDeletes(String key, int count) {
+    _failedDeletes[key] = (_failedDeletes[key] ?? 0) + count;
+  }
+
   Future<Object?> handle(MethodCall call) async {
     final arguments = (call.arguments as Map).cast<String, Object?>();
     final key = arguments['key'] as String?;
     switch (call.method) {
       case 'read':
+        final remainingFailures = _failedReads[key] ?? 0;
+        if (remainingFailures > 0) {
+          _failedReads[key!] = remainingFailures - 1;
+          throw PlatformException(code: 'read_failed', message: key);
+        }
         final value = values[key];
         final delay = _delayedReads.remove(key);
         if (delay != null) {
@@ -513,6 +1126,11 @@ class _SecureStoragePlatformFake {
         return value;
       case 'write':
         final value = arguments['value']! as String;
+        final remainingFailures = _failedWrites[key] ?? 0;
+        if (remainingFailures > 0) {
+          _failedWrites[key!] = remainingFailures - 1;
+          throw PlatformException(code: 'write_failed', message: key);
+        }
         final delay = _delayedWrites.remove(key);
         if (delay != null) {
           delay.entered.complete();
@@ -522,6 +1140,11 @@ class _SecureStoragePlatformFake {
         operations.add('write:$key:$value');
         return null;
       case 'delete':
+        final remainingFailures = _failedDeletes[key] ?? 0;
+        if (remainingFailures > 0) {
+          _failedDeletes[key!] = remainingFailures - 1;
+          throw PlatformException(code: 'delete_failed', message: key);
+        }
         values.remove(key);
         operations.add('delete:$key');
         return null;
@@ -542,6 +1165,38 @@ class _SecureStoragePlatformFake {
 class _StorageDelay {
   final entered = Completer<void>();
   final release = Completer<void>();
+}
+
+void _expectDurablyLoggedOut(_SecureStoragePlatformFake storage) {
+  expect(storage.values[ApiConfig.tokenKey], isNull);
+  expect(storage.values['refresh_token'], isNull);
+  expect(storage.values[ApiConfig.userKey], isNull);
+  expect(
+    storage.values[AuthSessionStore.visibilityKey],
+    startsWith('loggedOut:'),
+  );
+}
+
+Future<void> _expectSuccessfulDefaultBootstrap(
+  _ProductionAuthHarness harness,
+  User user,
+) async {
+  expect(harness.container.read(authStateProvider).value, user);
+  final status = harness.container.read(
+    authenticatedSessionBootstrapStatusProvider,
+  );
+  expect(status.userId, user.id);
+  expect(status.attempt, 1);
+  expect(status.isRunning, isFalse);
+  expect(status.failedSteps, isEmpty);
+  expect(status.failedCleanupSteps, isEmpty);
+  expect(harness.webSocket.isConnected, isTrue);
+  expect(harness.revenueCat.loginUsers, [user.id]);
+  expect(harness.revenueCat.customerInfoCalls, 1);
+  expect(harness.revenueCat.listener, isNotNull);
+  final session = await harness.dioClient.authSessionStore.readSession();
+  expect(session, isNotNull);
+  expect(jsonDecode(session!.userJson)['id'], user.id);
 }
 
 ResponseBody _authResponseBody(User user, {required String token}) {
