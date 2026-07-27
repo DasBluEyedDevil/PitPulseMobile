@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 2,
+  "status": "pending-signed-release-capture",
+  "releaseCandidateSha": null,
+  "capturePolicy": {
+    "signedReleaseBuildRequired": true,
+    "minimumOsAndCurrentOsRequired": true,
+    "phoneAndTabletReviewRequired": true
+  },
+  "evidence": {
+    "android": {
+      "releaseArtifactSha256": null,
+      "signingCertificateSha256": null,
+      "captureDevice": null,
+      "osVersion": null,
+      "capturedAt": null
+    },
+    "ios": {
+      "releaseArtifactSha256": null,
+      "signingCertificateSha256": null,
+      "teamId": "BDJDR669ZV",
+      "bundleIdentifier": "com.9thlevelsoftware.soundcheck",
+      "captureDevice": null,
+      "osVersion": null,
+      "capturedAt": null
+    }
+  },
+  "journeys": [
+    {
+      "id": "login",
+      "android": "01-login.png",
+      "androidSha256": null,
+      "ios": "01-login.png",
+      "iosSha256": null
+    },
+    {
+      "id": "registration",
+      "android": "02-sign-up.png",
+      "androidSha256": null,
+      "ios": "02-sign-up.png",
+      "iosSha256": null
+    },
+    {
+      "id": "discovery",
+      "android": "03-discover.png",
+      "androidSha256": null,
+      "ios": "03-discover.png",
+      "iosSha256": null
+    },
+    {
+      "id": "profile",
+      "android": "04-profile.png",
+      "androidSha256": null,
+      "ios": "04-profile.png",
+      "iosSha256": null
+    },
+    {
+      "id": "check-in",
+      "android": "05-check-in.png",
+      "androidSha256": null,
+      "ios": "05-check-in.png",
+      "iosSha256": null
+    }
+  ]
+}

@@ -105,7 +105,10 @@ describe('SocialAuthService', () => {
         getPayload: () => mockPayload,
       });
 
-      const result = await socialAuthService.verifyGoogleToken('token-with-unverified-email', OAUTH_STATE);
+      const result = await socialAuthService.verifyGoogleToken(
+        'token-with-unverified-email',
+        OAUTH_STATE
+      );
 
       expect(result).toBeNull();
     });
@@ -113,9 +116,9 @@ describe('SocialAuthService', () => {
     it('should throw when Google verifyIdToken fails', async () => {
       mockGoogleClient.verifyIdToken.mockRejectedValue(new Error('Invalid token'));
 
-      await expect(socialAuthService.verifyGoogleToken('invalid-token', OAUTH_STATE)).rejects.toThrow(
-        'Invalid token'
-      );
+      await expect(
+        socialAuthService.verifyGoogleToken('invalid-token', OAUTH_STATE)
+      ).rejects.toThrow('Invalid token');
     });
 
     it('should return null if GOOGLE_CLIENT_ID is not set', async () => {
@@ -188,9 +191,9 @@ describe('SocialAuthService', () => {
     it('should return null when APPLE_BUNDLE_ID is not set', async () => {
       delete process.env.APPLE_BUNDLE_ID;
 
-      await expect(socialAuthService.verifyAppleToken('any-token', undefined, OAUTH_STATE)).rejects.toThrow(
-        'APPLE_BUNDLE_ID'
-      );
+      await expect(
+        socialAuthService.verifyAppleToken('any-token', undefined, OAUTH_STATE)
+      ).rejects.toThrow('APPLE_BUNDLE_ID');
       expect(mockAppleVerify).not.toHaveBeenCalled();
     });
 
@@ -200,7 +203,11 @@ describe('SocialAuthService', () => {
         // no sub field
       });
 
-      const result = await socialAuthService.verifyAppleToken('token-no-subject', undefined, OAUTH_STATE);
+      const result = await socialAuthService.verifyAppleToken(
+        'token-no-subject',
+        undefined,
+        OAUTH_STATE
+      );
 
       expect(result).toBeNull();
     });

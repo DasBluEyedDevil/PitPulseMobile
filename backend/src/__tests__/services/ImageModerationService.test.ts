@@ -36,8 +36,9 @@ describe('ImageModerationService', () => {
         throw new Error('Module not found');
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { ImageModerationService: FreshService } = require('../../services/ImageModerationService');
+      const {
+        ImageModerationService: FreshService,
+      } = require('../../services/ImageModerationService'); // eslint-disable-line @typescript-eslint/no-require-imports
 
       // Should not throw when module is missing
       expect(() => new FreshService()).not.toThrow();
@@ -53,8 +54,9 @@ describe('ImageModerationService', () => {
         }),
       }));
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { ImageModerationService: FreshService } = require('../../services/ImageModerationService');
+      const {
+        ImageModerationService: FreshService,
+      } = require('../../services/ImageModerationService'); // eslint-disable-line @typescript-eslint/no-require-imports
       expect(() => new FreshService()).not.toThrow();
 
       jest.dontMock('@google-cloud/vision');
@@ -70,8 +72,9 @@ describe('ImageModerationService', () => {
         })),
       }));
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { ImageModerationService: FreshService } = require('../../services/ImageModerationService');
+      const {
+        ImageModerationService: FreshService,
+      } = require('../../services/ImageModerationService'); // eslint-disable-line @typescript-eslint/no-require-imports
       return new FreshService();
     };
 
@@ -388,8 +391,9 @@ describe('ImageModerationService', () => {
         throw new Error('Module not found');
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { ImageModerationService: FreshService } = require('../../services/ImageModerationService');
+      const {
+        ImageModerationService: FreshService,
+      } = require('../../services/ImageModerationService'); // eslint-disable-line @typescript-eslint/no-require-imports
       const service = new FreshService();
       const imageUrl = 'https://example.com/test.jpg';
 
@@ -418,8 +422,9 @@ describe('ImageModerationService', () => {
         })),
       }));
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { ImageModerationService: FreshService } = require('../../services/ImageModerationService');
+      const {
+        ImageModerationService: FreshService,
+      } = require('../../services/ImageModerationService'); // eslint-disable-line @typescript-eslint/no-require-imports
       return new FreshService();
     };
 
@@ -520,8 +525,9 @@ describe('ImageModerationService', () => {
         })),
       }));
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { ImageModerationService: FreshService } = require('../../services/ImageModerationService');
+      const {
+        ImageModerationService: FreshService,
+      } = require('../../services/ImageModerationService'); // eslint-disable-line @typescript-eslint/no-require-imports
       return new FreshService();
     };
 
@@ -569,8 +575,9 @@ describe('ImageModerationService', () => {
         })),
       }));
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { ImageModerationService: FreshService } = require('../../services/ImageModerationService');
+      const {
+        ImageModerationService: FreshService,
+      } = require('../../services/ImageModerationService'); // eslint-disable-line @typescript-eslint/no-require-imports
       return new FreshService();
     };
 
@@ -633,8 +640,9 @@ describe('ImageModerationService', () => {
         })),
       }));
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { ImageModerationService: FreshService } = require('../../services/ImageModerationService');
+      const {
+        ImageModerationService: FreshService,
+      } = require('../../services/ImageModerationService'); // eslint-disable-line @typescript-eslint/no-require-imports
       return new FreshService();
     };
 

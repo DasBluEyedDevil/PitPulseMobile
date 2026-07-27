@@ -131,10 +131,7 @@ void main() {
       });
 
       test('returns custom field name in error message', () {
-        expect(
-          Validators.required('', fieldName: 'Name'),
-          'Name is required',
-        );
+        expect(Validators.required('', fieldName: 'Name'), 'Name is required');
       });
     });
 

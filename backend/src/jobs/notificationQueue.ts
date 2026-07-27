@@ -14,6 +14,7 @@
 import { Queue } from 'bullmq';
 import { createBullMQConnection, getRedisUrl } from '../config/redis';
 import logger from '../utils/logger';
+import { QueueContracts } from './queueContracts';
 
 /**
  * Notification batch queue instance.
@@ -23,7 +24,7 @@ let notificationQueue: Queue | null = null;
 
 try {
   getRedisUrl();
-  notificationQueue = new Queue('notification-batch', {
+  notificationQueue = new Queue(QueueContracts.notificationBatch.queueName, {
     connection: createBullMQConnection(),
     defaultJobOptions: {
       attempts: 3,

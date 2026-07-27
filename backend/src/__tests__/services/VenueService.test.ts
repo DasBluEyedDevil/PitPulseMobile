@@ -76,10 +76,7 @@ describe('VenueService', () => {
         updatedAt: '2024-01-15T00:00:00Z',
       });
 
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT'),
-        ['venue-123']
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), ['venue-123']);
     });
 
     it('should return null when venue not found', async () => {
@@ -417,9 +414,9 @@ describe('VenueService', () => {
     it('should throw error when venue not found', async () => {
       mockDb.query.mockResolvedValueOnce({ rows: [] });
 
-      await expect(
-        venueService.updateVenue('non-existent', { name: 'New Name' })
-      ).rejects.toThrow('Venue not found or inactive');
+      await expect(venueService.updateVenue('non-existent', { name: 'New Name' })).rejects.toThrow(
+        'Venue not found or inactive'
+      );
     });
 
     it('should ignore undefined values in update data', async () => {
@@ -641,10 +638,9 @@ describe('VenueService', () => {
 
       await venueService.updateVenueRating('venue-123');
 
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE venues'),
-        ['venue-123']
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE venues'), [
+        'venue-123',
+      ]);
     });
 
     it('should handle database errors', async () => {

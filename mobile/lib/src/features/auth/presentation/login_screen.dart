@@ -12,7 +12,14 @@ import '../../../shared/utils/haptic_feedback.dart';
 import '../data/social_auth_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({
+    super.key,
+    this.socialAuthService,
+    this.supportsAppleSignIn,
+  });
+
+  final SocialAuthService? socialAuthService;
+  final bool? supportsAppleSignIn;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -33,12 +40,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _initSocialAuth() {
+    final injectedService = widget.socialAuthService;
+    if (injectedService != null) {
+      _socialAuthService = injectedService;
+      return;
+    }
+
     final dioClient = ref.read(dioClientProvider);
-    final secureStorage = ref.read(secureStorageProvider);
-    _socialAuthService = SocialAuthService(
-      dioClient: dioClient,
-      secureStorage: secureStorage,
-    );
+    _socialAuthService = SocialAuthService(dioClient: dioClient);
   }
 
   @override
@@ -135,12 +144,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await _socialAuthService?.signInWithGoogle();
+      final service = _socialAuthService;
+      final user = service == null
+          ? null
+          : await ref
+                .read(authStateProvider.notifier)
+                .signInWithGoogle(service);
       if (!mounted) return;
 
-      if (result != null) {
-        // Refresh user state after social auth
-        await ref.read(authStateProvider.notifier).refreshUser();
+      if (user != null) {
         await HapticFeedbackUtil.successVibration();
         if (!mounted) return;
         // SEC-060: Use generic success message — do not display user
@@ -180,12 +192,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await _socialAuthService?.signInWithApple();
+      final service = _socialAuthService;
+      final user = service == null
+          ? null
+          : await ref.read(authStateProvider.notifier).signInWithApple(service);
       if (!mounted) return;
 
-      if (result != null) {
-        // Refresh user state after social auth
-        await ref.read(authStateProvider.notifier).refreshUser();
+      if (user != null) {
         await HapticFeedbackUtil.successVibration();
         if (!mounted) return;
         // SEC-060: Use generic success message — do not display user
@@ -372,7 +385,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             // Apple Sign-In only available on iOS/macOS
-                            if (Platform.isIOS || Platform.isMacOS) ...[
+                            if (widget.supportsAppleSignIn ??
+                                (Platform.isIOS || Platform.isMacOS)) ...[
                               _SocialLoginButton(
                                 icon: Icons.apple,
                                 onTap: _isLoading ? null : _handleAppleSignIn,

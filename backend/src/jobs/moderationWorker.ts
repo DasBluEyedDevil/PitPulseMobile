@@ -21,12 +21,78 @@ import { ModerationService } from '../services/ModerationService';
 import { ContentType } from '../types';
 import { captureException } from '../utils/sentry';
 import logger from '../utils/logger';
+import { QueueContracts } from './queueContracts';
 
-interface ModerationJobData {
+export interface ModerationJobData {
   contentType: ContentType;
   contentId: string;
   imageUrl: string;
   userId: string;
+}
+
+type ModerationJob = Pick<Job<ModerationJobData>, 'id' | 'data'>;
+
+export type ModerationProcessorDependencies = {
+  createImageModerationService: () => Pick<ImageModerationService, 'scanImage'>;
+  createModerationService: () => Pick<
+    ModerationService,
+    'autoHideContent' | 'createModerationItem'
+  >;
+  now: () => number;
+};
+
+const defaultModerationDependencies: ModerationProcessorDependencies = {
+  createImageModerationService: () => new ImageModerationService(),
+  createModerationService: () => new ModerationService(),
+  now: Date.now,
+};
+
+/**
+ * Process one image moderation job without requiring a Redis-backed Worker.
+ */
+export async function processModerationJob(
+  job: ModerationJob,
+  dependencies: ModerationProcessorDependencies = defaultModerationDependencies
+) {
+  const startTime = dependencies.now();
+  const { contentType, contentId, imageUrl, userId: _userId } = job.data;
+  logger.info(`Processing image moderation`, {
+    jobId: job.id,
+    contentType,
+    contentId,
+    imageUrl,
+  });
+
+  const imageMod = dependencies.createImageModerationService();
+  const moderationService = dependencies.createModerationService();
+
+  const result = await imageMod.scanImage(imageUrl);
+
+  if (result.isFlagged) {
+    logger.warn(`Image flagged by SafeSearch`, {
+      jobId: job.id,
+      contentId,
+      flagReasons: result.flagReasons,
+    });
+
+    await moderationService.autoHideContent(contentType, contentId);
+    await moderationService.createModerationItem({
+      contentType,
+      contentId,
+      source: 'auto_safesearch',
+      safesearchResults: result.annotations,
+    });
+  }
+
+  const duration = dependencies.now() - startTime;
+  logger.info(`Image moderation complete`, {
+    jobId: job.id,
+    contentId,
+    isFlagged: result.isFlagged,
+    durationMs: duration,
+  });
+
+  return { isFlagged: result.isFlagged, contentId };
 }
 
 /**
@@ -44,51 +110,8 @@ export function startModerationWorker(): Worker | null {
   }
 
   const worker = new Worker(
-    'image-moderation',
-    async (job: Job<ModerationJobData>) => {
-      const startTime = Date.now();
-      const { contentType, contentId, imageUrl, userId: _userId } = job.data;
-      logger.info(`Processing image moderation`, {
-        jobId: job.id,
-        contentType,
-        contentId,
-        imageUrl,
-      });
-
-      const imageMod = new ImageModerationService();
-      const moderationService = new ModerationService();
-
-      const result = await imageMod.scanImage(imageUrl);
-
-      if (result.isFlagged) {
-        logger.warn(`Image flagged by SafeSearch`, {
-          jobId: job.id,
-          contentId,
-          flagReasons: result.flagReasons,
-        });
-
-        // Auto-hide the flagged content
-        await moderationService.autoHideContent(contentType, contentId);
-
-        // Create a moderation queue item for admin review
-        await moderationService.createModerationItem({
-          contentType,
-          contentId,
-          source: 'auto_safesearch',
-          safesearchResults: result.annotations,
-        });
-      }
-
-      const duration = Date.now() - startTime;
-      logger.info(`Image moderation complete`, {
-        jobId: job.id,
-        contentId,
-        isFlagged: result.isFlagged,
-        durationMs: duration,
-      });
-
-      return { isFlagged: result.isFlagged, contentId };
-    },
+    QueueContracts.imageModeration.queueName,
+    (job) => processModerationJob(job),
     {
       connection: createBullMQConnection(),
       concurrency: 2,

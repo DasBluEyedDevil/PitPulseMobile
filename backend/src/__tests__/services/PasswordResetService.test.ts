@@ -175,10 +175,9 @@ describe('PasswordResetService', () => {
 
       await passwordResetService.requestReset('MixedCase@Example.COM');
 
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('LOWER(email) = $1'),
-        ['mixedcase@example.com']
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('LOWER(email) = $1'), [
+        'mixedcase@example.com',
+      ]);
     });
 
     it('should handle database errors gracefully', async () => {
@@ -248,7 +247,9 @@ describe('PasswordResetService', () => {
       const token = 'invalid-token';
       mockDb.query.mockResolvedValueOnce({ rows: [] }); // Token not found
 
-      const error = await passwordResetService.resetPassword(token, 'NewPassword123!').catch(e => e);
+      const error = await passwordResetService
+        .resetPassword(token, 'NewPassword123!')
+        .catch((e) => e);
       expect(error.message).toBe('Invalid or expired reset token');
       expect(error.statusCode).toBe(400);
     });
@@ -309,7 +310,7 @@ describe('PasswordResetService', () => {
 
       const error = await passwordResetService
         .resetPassword('token', 'lowercaseonly')
-        .catch(e => e);
+        .catch((e) => e);
       expect(error.statusCode).toBe(400);
       expect(error.message).toContain('uppercase');
     });

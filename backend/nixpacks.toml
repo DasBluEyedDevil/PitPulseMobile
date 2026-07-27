@@ -3,7 +3,8 @@
 # from this directory. All commands are relative to backend/.
 
 [phases.setup]
-nixPkgs = ["nodejs_20"]
+# nodejs_24 includes npm 11; do not add a separate npm derivation.
+nixPkgs = ["nodejs_24"]
 
 [phases.install]
 # --include=dev ensures devDependencies (including TypeScript) are installed
@@ -14,4 +15,4 @@ cmds = ["npm ci --include=dev"]
 cmds = ["npm run build"]
 
 [start]
-cmd = "npm run migrate:up && npm start"
+cmd = "npm run migrate:deploy && npm start"

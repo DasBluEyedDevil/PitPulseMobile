@@ -19,6 +19,49 @@ import { EventSyncService } from '../services/EventSyncService';
 import { runRetentionJob } from '../scripts/retentionJob';
 import { captureException } from '../utils/sentry';
 import logger from '../utils/logger';
+import { QueueContracts } from './queueContracts';
+
+type EventSyncJob = Pick<Job, 'id' | 'name' | 'data'>;
+
+export type EventSyncProcessorDependencies = {
+  createEventSyncService: () => Pick<EventSyncService, 'runSync'>;
+  runRetention: () => Promise<unknown>;
+  now: () => number;
+};
+
+const defaultEventSyncDependencies: EventSyncProcessorDependencies = {
+  createEventSyncService: () => new EventSyncService(),
+  runRetention: runRetentionJob,
+  now: Date.now,
+};
+
+/**
+ * Process one event-sync job without constructing a Redis-backed Worker.
+ */
+export async function processEventSyncJob(
+  job: EventSyncJob,
+  dependencies: EventSyncProcessorDependencies = defaultEventSyncDependencies
+): Promise<void> {
+  const startTime = dependencies.now();
+  logger.info(`Processing job: ${job.name}`, { jobId: job.id });
+
+  const syncService = dependencies.createEventSyncService();
+  if (
+    job.name === QueueContracts.eventSync.jobs.scheduledSync ||
+    job.name === QueueContracts.eventSync.jobs.checkCancellations
+  ) {
+    await syncService.runSync();
+  } else if (job.name === QueueContracts.eventSync.jobs.regionSync) {
+    await syncService.runSync(job.data?.regionId);
+  } else if (job.name === QueueContracts.eventSync.jobs.retentionCleanup) {
+    await dependencies.runRetention();
+  } else {
+    logger.warn(`Unknown job name: ${job.name}`, { jobId: job.id });
+  }
+
+  const duration = dependencies.now() - startTime;
+  logger.info(`Job completed: ${job.name}`, { jobId: job.id, durationMs: duration });
+}
 
 /**
  * Start the BullMQ worker for event sync jobs.
@@ -34,38 +77,11 @@ export function startEventSyncWorker(): Worker | null {
     return null;
   }
 
-  const worker = new Worker(
-    'event-sync',
-    async (job: Job) => {
-      const startTime = Date.now();
-      logger.info(`Processing job: ${job.name}`, { jobId: job.id });
-
-      const syncService = new EventSyncService();
-
-      if (job.name === 'scheduled-sync') {
-        await syncService.runSync();
-      } else if (job.name === 'check-cancellations') {
-        // Same flow -- TM API returns current status which triggers
-        // status change detection in EventSyncService
-        await syncService.runSync();
-      } else if (job.name === 'region-sync') {
-        const regionId = job.data?.regionId;
-        await syncService.runSync(regionId);
-      } else if (job.name === 'retention-cleanup') {
-        await runRetentionJob();
-      } else {
-        logger.warn(`Unknown job name: ${job.name}`, { jobId: job.id });
-      }
-
-      const duration = Date.now() - startTime;
-      logger.info(`Job completed: ${job.name}`, { jobId: job.id, durationMs: duration });
-    },
-    {
-      connection: createBullMQConnection(),
-      concurrency: 1,
-      lockDuration: 300000, // 5 min — long-running sync against Ticketmaster API
-    }
-  );
+  const worker = new Worker(QueueContracts.eventSync.queueName, (job) => processEventSyncJob(job), {
+    connection: createBullMQConnection(),
+    concurrency: 1,
+    lockDuration: 300000, // 5 min — long-running sync against Ticketmaster API
+  });
 
   // Event listeners for monitoring
   worker.on('completed', (job: Job) => {

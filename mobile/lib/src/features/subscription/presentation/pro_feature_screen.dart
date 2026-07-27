@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/providers/providers.dart';
 import '../../../core/services/analytics_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/brand_widgets.dart';
@@ -35,24 +38,35 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
     AnalyticsService.logEvent(name: 'subscription_viewed');
   }
 
-  void _applyCustomerInfo(CustomerInfo customerInfo) {
-    final hasUnlimited = SubscriptionService.hasUnlimitedEntitlement(
-      customerInfo,
-    );
-    ref.read(isPremiumProvider.notifier).set(hasUnlimited);
-    ref.invalidate(revenueCatCustomerInfoProvider);
-    ref.invalidate(serverSubscriptionStatusProvider);
-    AnalyticsService.setUserProperty(
-      name: 'plan',
-      value: hasUnlimited ? 'premium' : 'free',
-    );
+  Future<void> _applyCustomerInfo(
+    CustomerInfo customerInfo, {
+    required int generation,
+  }) {
+    return ref
+        .read(isPremiumProvider.notifier)
+        .reconcileCustomerInfo(customerInfo, generation: generation);
   }
 
-  Future<void> _refreshCustomerInfo({bool showSuccess = false}) async {
-    final customerInfo = await SubscriptionService.getCustomerInfo();
-    if (!mounted || customerInfo == null) return;
+  int get _entitlementGeneration {
+    return ref.read(isPremiumProvider.notifier).sessionGeneration;
+  }
 
-    _applyCustomerInfo(customerInfo);
+  Future<void> _refreshCustomerInfo({
+    required int generation,
+    bool showSuccess = false,
+  }) async {
+    final notifier = ref.read(isPremiumProvider.notifier);
+    final customerInfo = await ref
+        .read(subscriptionSessionClientProvider)
+        .getCustomerInfo();
+    if (!mounted ||
+        customerInfo == null ||
+        generation != notifier.sessionGeneration) {
+      return;
+    }
+
+    await _applyCustomerInfo(customerInfo, generation: generation);
+    if (!mounted || generation != notifier.sessionGeneration) return;
     if (showSuccess &&
         SubscriptionService.hasUnlimitedEntitlement(customerInfo)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,20 +78,23 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
   Future<void> _onShowPaywall() async {
     setState(() => _isShowingPaywall = true);
     try {
+      final notifier = ref.read(isPremiumProvider.notifier);
+      final generation = notifier.sessionGeneration;
       AnalyticsService.logEvent(name: 'paywall_viewed');
-      final result =
-          await SubscriptionService.presentUnlimitedPaywallIfNeeded();
-      if (!mounted) return;
+      final result = await ref
+          .read(subscriptionSessionClientProvider)
+          .presentUnlimitedPaywallIfNeeded();
+      if (!mounted || generation != notifier.sessionGeneration) return;
 
       switch (result) {
         case PaywallResult.purchased:
           AnalyticsService.logEvent(name: 'subscription_started');
-          await _refreshCustomerInfo(showSuccess: true);
+          await _refreshCustomerInfo(generation: generation, showSuccess: true);
         case PaywallResult.restored:
           AnalyticsService.logEvent(name: 'subscription_restored');
-          await _refreshCustomerInfo(showSuccess: true);
+          await _refreshCustomerInfo(generation: generation, showSuccess: true);
         case PaywallResult.notPresented:
-          await _refreshCustomerInfo();
+          await _refreshCustomerInfo(generation: generation);
         case PaywallResult.cancelled:
           break;
         case PaywallResult.error:
@@ -95,8 +112,12 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
   Future<void> _onRestore() async {
     setState(() => _isRestoring = true);
     try {
-      final customerInfo = await SubscriptionService.restorePurchases();
-      if (!mounted) return;
+      final generation = _entitlementGeneration;
+      final notifier = ref.read(isPremiumProvider.notifier);
+      final customerInfo = await ref
+          .read(subscriptionSessionClientProvider)
+          .restorePurchases();
+      if (!mounted || generation != notifier.sessionGeneration) return;
 
       if (customerInfo == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -105,7 +126,8 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
         return;
       }
 
-      _applyCustomerInfo(customerInfo);
+      await _applyCustomerInfo(customerInfo, generation: generation);
+      if (!mounted || generation != notifier.sessionGeneration) return;
       if (SubscriptionService.hasUnlimitedEntitlement(customerInfo)) {
         AnalyticsService.logEvent(name: 'subscription_restored');
         ScaffoldMessenger.of(
@@ -124,20 +146,29 @@ class _ProFeatureScreenState extends ConsumerState<ProFeatureScreen> {
   Future<void> _onOpenCustomerCenter() async {
     setState(() => _isOpeningCustomerCenter = true);
     try {
-      await SubscriptionService.presentCustomerCenter(
-        onRestoreCompleted: (customerInfo) {
-          if (!mounted) return;
-          _applyCustomerInfo(customerInfo);
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Purchases restored')));
-        },
-        onPromotionalOfferSucceeded: (customerInfo, _, _) {
-          if (!mounted) return;
-          _applyCustomerInfo(customerInfo);
-        },
-      );
-      await _refreshCustomerInfo();
+      final generation = _entitlementGeneration;
+      final notifier = ref.read(isPremiumProvider.notifier);
+      await ref
+          .read(subscriptionSessionClientProvider)
+          .presentCustomerCenter(
+            onRestoreCompleted: (customerInfo) {
+              if (!mounted || generation != notifier.sessionGeneration) return;
+              unawaited(
+                _applyCustomerInfo(customerInfo, generation: generation),
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Purchases restored')),
+              );
+            },
+            onPromotionalOfferSucceeded: (customerInfo, _, _) {
+              if (!mounted || generation != notifier.sessionGeneration) return;
+              unawaited(
+                _applyCustomerInfo(customerInfo, generation: generation),
+              );
+            },
+          );
+      if (!mounted || generation != notifier.sessionGeneration) return;
+      await _refreshCustomerInfo(generation: generation);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

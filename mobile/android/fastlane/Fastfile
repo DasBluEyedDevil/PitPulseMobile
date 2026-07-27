@@ -85,6 +85,10 @@ def from_mobile_root(command)
   end
 end
 
+def verify_store_assets!
+  from_mobile_root("node ../scripts/check-fastlane-store-assets.mjs")
+end
+
 def play_credentials_options
   options = {}
   options[:json_key] = ENV["SUPPLY_JSON_KEY_FILE"] if ENV["SUPPLY_JSON_KEY_FILE"].to_s.strip.length > 0
@@ -113,17 +117,22 @@ platform :android do
   desc "Build the Android App Bundle used by Google Play beta tracks"
   lane :build_beta do
     require_flutter_dart_defines!("FIREBASE_ANDROID_API_KEY", "RC_GOOGLE_KEY")
+    from_mobile_root("node ../scripts/prepare-android-release.mjs")
     from_mobile_root("flutter pub get")
 
     extra_args = flutter_build_args
     command = ["flutter build appbundle --release", extra_args].reject(&:empty?).join(" ")
     from_mobile_root(command)
 
+    gradle_verify_command = Gem.win_platform? ? "android\\gradlew.bat verifyReleaseCertificate" : "./android/gradlew verifyReleaseCertificate"
+    from_mobile_root(gradle_verify_command)
+
     UI.user_error!("Expected Android App Bundle missing at #{AAB_PATH}") unless File.exist?(AAB_PATH)
   end
 
   desc "Copy curated Android screenshots into Fastlane Play metadata"
   lane :screenshots do
+    verify_store_assets!
     copy_curated_android_screenshots
   end
 
@@ -145,6 +154,9 @@ platform :android do
     screenshots
     build_beta unless truthy_env("SKIP_ANDROID_BUILD")
     UI.user_error!("Expected Android App Bundle missing at #{AAB_PATH}") unless File.exist?(AAB_PATH)
+
+    gradle_verify_command = Gem.win_platform? ? "android\\gradlew.bat verifyReleaseCertificate" : "./android/gradlew verifyReleaseCertificate"
+    from_mobile_root(gradle_verify_command)
 
     track_name = options[:track] || ENV.fetch("SUPPLY_TRACK", "internal")
     upload_options = {

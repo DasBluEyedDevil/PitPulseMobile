@@ -44,8 +44,9 @@ class _FriendsGoingContent extends StatelessWidget {
             width: (visibleCount * 20.0) + 12,
             height: 32,
             child: Stack(
-              children:
-                  data.friends.take(5).toList().asMap().entries.map((entry) {
+              children: data.friends.take(5).toList().asMap().entries.map((
+                entry,
+              ) {
                 return Positioned(
                   left: entry.key * 20.0,
                   child: _FriendAvatarCircle(friend: entry.value),
@@ -59,9 +60,9 @@ class _FriendsGoingContent extends StatelessWidget {
           child: Text(
             data.count == 1 ? '1 friend going' : '${data.count} friends going',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppTheme.voltLime,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: AppTheme.voltLime,
+              fontWeight: FontWeight.w600,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
         ),

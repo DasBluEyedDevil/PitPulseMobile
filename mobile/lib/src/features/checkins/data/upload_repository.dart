@@ -157,8 +157,10 @@ class UploadRepository {
       }).toList();
 
       // 2. Request presigned URLs
-      final presignedUrlsResult =
-          await requestPresignedUrls(checkinId, contentTypes);
+      final presignedUrlsResult = await requestPresignedUrls(
+        checkinId,
+        contentTypes,
+      );
 
       // Early return on error
       final List<PresignedUpload> presignedUrls;

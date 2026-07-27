@@ -37,36 +37,34 @@ class CrashReportingService {
       return;
     }
 
-    await SentryFlutter.init(
-      (options) {
-        options.dsn = _sentryDsn;
+    await SentryFlutter.init((options) {
+      options.dsn = _sentryDsn;
 
-        // Environment
-        options.environment = _environment;
+      // Environment
+      options.environment = _environment;
 
-        // Performance monitoring - 10% in production, 100% in development
-        options.tracesSampleRate = _environment == 'production' ? 0.1 : 1.0;
+      // Performance monitoring - 10% in production, 100% in development
+      options.tracesSampleRate = _environment == 'production' ? 0.1 : 1.0;
 
-        // Debug mode
-        options.debug = kDebugMode;
+      // Debug mode
+      options.debug = kDebugMode;
 
-        // Auto session tracking
-        options.enableAutoSessionTracking = true;
+      // Auto session tracking
+      options.enableAutoSessionTracking = true;
 
-        // Attach screenshots on errors (development only — disabled in release
-        // to avoid capturing sensitive user data)
-        options.attachScreenshot = !kReleaseMode;
+      // Attach screenshots on errors (development only — disabled in release
+      // to avoid capturing sensitive user data)
+      options.attachScreenshot = !kReleaseMode;
 
-        // Filter out non-critical errors
-        options.beforeSend = (event, hint) {
-          // Filter setState errors which are usually Flutter internals
-          if (event.message?.formatted.contains('setState') ?? false) {
-            return null;
-          }
-          return event;
-        };
-      },
-    );
+      // Filter out non-critical errors
+      options.beforeSend = (event, hint) {
+        // Filter setState errors which are usually Flutter internals
+        if (event.message?.formatted.contains('setState') ?? false) {
+          return null;
+        }
+        return event;
+      };
+    });
 
     _initialized = true;
     debugPrint('Sentry crash reporting initialized');
@@ -124,12 +122,7 @@ class CrashReportingService {
     if (!_initialized) return;
 
     Sentry.configureScope((scope) {
-      scope.setUser(
-        SentryUser(
-          id: userId,
-          email: email,
-        ),
-      );
+      scope.setUser(SentryUser(id: userId, email: email));
     });
   }
 

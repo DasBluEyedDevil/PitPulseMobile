@@ -5,75 +5,192 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../error/failures.dart';
 import '../services/log_service.dart';
 import 'api_config.dart';
+import 'auth_session_store.dart';
 
-/// Storage key for the refresh token
-const _refreshTokenKey = 'refresh_token';
+enum _TokenRefreshStatus { refreshed, stale, failed }
+
+class _TokenRefreshResult {
+  const _TokenRefreshResult._(
+    this.status, {
+    required this.initiatingRevision,
+    this.refreshedSession,
+  });
+
+  const _TokenRefreshResult.refreshed(
+    String initiatingRevision,
+    StoredAuthSession refreshedSession,
+  ) : this._(
+        _TokenRefreshStatus.refreshed,
+        initiatingRevision: initiatingRevision,
+        refreshedSession: refreshedSession,
+      );
+
+  const _TokenRefreshResult.stale(String? initiatingRevision)
+    : this._(_TokenRefreshStatus.stale, initiatingRevision: initiatingRevision);
+
+  const _TokenRefreshResult.failed(String initiatingRevision)
+    : this._(
+        _TokenRefreshStatus.failed,
+        initiatingRevision: initiatingRevision,
+      );
+
+  final _TokenRefreshStatus status;
+  final String? initiatingRevision;
+  final StoredAuthSession? refreshedSession;
+}
+
+const _authSessionRevisionExtra = '_authSessionRevision';
+const _preserveAuthorizationExtra = '_preserveAuthorization';
+const _authRefreshReplayExtra = '_authRefreshReplay';
 
 /// DioClient provides a configured Dio instance with interceptors
 class DioClient {
   final Dio _dio;
-  final FlutterSecureStorage _secureStorage;
+  final Dio? _refreshDio;
+  final AuthSessionStore _authSessionStore;
   final VoidCallback? _onAuthFailure;
+  Future<_TokenRefreshResult>? _refreshInFlight;
+  String? _refreshInFlightRevision;
 
   DioClient({
     required FlutterSecureStorage secureStorage,
     VoidCallback? onAuthFailure,
-  }) : _secureStorage = secureStorage,
+    Dio? dio,
+    Dio? refreshDio,
+    AuthSessionStore? authSessionStore,
+  }) : _refreshDio = refreshDio,
+       _authSessionStore = authSessionStore ?? AuthSessionStore(secureStorage),
        _onAuthFailure = onAuthFailure,
-       _dio = Dio(
-         BaseOptions(
-           baseUrl: ApiConfig.baseUrl,
-           connectTimeout: ApiConfig.connectTimeout,
-           receiveTimeout: ApiConfig.receiveTimeout,
-           sendTimeout: ApiConfig.sendTimeout,
-           headers: {
-             'Content-Type': 'application/json',
-             'Accept': 'application/json',
-           },
-         ),
-       ) {
+       _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               baseUrl: ApiConfig.baseUrl,
+               connectTimeout: ApiConfig.connectTimeout,
+               receiveTimeout: ApiConfig.receiveTimeout,
+               sendTimeout: ApiConfig.sendTimeout,
+               headers: {
+                 'Content-Type': 'application/json',
+                 'Accept': 'application/json',
+               },
+             ),
+           ) {
     _initializeInterceptors();
   }
 
+  AuthSessionStore get authSessionStore => _authSessionStore;
+
+  /// Pins an account-scoped request to the exact session that initiated it.
+  ///
+  /// The request must not silently inherit a newer account if authentication
+  /// changes before Dio's asynchronous request interceptor runs.
+  Options optionsForAuthSession(StoredAuthSession session) {
+    return Options(
+      headers: {'Authorization': 'Bearer ${session.accessToken}'},
+      extra: {
+        _authSessionRevisionExtra: session.revision,
+        _preserveAuthorizationExtra: true,
+      },
+    );
+  }
+
   void _initializeInterceptors() {
-    // QueuedInterceptorsWrapper serializes interceptor execution so that
-    // multiple concurrent 401s do not race against each other. The first
-    // 401 triggers a refresh attempt; subsequent 401s queue behind it.
     _dio.interceptors.add(
-      QueuedInterceptorsWrapper(
+      InterceptorsWrapper(
         onRequest: (options, handler) async {
+          if (options.extra[_preserveAuthorizationExtra] == true) {
+            return handler.next(options);
+          }
           // Add JWT token to headers for authenticated requests
-          final token = await _secureStorage.read(key: ApiConfig.tokenKey);
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
+          final session = await _authSessionStore.readSession();
+          if (session != null) {
+            options.headers['Authorization'] = 'Bearer ${session.accessToken}';
+            options.extra[_authSessionRevisionExtra] = session.revision;
           }
           return handler.next(options);
         },
         onError: (error, handler) async {
           if (error.response?.statusCode == 401) {
-            // Attempt token refresh before wiping credentials
-            final refreshed = await _attemptTokenRefresh();
-            if (refreshed) {
-              // Retry the original request with the new token
-              try {
-                final token = await _secureStorage.read(
-                  key: ApiConfig.tokenKey,
-                );
-                error.requestOptions.headers['Authorization'] = 'Bearer $token';
-                final retryResponse = await _dio.fetch(error.requestOptions);
-                return handler.resolve(retryResponse);
-              } catch (_) {
-                // Retry failed -- fall through to credential wipe
-              }
+            final initiatingRevision =
+                error.requestOptions.extra[_authSessionRevisionExtra]
+                    as String?;
+            if (error.requestOptions.extra[_authRefreshReplayExtra] == true) {
+              await _invalidateAfterTerminalUnauthorized(
+                initiatingRevision,
+                error,
+                handler,
+              );
+              return;
             }
 
-            // Refresh failed or no refresh token: clear all credentials
-            await _secureStorage.delete(key: ApiConfig.tokenKey);
-            await _secureStorage.delete(key: ApiConfig.userKey);
-            await _secureStorage.delete(key: _refreshTokenKey);
+            // Attempt token refresh before wiping credentials
+            final refreshResult = await _coordinateTokenRefresh(
+              initiatingRevision,
+            );
+            var revisionToInvalidate = refreshResult.initiatingRevision;
+            if (refreshResult.status == _TokenRefreshStatus.refreshed) {
+              // Retry the original request with the new token
+              final refreshedSession = refreshResult.refreshedSession!;
+              revisionToInvalidate = refreshedSession.revision;
+              try {
+                final stillCurrent = await _authSessionStore.isActiveRevision(
+                  refreshedSession.revision,
+                );
+                if (!stillCurrent) {
+                  return handler.next(error);
+                }
+                error.requestOptions.headers['Authorization'] =
+                    'Bearer ${refreshedSession.accessToken}';
+                error.requestOptions.extra[_authSessionRevisionExtra] =
+                    refreshedSession.revision;
+                error.requestOptions.extra[_preserveAuthorizationExtra] = true;
+                error.requestOptions.extra[_authRefreshReplayExtra] = true;
+                final retryResponse = await _dio.fetch(error.requestOptions);
+                return handler.resolve(retryResponse);
+              } on DioException catch (retryError) {
+                // A non-auth replay failure does not invalidate a session
+                // whose refresh already succeeded. A replayed 401 is handled
+                // by the marked nested request above.
+                return handler.next(retryError);
+              } catch (_) {
+                return handler.next(error);
+              }
+            }
+            if (refreshResult.status == _TokenRefreshStatus.stale) {
+              // A logout or a newer login changed the exact active revision
+              // while this request was refreshing A. Do not mutate or
+              // invalidate the newer authoritative state.
+              return handler.next(error);
+            }
 
-            // Notify auth state so the UI can redirect to login
-            _onAuthFailure?.call();
+            // Refresh failed or no refresh token: publish an authoritative
+            // tombstone before attempting recoverable raw-key cleanup.
+            if (revisionToInvalidate == null) {
+              return handler.next(error);
+            }
+            try {
+              final invalidation = await _authSessionStore
+                  .invalidateIfActiveRevision(revisionToInvalidate);
+              if (invalidation == null) {
+                return handler.next(error);
+              }
+              if (invalidation.hasResidualCredentials) {
+                LogService.e(
+                  'Authentication invalidated with secure-storage residue: '
+                  '${invalidation.failedKeys.join(', ')}',
+                );
+              }
+              _onAuthFailure?.call();
+            } catch (invalidationError, stackTrace) {
+              // The prior active marker is still authoritative. Do not tell
+              // AuthState that logout succeeded when durable invalidation did
+              // not happen.
+              LogService.e(
+                'Failed to durably invalidate authentication after 401',
+                invalidationError,
+                stackTrace,
+              );
+            }
           }
           return handler.next(error);
         },
@@ -97,6 +214,13 @@ class DioClient {
           const maxRetries = 2;
 
           if (isRetryable && retryCount < maxRetries) {
+            final initiatingRevision =
+                error.requestOptions.extra[_authSessionRevisionExtra]
+                    as String?;
+            if (initiatingRevision != null &&
+                !await _authSessionStore.isActiveRevision(initiatingRevision)) {
+              return handler.next(error);
+            }
             final nextRetry = retryCount + 1;
             final delay = Duration(milliseconds: 500 * (1 << retryCount));
             LogService.d(
@@ -104,7 +228,12 @@ class DioClient {
               '(attempt $nextRetry/$maxRetries, backoff ${delay.inMilliseconds}ms)',
             );
             await Future<void>.delayed(delay);
+            if (initiatingRevision != null &&
+                !await _authSessionStore.isActiveRevision(initiatingRevision)) {
+              return handler.next(error);
+            }
             error.requestOptions.extra['_retryCount'] = nextRetry;
+            error.requestOptions.extra[_preserveAuthorizationExtra] = true;
             try {
               final response = await _dio.fetch(error.requestOptions);
               return handler.resolve(response);
@@ -134,15 +263,90 @@ class DioClient {
     }
   }
 
-  /// Attempt to refresh the access token using the stored refresh token.
-  /// Returns true if the refresh succeeded and new tokens were stored.
-  Future<bool> _attemptTokenRefresh() async {
+  Future<void> _invalidateAfterTerminalUnauthorized(
+    String? revision,
+    DioException error,
+    ErrorInterceptorHandler handler,
+  ) async {
+    if (revision == null) {
+      handler.next(error);
+      return;
+    }
     try {
-      final refreshToken = await _secureStorage.read(key: _refreshTokenKey);
-      if (refreshToken == null) return false;
+      final invalidation = await _authSessionStore.invalidateIfActiveRevision(
+        revision,
+      );
+      if (invalidation == null) {
+        handler.next(error);
+        return;
+      }
+      if (invalidation.hasResidualCredentials) {
+        LogService.e(
+          'Authentication invalidated with secure-storage residue: '
+          '${invalidation.failedKeys.join(', ')}',
+        );
+      }
+      _onAuthFailure?.call();
+    } catch (invalidationError, stackTrace) {
+      LogService.e(
+        'Failed to durably invalidate authentication after replayed 401',
+        invalidationError,
+        stackTrace,
+      );
+    }
+    handler.next(error);
+  }
+
+  Future<_TokenRefreshResult> _coordinateTokenRefresh(
+    String? initiatingRevision,
+  ) {
+    if (initiatingRevision == null) {
+      return Future.value(const _TokenRefreshResult.stale(null));
+    }
+
+    final inFlight = _refreshInFlight;
+    if (inFlight != null && _refreshInFlightRevision == initiatingRevision) {
+      return inFlight;
+    }
+
+    late final Future<_TokenRefreshResult> refresh;
+    refresh = _attemptTokenRefresh(initiatingRevision).whenComplete(() {
+      if (identical(_refreshInFlight, refresh)) {
+        _refreshInFlight = null;
+        _refreshInFlightRevision = null;
+      }
+    });
+    _refreshInFlightRevision = initiatingRevision;
+    _refreshInFlight = refresh;
+    return refresh;
+  }
+
+  /// Attempt to refresh the access token using the stored refresh token.
+  /// Returns whether the refresh committed, became stale, or failed.
+  Future<_TokenRefreshResult> _attemptTokenRefresh(
+    String? initiatingRevision,
+  ) async {
+    if (initiatingRevision == null) {
+      return const _TokenRefreshResult.stale(null);
+    }
+    try {
+      final session = await _authSessionStore.resolveActiveRefreshSuccessor(
+        initiatingRevision,
+      );
+      if (session == null) {
+        return _TokenRefreshResult.stale(initiatingRevision);
+      }
+      if (session.revision != initiatingRevision) {
+        return _TokenRefreshResult.refreshed(initiatingRevision, session);
+      }
+      final refreshToken = session.refreshToken;
+      if (refreshToken == null) {
+        return _TokenRefreshResult.failed(session.revision);
+      }
 
       // Use a fresh Dio instance to avoid interceptor recursion
-      final refreshDio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl));
+      final refreshDio =
+          _refreshDio ?? Dio(BaseOptions(baseUrl: ApiConfig.baseUrl));
       final response = await refreshDio.post(
         '/tokens/refresh',
         data: {'refreshToken': refreshToken},
@@ -153,21 +357,24 @@ class DioClient {
         final newAccessToken = data['accessToken'] as String;
         final newRefreshToken = data['refreshToken'] as String;
 
-        await _secureStorage.write(
-          key: ApiConfig.tokenKey,
-          value: newAccessToken,
+        final updated = await _authSessionStore.updateTokens(
+          accessToken: newAccessToken,
+          refreshToken: newRefreshToken,
+          expectedRevision: session.revision,
         );
-        await _secureStorage.write(
-          key: _refreshTokenKey,
-          value: newRefreshToken,
-        );
-
-        return true;
+        return updated == null
+            ? _TokenRefreshResult.stale(initiatingRevision)
+            : _TokenRefreshResult.refreshed(initiatingRevision, updated);
       }
     } catch (e) {
       LogService.d('Token refresh failed: $e');
     }
-    return false;
+    final stillCurrent = await _authSessionStore.isActiveRevision(
+      initiatingRevision,
+    );
+    return stillCurrent
+        ? _TokenRefreshResult.failed(initiatingRevision)
+        : _TokenRefreshResult.stale(initiatingRevision);
   }
 
   /// GET request with error classification

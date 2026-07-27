@@ -48,16 +48,6 @@ class _AuthStateNotifier extends ChangeNotifier {
   _AuthStateNotifier(this._ref) {
     _ref.listen(authStateProvider, (prev, next) {
       notifyListeners();
-      final user = next.asData?.value;
-      if (user != null) {
-        Future.microtask(() async {
-          try {
-            await _ref.read(pushNotificationServiceProvider).initialize();
-          } catch (_) {
-            // Firebase may be unconfigured locally; non-fatal
-          }
-        });
-      }
     });
   }
 

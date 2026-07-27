@@ -22,8 +22,9 @@ class BandFiltersSheet extends ConsumerWidget {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         return Container(
           decoration: BoxDecoration(
-            color:
-                isDark ? Theme.of(context).colorScheme.surface : Colors.white,
+            color: isDark
+                ? Theme.of(context).colorScheme.surface
+                : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
@@ -82,9 +83,8 @@ class BandFiltersSheet extends ConsumerWidget {
                         notifier,
                         genres,
                       ),
-                      loading: () => const Center(
-                        child: CircularProgressIndicator(),
-                      ),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
                       error: (error, stack) =>
                           const Text('Failed to load genres'),
                     ),
@@ -129,10 +129,7 @@ class BandFiltersSheet extends ConsumerWidget {
       children: [
         const Text(
           'Sort By',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: AppTheme.spacing12),
         RadioGroup<BandSortBy>(
@@ -169,10 +166,7 @@ class BandFiltersSheet extends ConsumerWidget {
       children: [
         const Text(
           'Genre',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: AppTheme.spacing12),
         Wrap(
@@ -205,10 +199,7 @@ class BandFiltersSheet extends ConsumerWidget {
           children: [
             const Text(
               'Minimum Rating',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const Spacer(),
             if (filters.minRating != null)

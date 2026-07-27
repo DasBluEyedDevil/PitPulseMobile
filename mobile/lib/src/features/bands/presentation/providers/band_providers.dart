@@ -23,8 +23,11 @@ Future<List<CheckIn>> bandUserCheckins(Ref ref, String bandId) async {
   if (user == null) return [];
 
   final repository = ref.watch(checkInRepositoryProvider);
-  final result =
-      await repository.getCheckIns(bandId: bandId, userId: user.id, limit: 20);
+  final result = await repository.getCheckIns(
+    bandId: bandId,
+    userId: user.id,
+    limit: 20,
+  );
   return result.fold(
     (failure) => throw Exception(failure.message),
     (data) => data,

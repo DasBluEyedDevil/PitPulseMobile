@@ -72,6 +72,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { authenticateToken, requireAdmin } from './middleware/auth';
 import { buildErrorResponseForStatus } from './middleware/validate';
+import { startRuntime } from './startup';
 
 // Read package version for health endpoint
 const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
@@ -476,14 +477,11 @@ const startServer = async () => {
 
     // Test database connection
     const db = Database.getInstance();
-    const isDbHealthy = await db.healthCheck();
+    const healthResult = await db.healthCheck();
 
-    if (!isDbHealthy) {
-      logError('Database connection failed. Please check your database configuration.');
-      process.exit(1);
+    if (healthResult.healthy) {
+      logInfo('Database connection established');
     }
-
-    logInfo('Database connection established');
 
     // Warn about CORS configuration in production
     if (process.env.NODE_ENV === 'production' && !process.env.CORS_ORIGIN) {
@@ -492,28 +490,41 @@ const startServer = async () => {
       );
     }
 
-    // Initialize WebSocket server
-    initWebSocket(server);
+    const runtimeResult = startRuntime(healthResult, {
+      initWebSocket: () => initWebSocket(server),
+      listen: () => {
+        server.listen(PORT, () => {
+          logInfo(`SoundCheck API Server running on port ${PORT}`);
+          logInfo(`Health check: http://localhost:${PORT}/health`);
+          logInfo(`Environment: ${process.env.NODE_ENV || 'development'}`);
 
-    server.listen(PORT, () => {
-      logInfo(`SoundCheck API Server running on port ${PORT}`);
-      logInfo(`Health check: http://localhost:${PORT}/health`);
-      logInfo(`Environment: ${process.env.NODE_ENV || 'development'}`);
-
-      if (process.env.NODE_ENV === 'development') {
-        logInfo(`API Documentation: http://localhost:${PORT}/`);
-      }
+          if (process.env.NODE_ENV === 'development') {
+            logInfo(`API Documentation: http://localhost:${PORT}/`);
+          }
+        });
+      },
+      startEventSyncWorker,
+      startBadgeEvalWorker,
+      startNotificationWorker,
+      startModerationWorker,
+      registerSyncJobs: () => {
+        registerSyncJobs().catch((err) =>
+          logError('Failed to register sync jobs', { error: err.message || err })
+        );
+      },
     });
 
-    // Start BullMQ workers and register scheduled jobs
-    // Guarded by REDIS_URL -- returns null if Redis is not available
-    syncWorker = startEventSyncWorker();
-    badgeWorker = startBadgeEvalWorker();
-    notifWorker = startNotificationWorker();
-    modWorker = startModerationWorker();
-    registerSyncJobs().catch((err) =>
-      logError('Failed to register sync jobs', { error: err.message || err })
-    );
+    if (!runtimeResult.started) {
+      logError('Database connection failed. Please check your database configuration.', {
+        error: runtimeResult.error,
+      });
+      process.exit(1);
+    }
+
+    syncWorker = runtimeResult.workers.sync;
+    badgeWorker = runtimeResult.workers.badge;
+    notifWorker = runtimeResult.workers.notification;
+    modWorker = runtimeResult.workers.moderation;
   } catch (error) {
     logError('Failed to start server', { error });
     process.exit(1);

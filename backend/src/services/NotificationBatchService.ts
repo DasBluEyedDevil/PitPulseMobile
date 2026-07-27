@@ -1,5 +1,6 @@
 import type { Queue } from 'bullmq';
 import { notificationQueue } from '../jobs/notificationQueue';
+import { QueueContracts } from '../jobs/queueContracts';
 import { getRedis } from '../utils/redisRateLimiter';
 import logger from '../utils/logger';
 
@@ -56,7 +57,7 @@ export class NotificationBatchService {
 
     try {
       await this.queue.add(
-        'send-batch',
+        QueueContracts.notificationBatch.jobs.sendBatch,
         { userId },
         {
           delay: BATCH_DELAY_MS,

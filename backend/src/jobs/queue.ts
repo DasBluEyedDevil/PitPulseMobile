@@ -15,6 +15,7 @@
 import { Queue } from 'bullmq';
 import { createBullMQConnection, getRedisUrl } from '../config/redis';
 import logger from '../utils/logger';
+import { QueueContracts } from './queueContracts';
 
 /**
  * Event sync queue instance.
@@ -26,7 +27,7 @@ try {
   // Guard: Only create queue if Redis is available
   getRedisUrl();
 
-  eventSyncQueue = new Queue('event-sync', {
+  eventSyncQueue = new Queue(QueueContracts.eventSync.queueName, {
     connection: createBullMQConnection(),
     defaultJobOptions: {
       attempts: 3,

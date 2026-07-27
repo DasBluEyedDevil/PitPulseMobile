@@ -788,10 +788,9 @@ describe('DataRetentionService', () => {
       await dataRetentionService.processPendingDeletions();
 
       // Verify status was reverted
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining("SET status = 'pending'"),
-        ['request-1']
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining("SET status = 'pending'"), [
+        'request-1',
+      ]);
     });
 
     it('should return empty result when no pending deletions', async () => {

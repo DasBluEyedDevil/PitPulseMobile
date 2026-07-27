@@ -19,7 +19,6 @@
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 import fs from 'fs';
-import path from 'path';
 import { r2Service } from './R2Service';
 import {
   checkinCardOG,
@@ -38,6 +37,7 @@ import {
   WrappedStatData,
 } from '../templates/share-cards/wrapped-stat-card';
 import logger from '../utils/logger';
+import { runtimeAssetPaths } from '../runtimeAssets';
 
 // ============================================
 // Font loading (once at module level)
@@ -45,7 +45,7 @@ import logger from '../utils/logger';
 
 let fontData: Buffer;
 try {
-  fontData = fs.readFileSync(path.join(__dirname, '../fonts/Inter-Bold.ttf'));
+  fontData = fs.readFileSync(runtimeAssetPaths().font);
 } catch {
   logger.warn('ShareCardService: Inter-Bold.ttf not found, card generation will fail');
   fontData = Buffer.alloc(0);
@@ -55,7 +55,17 @@ try {
 // ShareCardService
 // ============================================
 
+export type ShareCardStorage = {
+  readonly isReady: boolean;
+  readonly configured: boolean;
+  headObject(key: string): Promise<{ exists: boolean }>;
+  getPublicUrl(key: string): string;
+  uploadBuffer(buffer: Buffer, key: string, contentType: string): Promise<string>;
+};
+
 export class ShareCardService {
+  constructor(private readonly storage: ShareCardStorage = r2Service) {}
+
   /**
    * Generate check-in share card images in both variants.
    *
@@ -67,11 +77,11 @@ export class ShareCardService {
     checkinId: string,
     data: CheckinCardData
   ): Promise<{ ogUrl: string; storiesUrl: string }> {
-    if (!r2Service.isReady) {
+    if (!this.storage.isReady) {
       logger.warn('ShareCardService: R2 not configured, returning placeholder URLs');
       return { ogUrl: '', storiesUrl: '' };
     }
-    if (!r2Service.configured) {
+    if (!this.storage.configured) {
       const err = new Error('Share card generation unavailable: storage not configured');
       (err as any).statusCode = 503;
       throw err;
@@ -99,11 +109,11 @@ export class ShareCardService {
     badgeAwardId: string,
     data: BadgeCardData
   ): Promise<{ ogUrl: string; storiesUrl: string }> {
-    if (!r2Service.isReady) {
+    if (!this.storage.isReady) {
       logger.warn('ShareCardService: R2 not configured, returning placeholder URLs');
       return { ogUrl: '', storiesUrl: '' };
     }
-    if (!r2Service.configured) {
+    if (!this.storage.configured) {
       const err = new Error('Share card generation unavailable: storage not configured');
       (err as any).statusCode = 503;
       throw err;
@@ -128,11 +138,11 @@ export class ShareCardService {
     year: number,
     data: WrappedSummaryData
   ): Promise<{ ogUrl: string; storiesUrl: string }> {
-    if (!r2Service.isReady) {
+    if (!this.storage.isReady) {
       logger.warn('ShareCardService: R2 not configured, returning placeholder URLs');
       return { ogUrl: '', storiesUrl: '' };
     }
-    if (!r2Service.configured) {
+    if (!this.storage.configured) {
       const err = new Error('Share card generation unavailable: storage not configured');
       (err as any).statusCode = 503;
       throw err;
@@ -154,11 +164,11 @@ export class ShareCardService {
     year: number,
     data: WrappedStatData
   ): Promise<{ ogUrl: string; storiesUrl: string }> {
-    if (!r2Service.isReady) {
+    if (!this.storage.isReady) {
       logger.warn('ShareCardService: R2 not configured, returning placeholder URLs');
       return { ogUrl: '', storiesUrl: '' };
     }
-    if (!r2Service.configured) {
+    if (!this.storage.configured) {
       const err = new Error('Share card generation unavailable: storage not configured');
       (err as any).statusCode = 503;
       throw err;
@@ -189,9 +199,9 @@ export class ShareCardService {
     height: number,
     key: string
   ): Promise<string> {
-    const existing = await r2Service.headObject(key);
+    const existing = await this.storage.headObject(key);
     if (existing.exists) {
-      return r2Service.getPublicUrl(key);
+      return this.storage.getPublicUrl(key);
     }
 
     // Convert Node Buffer to ArrayBuffer for satori
@@ -224,7 +234,7 @@ export class ShareCardService {
     const pngBuffer = pngData.asPng();
 
     // Upload to R2
-    const publicUrl = await r2Service.uploadBuffer(Buffer.from(pngBuffer), key, 'image/png');
+    const publicUrl = await this.storage.uploadBuffer(Buffer.from(pngBuffer), key, 'image/png');
 
     return publicUrl;
   }

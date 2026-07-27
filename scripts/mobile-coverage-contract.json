@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "globalMinimumLinePercent": 40,
+  "criticalMinimumLinePercent": 70,
+  "generatedSuffixes": [".g.dart", ".freezed.dart"],
+  "generatedFiles": ["lib/firebase_options.dart"],
+  "criticalGroups": [
+    {
+      "id": "auth",
+      "description": "Authentication UI, repositories, stored credentials, and authenticated-session bootstrap.",
+      "prefixes": ["lib/src/features/auth/"],
+      "files": [
+        "lib/src/core/api/auth_session_store.dart",
+        "lib/src/core/session/authenticated_session.dart"
+      ]
+    },
+    {
+      "id": "check-in-photo",
+      "description": "Check-in creation/detail/rating and direct photo upload/confirmation.",
+      "prefixes": ["lib/src/features/checkins/"],
+      "files": []
+    },
+    {
+      "id": "feed-realtime-push",
+      "description": "Feed data/UI plus the WebSocket and push-notification consumers that update it.",
+      "prefixes": ["lib/src/features/feed/"],
+      "files": [
+        "lib/src/core/services/push_notification_service.dart",
+        "lib/src/core/services/websocket_service.dart"
+      ]
+    },
+    {
+      "id": "account-lifecycle",
+      "description": "Login credentials, authenticated-session transitions, and account deletion/cancellation.",
+      "prefixes": [],
+      "files": [
+        "lib/src/core/session/authenticated_session.dart",
+        "lib/src/features/auth/data/auth_repository.dart",
+        "lib/src/features/profile/data/account_repository.dart"
+      ]
+    },
+    {
+      "id": "sharing",
+      "description": "Share-card repositories, providers, screens, previews, and platform sharing.",
+      "prefixes": ["lib/src/features/sharing/"],
+      "files": []
+    },
+    {
+      "id": "subscription",
+      "description": "RevenueCat/server entitlement state, repositories, paywall, and premium UI.",
+      "prefixes": ["lib/src/features/subscription/"],
+      "files": []
+    }
+  ]
+}

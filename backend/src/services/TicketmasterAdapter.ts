@@ -195,7 +195,14 @@ export class TicketmasterAdapter {
           depth,
         });
 
-        await this.fetchRemainingPages(latlong, radius, startDate, endDate, firstResult, allNormalized);
+        await this.fetchRemainingPages(
+          latlong,
+          radius,
+          startDate,
+          endDate,
+          firstResult,
+          allNormalized
+        );
         return allNormalized;
       }
 

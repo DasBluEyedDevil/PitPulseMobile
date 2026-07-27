@@ -99,13 +99,15 @@ describe('User Stats Routes', () => {
 
     // Add error handler middleware for tests
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-      const statusCode = err.statusCode || err.status || 500;
-      res.status(statusCode).json({
-        success: false,
-        error: err.message || 'Request failed',
-      });
-    });
+    app.use(
+      (err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+        const statusCode = err.statusCode || err.status || 500;
+        res.status(statusCode).json({
+          success: false,
+          error: err.message || 'Request failed',
+        });
+      }
+    );
   });
 
   describe('GET /api/users/:userId/stats', () => {

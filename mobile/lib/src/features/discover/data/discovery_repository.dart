@@ -96,10 +96,7 @@ class DiscoveryRepository {
     try {
       final response = await _dioClient.get(
         '${ApiConfig.events}/genre/$genre',
-        queryParameters: {
-          'limit': limit,
-          'offset': offset,
-        },
+        queryParameters: {'limit': limit, 'offset': offset},
       );
 
       final List<dynamic> data = response.data['data'] as List<dynamic>;
@@ -125,9 +122,7 @@ class DiscoveryRepository {
     int limit = 20,
   }) async {
     try {
-      final queryParams = <String, dynamic>{
-        'limit': limit,
-      };
+      final queryParams = <String, dynamic>{'limit': limit};
       if (lat != null) queryParams['lat'] = lat;
       if (lon != null) queryParams['lon'] = lon;
       if (radiusKm != null) queryParams['radius'] = radiusKm;
@@ -160,10 +155,7 @@ class DiscoveryRepository {
     try {
       final response = await _dioClient.get(
         '${ApiConfig.events}/search',
-        queryParameters: {
-          'q': query,
-          'limit': limit,
-        },
+        queryParameters: {'q': query, 'limit': limit},
       );
 
       final List<dynamic> data = response.data['data'] as List<dynamic>;

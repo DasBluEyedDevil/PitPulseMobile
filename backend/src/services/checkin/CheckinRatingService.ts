@@ -118,13 +118,11 @@ export class CheckinRatingService {
 
         // Fire-and-forget: invalidate band aggregate cache for each rated band
         for (const br of ratings.bandRatings) {
-          cache
-            .del(CacheKeys.bandAggregate(br.bandId))
-            .catch((err) =>
-              logger.debug('Warning: band aggregate cache invalidation failed', {
-                error: err instanceof Error ? err.message : String(err),
-              })
-            );
+          cache.del(CacheKeys.bandAggregate(br.bandId)).catch((err) =>
+            logger.debug('Warning: band aggregate cache invalidation failed', {
+              error: err instanceof Error ? err.message : String(err),
+            })
+          );
         }
       }
 
@@ -135,13 +133,11 @@ export class CheckinRatingService {
         ]);
         const venueId = checkinForVenue.rows[0]?.venue_id;
         if (venueId) {
-          cache
-            .del(CacheKeys.venueAggregate(venueId))
-            .catch((err) =>
-              logger.debug('Warning: venue aggregate cache invalidation failed', {
-                error: err instanceof Error ? err.message : String(err),
-              })
-            );
+          cache.del(CacheKeys.venueAggregate(venueId)).catch((err) =>
+            logger.debug('Warning: venue aggregate cache invalidation failed', {
+              error: err instanceof Error ? err.message : String(err),
+            })
+          );
         }
       }
 

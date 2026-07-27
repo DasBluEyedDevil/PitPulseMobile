@@ -31,18 +31,17 @@ class SuggestedUser {
   });
 
   factory SuggestedUser.fromJson(Map<String, dynamic> json) => SuggestedUser(
-        id: json['id'] as String,
-        username: json['username'] as String,
-        displayName:
-            json['displayName'] as String? ?? json['username'] as String,
-        profileImageUrl: json['profileImageUrl'] as String?,
-        bio: json['bio'] as String?,
-        totalCheckins: json['totalCheckins'] as int? ?? 0,
-        isVerified: json['isVerified'] as bool? ?? false,
-        sharedBands: json['sharedBands'] as int? ?? 0,
-        sharedVenues: json['sharedVenues'] as int? ?? 0,
-        reason: json['reason'] as String?,
-      );
+    id: json['id'] as String,
+    username: json['username'] as String,
+    displayName: json['displayName'] as String? ?? json['username'] as String,
+    profileImageUrl: json['profileImageUrl'] as String?,
+    bio: json['bio'] as String?,
+    totalCheckins: json['totalCheckins'] as int? ?? 0,
+    isVerified: json['isVerified'] as bool? ?? false,
+    sharedBands: json['sharedBands'] as int? ?? 0,
+    sharedVenues: json['sharedVenues'] as int? ?? 0,
+    reason: json['reason'] as String?,
+  );
 }
 
 /// Fetches user suggestions for discovery.

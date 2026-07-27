@@ -24,4 +24,3 @@ export * from './trust.types';
 
 // API and utility types
 export * from './api.types';
-

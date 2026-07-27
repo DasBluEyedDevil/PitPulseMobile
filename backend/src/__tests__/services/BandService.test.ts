@@ -64,10 +64,7 @@ describe('BandService', () => {
         updatedAt: '2024-01-15T00:00:00Z',
       });
 
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT'),
-        ['band-123']
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('SELECT'), ['band-123']);
     });
 
     it('should return null when band not found', async () => {
@@ -301,9 +298,7 @@ describe('BandService', () => {
 
       mockDb.query.mockRejectedValueOnce(new Error('Duplicate band name'));
 
-      await expect(bandService.createBand(bandData)).rejects.toThrow(
-        'Duplicate band name'
-      );
+      await expect(bandService.createBand(bandData)).rejects.toThrow('Duplicate band name');
     });
   });
 
@@ -355,9 +350,9 @@ describe('BandService', () => {
     it('should throw error when band not found', async () => {
       mockDb.query.mockResolvedValueOnce({ rows: [] });
 
-      await expect(
-        bandService.updateBand('non-existent', { name: 'New Name' })
-      ).rejects.toThrow('Band not found or inactive');
+      await expect(bandService.updateBand('non-existent', { name: 'New Name' })).rejects.toThrow(
+        'Band not found or inactive'
+      );
     });
 
     it('should ignore undefined values in update data', async () => {
@@ -527,10 +522,10 @@ describe('BandService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].genre).toBe('Jazz');
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('$1 = ANY(genres)'),
-        ['Jazz', 20]
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('$1 = ANY(genres)'), [
+        'Jazz',
+        20,
+      ]);
     });
   });
 
@@ -573,11 +568,7 @@ describe('BandService', () => {
 
   describe('getGenres', () => {
     it('should return unique genres sorted alphabetically', async () => {
-      const mockGenres = [
-        { genre: 'Blues' },
-        { genre: 'Jazz' },
-        { genre: 'Rock' },
-      ];
+      const mockGenres = [{ genre: 'Blues' }, { genre: 'Jazz' }, { genre: 'Rock' }];
 
       mockDb.query.mockResolvedValueOnce({ rows: mockGenres });
 
@@ -608,14 +599,12 @@ describe('BandService', () => {
 
       await bandService.updateBandRating('band-123');
 
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE bands'),
-        ['band-123']
-      );
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('checkin_band_ratings'),
-        ['band-123']
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE bands'), [
+        'band-123',
+      ]);
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('checkin_band_ratings'), [
+        'band-123',
+      ]);
     });
 
     it('should handle database errors', async () => {

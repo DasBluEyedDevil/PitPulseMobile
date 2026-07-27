@@ -6,15 +6,46 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-import java.util.Properties
-import java.io.FileInputStream
+val releaseInputNames = listOf(
+    "SOUNDCHECK_GOOGLE_SERVICES_JSON_PATH",
+    "SOUNDCHECK_ANDROID_KEYSTORE_PATH",
+    "SOUNDCHECK_ANDROID_KEYSTORE_PASSWORD",
+    "SOUNDCHECK_ANDROID_KEY_ALIAS",
+    "SOUNDCHECK_ANDROID_KEY_PASSWORD",
+)
 
-// Load keystore properties from key.properties file
-val keystorePropertiesFile = rootProject.file("key.properties")
-val keystoreProperties = Properties()
+fun releaseInput(name: String): String = System.getenv(name)?.trim().orEmpty()
 
-if (keystorePropertiesFile.exists()) {
-    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+val validateReleaseInputs = tasks.register("validateReleaseInputs") {
+    group = "verification"
+    description = "Fails release tasks when required external release inputs are absent."
+
+    doLast {
+        val missing = releaseInputNames.filter { releaseInput(it).isEmpty() }
+        if (missing.isNotEmpty()) {
+            throw GradleException(
+                "Release build requires these environment variables: ${missing.joinToString(", ")}",
+            )
+        }
+
+        val googleServices = file(releaseInput("SOUNDCHECK_GOOGLE_SERVICES_JSON_PATH"))
+        val keystore = file(releaseInput("SOUNDCHECK_ANDROID_KEYSTORE_PATH"))
+        if (!googleServices.isFile) {
+            throw GradleException("SOUNDCHECK_GOOGLE_SERVICES_JSON_PATH must reference a readable file")
+        }
+        if (!keystore.isFile) {
+            throw GradleException("SOUNDCHECK_ANDROID_KEYSTORE_PATH must reference a readable file")
+        }
+    }
+}
+
+val prepareReleaseGoogleServices = tasks.register<Copy>("prepareReleaseGoogleServices") {
+    group = "build setup"
+    description = "Copies the external Google Services configuration into the ignored Android app path."
+    dependsOn(validateReleaseInputs)
+    from(providers.provider { file(releaseInput("SOUNDCHECK_GOOGLE_SERVICES_JSON_PATH").ifBlank { "missing-google-services.json" }) })
+    into(layout.projectDirectory.dir("app"))
+    rename { "google-services.json" }
 }
 
 android {
@@ -28,15 +59,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    // Configure signing for release builds
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-            }
+            keyAlias = releaseInput("SOUNDCHECK_ANDROID_KEY_ALIAS")
+            keyPassword = releaseInput("SOUNDCHECK_ANDROID_KEY_PASSWORD")
+            storeFile = file(releaseInput("SOUNDCHECK_ANDROID_KEYSTORE_PATH").ifBlank { "missing-release-keystore" })
+            storePassword = releaseInput("SOUNDCHECK_ANDROID_KEYSTORE_PASSWORD")
         }
     }
 
@@ -53,12 +81,7 @@ android {
 
     buildTypes {
         release {
-            // Use release signing config if key.properties exists, otherwise use debug for testing
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
 
             // Enable code shrinking and obfuscation for release builds
             isMinifyEnabled = true
@@ -68,6 +91,36 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+}
+
+tasks.configureEach {
+    if (name.contains("Release", ignoreCase = true) && name !in setOf("validateReleaseInputs", "prepareReleaseGoogleServices")) {
+        dependsOn(prepareReleaseGoogleServices)
+    }
+}
+
+tasks.register("verifyReleaseCertificate") {
+    group = "verification"
+    description = "Verifies the signed release AAB and reports only its SHA-256 certificate fingerprint."
+    dependsOn("bundleRelease")
+
+    doLast {
+        val bundle = layout.buildDirectory.file("outputs/bundle/release/app-release.aab").get().asFile
+        if (!bundle.isFile) {
+            throw GradleException("Expected release bundle at ${bundle.absolutePath}")
+        }
+
+        val output = providers.exec {
+            commandLine("keytool", "-printcert", "-jarfile", bundle.absolutePath)
+        }.standardOutput.asText.get()
+
+        val fingerprint = Regex("SHA256:\\s*([0-9A-F:]+)", RegexOption.IGNORE_CASE)
+            .find(output)
+            ?.groupValues
+            ?.get(1)
+            ?: throw GradleException("Unable to read a SHA-256 certificate fingerprint from the release AAB")
+        logger.lifecycle("Verified release AAB SHA-256 certificate fingerprint: $fingerprint")
     }
 }
 

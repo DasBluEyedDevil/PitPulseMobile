@@ -1,6 +1,6 @@
 /**
  * NotificationPublisher Service
- * 
+ *
  * Handles WebSocket-based real-time notification publishing.
  * Separated from NotificationService to maintain single responsibility:
  * - NotificationService: Database operations for notifications
@@ -35,7 +35,11 @@ export class NotificationPublisher {
         ...payload,
         timestamp: new Date().toISOString(),
       };
-      const published = await realtimePublisher.publishToUser(userId, 'notification', realtimePayload);
+      const published = await realtimePublisher.publishToUser(
+        userId,
+        'notification',
+        realtimePayload
+      );
       if (!published) {
         websocket.sendToUser(userId, 'notification', realtimePayload);
       }

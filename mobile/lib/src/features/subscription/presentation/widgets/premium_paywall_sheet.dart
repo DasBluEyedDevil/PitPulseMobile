@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
+import '../../../../core/providers/providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/analytics_service.dart';
 import '../subscription_service.dart';
@@ -35,20 +36,29 @@ class _PremiumPaywallSheetState extends ConsumerState<PremiumPaywallSheet> {
   Future<void> _onSubscribe() async {
     setState(() => _isPurchasing = true);
     try {
-      final result =
-          await SubscriptionService.presentUnlimitedPaywallIfNeeded();
-      if (!mounted) return;
+      final premiumNotifier = ref.read(isPremiumProvider.notifier);
+      final generation = premiumNotifier.sessionGeneration;
+      final subscriptionClient = ref.read(subscriptionSessionClientProvider);
+      final result = await subscriptionClient.presentUnlimitedPaywallIfNeeded();
+      if (!mounted || generation != premiumNotifier.sessionGeneration) return;
 
       if (result == PaywallResult.purchased ||
           result == PaywallResult.restored) {
-        final customerInfo = await SubscriptionService.getCustomerInfo();
+        final customerInfo = await subscriptionClient.getCustomerInfo();
+        if (!mounted || generation != premiumNotifier.sessionGeneration) {
+          return;
+        }
         if (customerInfo != null &&
             SubscriptionService.hasUnlimitedEntitlement(customerInfo)) {
-          ref.read(isPremiumProvider.notifier).set(true);
-          ref.invalidate(revenueCatCustomerInfoProvider);
-          ref.invalidate(serverSubscriptionStatusProvider);
+          await premiumNotifier.reconcileCustomerInfo(
+            customerInfo,
+            generation: generation,
+          );
+          if (!mounted || generation != premiumNotifier.sessionGeneration) {
+            return;
+          }
           AnalyticsService.logEvent(name: 'subscription_started');
-          if (mounted) Navigator.of(context).pop();
+          Navigator.of(context).pop();
         }
       } else if (result == PaywallResult.error) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -63,28 +73,36 @@ class _PremiumPaywallSheetState extends ConsumerState<PremiumPaywallSheet> {
   Future<void> _onRestore() async {
     setState(() => _isRestoring = true);
     try {
-      final customerInfo = await SubscriptionService.restorePurchases();
-      if (mounted) {
-        if (customerInfo != null) {
-          final hasUnlimited = SubscriptionService.hasUnlimitedEntitlement(
-            customerInfo,
-          );
-          if (hasUnlimited) {
-            ref.read(isPremiumProvider.notifier).set(true);
-            ref.invalidate(revenueCatCustomerInfoProvider);
-            ref.invalidate(serverSubscriptionStatusProvider);
-            AnalyticsService.logEvent(name: 'subscription_restored');
-            Navigator.of(context).pop();
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No active subscription found')),
-            );
-          }
+      final premiumNotifier = ref.read(isPremiumProvider.notifier);
+      final generation = premiumNotifier.sessionGeneration;
+      final customerInfo = await ref
+          .read(subscriptionSessionClientProvider)
+          .restorePurchases();
+      if (!mounted || generation != premiumNotifier.sessionGeneration) return;
+
+      if (customerInfo != null) {
+        final hasUnlimited = SubscriptionService.hasUnlimitedEntitlement(
+          customerInfo,
+        );
+        await premiumNotifier.reconcileCustomerInfo(
+          customerInfo,
+          generation: generation,
+        );
+        if (!mounted || generation != premiumNotifier.sessionGeneration) {
+          return;
+        }
+        if (hasUnlimited) {
+          AnalyticsService.logEvent(name: 'subscription_restored');
+          Navigator.of(context).pop();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No previous purchases found')),
+            const SnackBar(content: Text('No active subscription found')),
           );
         }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No previous purchases found')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isRestoring = false);

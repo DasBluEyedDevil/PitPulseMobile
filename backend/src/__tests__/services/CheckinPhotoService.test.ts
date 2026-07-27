@@ -98,6 +98,29 @@ describe('CheckinPhotoService', () => {
     expect(mockR2Service.getPresignedUploadUrl).not.toHaveBeenCalled();
   });
 
+  it('rejects signed URL requests for missing check-ins and non-owners', async () => {
+    mockDb.query.mockResolvedValueOnce({ rows: [] });
+
+    await expect(
+      service.requestPhotoUploadUrls(checkinId, userId, ['image/jpeg'])
+    ).rejects.toMatchObject({
+      message: 'Check-in not found',
+      statusCode: 404,
+    });
+
+    mockDb.query.mockResolvedValueOnce({
+      rows: [{ user_id: 'another-user', image_urls: [] }],
+    });
+
+    await expect(
+      service.requestPhotoUploadUrls(checkinId, userId, ['image/jpeg'])
+    ).rejects.toMatchObject({
+      message: 'Unauthorized to modify this check-in',
+      statusCode: 403,
+    });
+    expect(mockR2Service.getPresignedUploadUrl).not.toHaveBeenCalled();
+  });
+
   it('HEADs all pending keys before storing URLs and deleting pending rows', async () => {
     mockDb.query
       .mockResolvedValueOnce({
@@ -221,5 +244,106 @@ describe('CheckinPhotoService', () => {
     });
 
     expect(mockDb.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects uploaded objects whose extension does not match the signed image type', async () => {
+    const mismatchedKey = `checkins/${checkinId}/renamed.png`;
+    mockDb.query
+      .mockResolvedValueOnce({ rows: [{ user_id: userId, image_urls: [] }] })
+      .mockResolvedValueOnce({ rows: [{ object_key: mismatchedKey }] });
+    mockR2Service.headObject.mockResolvedValueOnce({
+      exists: true,
+      contentLength: 100,
+      contentType: 'image/jpeg; charset=binary',
+    });
+
+    await expect(service.addPhotos(checkinId, userId, [mismatchedKey])).rejects.toMatchObject({
+      message: 'One or more uploaded photos have an invalid type or size',
+      statusCode: 400,
+    });
+    expect(mockDb.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not attach photos when existing and newly confirmed URLs exceed the cap', async () => {
+    const existingUrls = Array.from(
+      { length: service.MAX_PHOTOS_PER_CHECKIN },
+      (_, index) => `https://cdn.example.com/existing-${index}.jpg`
+    );
+    mockDb.query
+      .mockResolvedValueOnce({ rows: [{ user_id: userId, image_urls: existingUrls }] })
+      .mockResolvedValueOnce({ rows: [{ object_key: photoKeys[0] }] });
+    mockR2Service.headObject.mockResolvedValueOnce({
+      exists: true,
+      contentLength: 100,
+      contentType: 'image/jpeg',
+    });
+
+    await expect(service.addPhotos(checkinId, userId, [photoKeys[0]])).rejects.toMatchObject({
+      statusCode: 400,
+    });
+    expect(mockDb.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE checkins'),
+      expect.anything()
+    );
+  });
+
+  it('returns stored photos and degrades to an empty list for missing rows or database errors', async () => {
+    const stored = ['https://cdn.example.com/one.jpg'];
+    mockDb.query
+      .mockResolvedValueOnce({ rows: [{ image_urls: stored }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockRejectedValueOnce(new Error('database unavailable'));
+
+    await expect(service.getPhotos(checkinId)).resolves.toEqual(stored);
+    await expect(service.getPhotos('missing')).resolves.toEqual([]);
+    await expect(service.getPhotos(checkinId)).resolves.toEqual([]);
+  });
+
+  it('removes only selected photos for the check-in owner', async () => {
+    const keepUrl = 'https://cdn.example.com/keep.jpg';
+    const removeUrl = 'https://cdn.example.com/remove.jpg';
+    mockDb.query
+      .mockResolvedValueOnce({
+        rows: [{ user_id: userId, image_urls: [keepUrl, removeUrl] }],
+      })
+      .mockResolvedValueOnce({ rowCount: 1 });
+
+    await expect(service.deletePhotos(checkinId, userId, [removeUrl])).resolves.toEqual([keepUrl]);
+    expect(mockDb.query).toHaveBeenNthCalledWith(
+      2,
+      'UPDATE checkins SET image_urls = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [[keepUrl], checkinId]
+    );
+  });
+
+  it('rejects photo deletion for missing check-ins and non-owners', async () => {
+    mockDb.query.mockResolvedValueOnce({ rows: [] });
+
+    await expect(service.deletePhotos(checkinId, userId, [])).rejects.toMatchObject({
+      statusCode: 404,
+    });
+
+    mockDb.query.mockResolvedValueOnce({
+      rows: [{ user_id: 'another-user', image_urls: [] }],
+    });
+
+    await expect(service.deletePhotos(checkinId, userId, [])).rejects.toMatchObject({
+      statusCode: 403,
+    });
+  });
+
+  it('reports remaining photo slots without returning a negative value', async () => {
+    mockDb.query
+      .mockResolvedValueOnce({ rows: [{ image_urls: ['one.jpg'] }] })
+      .mockResolvedValueOnce({
+        rows: [{ image_urls: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg'] }],
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockRejectedValueOnce(new Error('database unavailable'));
+
+    await expect(service.getRemainingPhotoSlots(checkinId)).resolves.toBe(3);
+    await expect(service.getRemainingPhotoSlots(checkinId)).resolves.toBe(0);
+    await expect(service.getRemainingPhotoSlots('missing')).resolves.toBe(0);
+    await expect(service.getRemainingPhotoSlots(checkinId)).resolves.toBe(0);
   });
 });

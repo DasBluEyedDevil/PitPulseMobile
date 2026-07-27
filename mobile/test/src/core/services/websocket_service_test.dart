@@ -7,8 +7,10 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:soundcheck_flutter/src/core/services/websocket_service.dart';
 
 class _FakeWebSocketChannel implements WebSocketChannel {
-  _FakeWebSocketChannel();
+  _FakeWebSocketChannel({Completer<void>? ready})
+    : _ready = ready ?? (Completer<void>()..complete());
 
+  final Completer<void> _ready;
   final StreamController<dynamic> incoming = StreamController<dynamic>();
   final _FakeWebSocketSink _sink = _FakeWebSocketSink();
 
@@ -22,7 +24,7 @@ class _FakeWebSocketChannel implements WebSocketChannel {
   String? get protocol => null;
 
   @override
-  Future<void> get ready => Future.value();
+  Future<void> get ready => _ready.future;
 
   @override
   WebSocketSink get sink => _sink;
@@ -151,6 +153,77 @@ void main() {
   );
 
   test(
+    'routes backend realtime envelopes to typed and general streams',
+    () async {
+      final channel = _FakeWebSocketChannel();
+      final service = WebSocketService(
+        uriBuilder: (_) => Uri.parse('wss://example.test/socket'),
+        channelFactory: (_, {authToken}) => channel,
+      );
+      addTearDown(service.dispose);
+      await service.connect(authToken: 'abc123', userId: 'user-1');
+
+      final toast = service.toastStream.first;
+      final comment = service.commentStream.first;
+      final checkin = service.newCheckinStream.first;
+      final sameEvent = service.sameEventCheckinStream.first;
+      final general = service.messageStream.take(6).toList();
+
+      channel
+        ..addServerMessage(WebSocketEvents.newToast, {'checkinId': 'checkin-1'})
+        ..addServerMessage(WebSocketEvents.newComment, {
+          'checkinId': 'checkin-1',
+          'commentId': 'comment-1',
+        })
+        ..addServerMessage(WebSocketEvents.newCheckin, {
+          'checkinId': 'checkin-2',
+        })
+        ..addServerMessage(WebSocketEvents.sameEventCheckin, {
+          'eventId': 'event-1',
+        })
+        ..addServerMessage(WebSocketEvents.badgeEarned, {'badgeId': 'badge-1'})
+        ..addServerMessage(WebSocketEvents.newFollower, {'userId': 'user-2'});
+
+      expect(await toast, {'checkinId': 'checkin-1'});
+      expect(await comment, {
+        'checkinId': 'checkin-1',
+        'commentId': 'comment-1',
+      });
+      expect(await checkin, {'checkinId': 'checkin-2'});
+      expect(await sameEvent, {'eventId': 'event-1'});
+      expect((await general).map((message) => message.type), [
+        WebSocketEvents.newToast,
+        WebSocketEvents.newComment,
+        WebSocketEvents.newCheckin,
+        WebSocketEvents.sameEventCheckin,
+        WebSocketEvents.badgeEarned,
+        WebSocketEvents.newFollower,
+      ]);
+    },
+  );
+
+  test(
+    'malformed envelopes are ignored without poisoning later messages',
+    () async {
+      final channel = _FakeWebSocketChannel();
+      final service = WebSocketService(
+        uriBuilder: (_) => Uri.parse('wss://example.test/socket'),
+        channelFactory: (_, {authToken}) => channel,
+      );
+      addTearDown(service.dispose);
+      await service.connect(authToken: 'abc123', userId: 'user-1');
+
+      final nextMessage = service.messageStream.first;
+      channel.incoming.add('{malformed-json');
+      channel.addServerMessage(WebSocketEvents.newCheckin, {
+        'checkinId': 'checkin-after-error',
+      });
+
+      expect((await nextMessage).payload, {'checkinId': 'checkin-after-error'});
+    },
+  );
+
+  test(
     'intentional disconnect clears credentials and suppresses reconnect',
     () async {
       final channels = <_FakeWebSocketChannel>[];
@@ -174,6 +247,35 @@ void main() {
       expect(channels.single.isClosed, isTrue);
 
       service.dispose();
+    },
+  );
+
+  test(
+    'disconnect fences a channel whose ready future completes later',
+    () async {
+      final ready = Completer<void>();
+      final channel = _FakeWebSocketChannel(ready: ready);
+      final connectionEvents = <bool>[];
+      final service = WebSocketService(
+        uriBuilder: (_) => Uri.parse('wss://example.test/socket'),
+        channelFactory: (_, {authToken}) => channel,
+      );
+      final subscription = service.connectionStream.listen(
+        connectionEvents.add,
+      );
+      addTearDown(subscription.cancel);
+      addTearDown(service.dispose);
+
+      final connect = service.connect(authToken: 'token-a', userId: 'user-a');
+      await Future<void>.delayed(Duration.zero);
+      service.disconnect();
+      ready.complete();
+      await connect;
+
+      expect(service.isConnected, isFalse);
+      expect(service.isAuthenticated, isFalse);
+      expect(channel.isClosed, isTrue);
+      expect(connectionEvents, isNot(contains(true)));
     },
   );
 }

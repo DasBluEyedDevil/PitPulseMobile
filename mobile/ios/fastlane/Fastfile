@@ -90,6 +90,10 @@ def from_mobile_root(command)
   end
 end
 
+def verify_store_assets!
+  from_mobile_root("node ../scripts/check-fastlane-store-assets.mjs")
+end
+
 def metadata_text(file_name)
   path = File.join(IOS_METADATA, "default", file_name)
   File.exist?(path) ? File.read(path).strip : nil
@@ -206,6 +210,7 @@ platform :ios do
 
   desc "Copy curated iOS screenshots into Fastlane's App Store screenshot folder"
   lane :screenshots do
+    verify_store_assets!
     sync_curated_ios_screenshots
   end
 
@@ -221,8 +226,9 @@ platform :ios do
 
   desc "Upload App Store metadata and screenshots without uploading a binary"
   lane :deliver_metadata do
+    verify_store_assets!
     upload_options = {
-      app_identifier: "com.soundcheck.app",
+      app_identifier: "com.9thlevelsoftware.soundcheck",
       metadata_path: IOS_METADATA,
       screenshots_path: IOS_SCREENSHOTS,
       skip_binary_upload: true,
@@ -235,11 +241,12 @@ platform :ios do
 
   desc "Upload the IPA and beta details to TestFlight"
   lane :beta do
+    verify_store_assets! if truthy_env("SUBMIT_BETA_REVIEW")
     build_beta unless truthy_env("SKIP_IOS_BUILD")
     UI.user_error!("Expected IPA missing at #{IPA_PATH}") unless File.exist?(IPA_PATH)
 
     upload_options = {
-      app_identifier: "com.soundcheck.app",
+      app_identifier: "com.9thlevelsoftware.soundcheck",
       ipa: IPA_PATH,
       changelog: metadata_text("release_notes.txt"),
       beta_app_description: metadata_text("description.txt"),

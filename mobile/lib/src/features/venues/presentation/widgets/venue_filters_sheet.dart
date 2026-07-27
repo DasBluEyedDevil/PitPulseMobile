@@ -22,8 +22,9 @@ class VenueFiltersSheet extends ConsumerWidget {
         final isDark = Theme.of(context).brightness == Brightness.dark;
         return Container(
           decoration: BoxDecoration(
-            color:
-                isDark ? Theme.of(context).colorScheme.surface : Colors.white,
+            color: isDark
+                ? Theme.of(context).colorScheme.surface
+                : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
@@ -121,10 +122,7 @@ class VenueFiltersSheet extends ConsumerWidget {
       children: [
         const Text(
           'Sort By',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: AppTheme.spacing12),
         RadioGroup<VenueSortBy>(
@@ -160,10 +158,7 @@ class VenueFiltersSheet extends ConsumerWidget {
       children: [
         const Text(
           'Venue Type',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: AppTheme.spacing12),
         Wrap(
@@ -196,10 +191,7 @@ class VenueFiltersSheet extends ConsumerWidget {
           children: [
             const Text(
               'Minimum Rating',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const Spacer(),
             if (filters.minRating != null)
@@ -253,10 +245,7 @@ class VenueFiltersSheet extends ConsumerWidget {
       children: [
         const Text(
           'Capacity Range',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: AppTheme.spacing12),
         Row(
@@ -272,10 +261,7 @@ class VenueFiltersSheet extends ConsumerWidget {
                 ),
                 onChanged: (value) {
                   final min = int.tryParse(value);
-                  notifier.setCapacityRange(
-                    min: min,
-                    max: filters.maxCapacity,
-                  );
+                  notifier.setCapacityRange(min: min, max: filters.maxCapacity);
                 },
               ),
             ),
@@ -291,10 +277,7 @@ class VenueFiltersSheet extends ConsumerWidget {
                 ),
                 onChanged: (value) {
                   final max = int.tryParse(value);
-                  notifier.setCapacityRange(
-                    min: filters.minCapacity,
-                    max: max,
-                  );
+                  notifier.setCapacityRange(min: filters.minCapacity, max: max);
                 },
               ),
             ),

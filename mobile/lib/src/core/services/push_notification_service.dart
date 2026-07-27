@@ -18,10 +18,72 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   LogService.i('Background message received: ${message.messageId}');
 }
 
+abstract interface class PushMessagingClient {
+  Future<bool> ensureInitialized();
+
+  void registerBackgroundHandler();
+
+  Future<AuthorizationStatus> requestPermission();
+
+  Future<String?> getToken();
+
+  Stream<String> get onTokenRefresh;
+
+  Stream<RemoteMessage> get onMessage;
+
+  Stream<RemoteMessage> get onMessageOpenedApp;
+
+  Future<RemoteMessage?> getInitialMessage();
+}
+
+class FirebasePushMessagingClient implements PushMessagingClient {
+  const FirebasePushMessagingClient();
+
+  @override
+  Future<bool> ensureInitialized() => FirebaseBootstrap.ensureInitialized();
+
+  @override
+  void registerBackgroundHandler() {
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  }
+
+  @override
+  Future<AuthorizationStatus> requestPermission() async {
+    final settings = await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+    );
+    return settings.authorizationStatus;
+  }
+
+  @override
+  Future<String?> getToken() => FirebaseMessaging.instance.getToken();
+
+  @override
+  Stream<String> get onTokenRefresh =>
+      FirebaseMessaging.instance.onTokenRefresh;
+
+  @override
+  Stream<RemoteMessage> get onMessage => FirebaseMessaging.onMessage;
+
+  @override
+  Stream<RemoteMessage> get onMessageOpenedApp =>
+      FirebaseMessaging.onMessageOpenedApp;
+
+  @override
+  Future<RemoteMessage?> getInitialMessage() {
+    return FirebaseMessaging.instance.getInitialMessage();
+  }
+}
+
 /// Service for managing push notifications via Firebase Cloud Messaging
 /// and displaying foreground notifications via flutter_local_notifications
 class PushNotificationService {
   final FeedRepository? _feedRepository;
+  final PushMessagingClient _messagingClient;
+  final Future<void> Function()? _localNotificationsInitializer;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
@@ -44,8 +106,14 @@ class PushNotificationService {
   /// Stream of notification IDs when tapped
   Stream<String> get onNotificationTap => _notificationTapController.stream;
 
-  PushNotificationService({FeedRepository? feedRepository})
-    : _feedRepository = feedRepository;
+  PushNotificationService({
+    FeedRepository? feedRepository,
+    PushMessagingClient? messagingClient,
+    Future<void> Function()? localNotificationsInitializer,
+  }) : _feedRepository = feedRepository,
+       _messagingClient =
+           messagingClient ?? const FirebasePushMessagingClient(),
+       _localNotificationsInitializer = localNotificationsInitializer;
 
   /// Initialize push notification service
   /// Requests permission, gets FCM token, sets up handlers
@@ -66,70 +134,81 @@ class PushNotificationService {
   Future<void> _initialize() async {
     final generation = _sessionGeneration;
     try {
-      final firebaseReady = await FirebaseBootstrap.ensureInitialized();
+      final firebaseReady = await _messagingClient.ensureInitialized();
       if (!firebaseReady) return;
+      if (generation != _sessionGeneration) return;
 
       // Set background message handler
-      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      _messagingClient.registerBackgroundHandler();
 
       // Request notification permission
-      final settings = await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
-      );
+      final authorizationStatus = await _messagingClient.requestPermission();
+      if (generation != _sessionGeneration) return;
 
-      if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      if (authorizationStatus == AuthorizationStatus.denied) {
         LogService.w('Push notification permission denied');
         return;
       }
 
-      LogService.i(
-        'Push notification permission: ${settings.authorizationStatus}',
-      );
+      LogService.i('Push notification permission: $authorizationStatus');
 
       // Initialize local notifications for foreground display
-      await _initializeLocalNotifications();
+      final localNotificationsInitializer = _localNotificationsInitializer;
+      if (localNotificationsInitializer == null) {
+        await _initializeLocalNotifications();
+      } else {
+        await localNotificationsInitializer();
+      }
       if (generation != _sessionGeneration) return;
 
       // Get FCM token
-      final token = await FirebaseMessaging.instance.getToken();
+      final token = await _messagingClient.getToken();
       if (generation != _sessionGeneration) return;
       if (token != null) {
-        _currentToken = token;
         await _sendTokenToBackend(token);
+        if (generation != _sessionGeneration) return;
+        _currentToken = token;
         LogService.i('FCM token obtained: ${token.substring(0, 20)}...');
       }
 
       // Listen for token refresh
       await _tokenRefreshSubscription?.cancel();
       if (generation != _sessionGeneration) return;
-      _tokenRefreshSubscription = FirebaseMessaging.instance.onTokenRefresh
-          .listen((newToken) async {
-            _currentToken = newToken;
-            await _sendTokenToBackend(newToken);
-            LogService.i('FCM token refreshed');
-          });
+      _tokenRefreshSubscription = _messagingClient.onTokenRefresh.listen((
+        newToken,
+      ) async {
+        if (generation != _sessionGeneration) return;
+        try {
+          await _sendTokenToBackend(newToken);
+          if (generation != _sessionGeneration) return;
+          _currentToken = newToken;
+          LogService.i('FCM token refreshed');
+        } catch (e, stack) {
+          LogService.e(
+            'Failed to refresh push notification registration',
+            e,
+            stack,
+          );
+        }
+      });
 
       // Handle foreground messages -- show local notification
       await _onMessageSubscription?.cancel();
       if (generation != _sessionGeneration) return;
-      _onMessageSubscription = FirebaseMessaging.onMessage.listen(
+      _onMessageSubscription = _messagingClient.onMessage.listen(
         _showLocalNotification,
       );
 
       // Handle notification tap when app is in background
       await _onMessageOpenedAppSubscription?.cancel();
       if (generation != _sessionGeneration) return;
-      _onMessageOpenedAppSubscription = FirebaseMessaging.onMessageOpenedApp
+      _onMessageOpenedAppSubscription = _messagingClient.onMessageOpenedApp
           .listen(_handleNotificationTap);
 
       // Handle notification tap when app was terminated
       if (!_initialMessageHandled) {
         _initialMessageHandled = true;
-        final initialMessage = await FirebaseMessaging.instance
-            .getInitialMessage();
+        final initialMessage = await _messagingClient.getInitialMessage();
         if (generation != _sessionGeneration) {
           await _cancelSessionSubscriptions();
           return;
@@ -347,13 +426,12 @@ class PushNotificationService {
 
   /// Send FCM token to backend for push notification targeting
   Future<void> _sendTokenToBackend(String token) async {
-    try {
-      final platform = Platform.isIOS ? 'ios' : 'android';
-      await _feedRepository?.registerDeviceToken(token, platform);
-    } catch (e) {
-      LogService.e('Failed to send FCM token to backend', e);
-      // Non-fatal: token registration failure shouldn't block app usage
-    }
+    final repository = _feedRepository;
+    if (repository == null) return;
+
+    final platform = Platform.isIOS ? 'ios' : 'android';
+    final result = await repository.registerDeviceToken(token, platform);
+    result.fold((failure) => throw Exception(failure.message), (_) {});
   }
 
   /// Cancel session-scoped Firebase subscriptions while preserving tap stream

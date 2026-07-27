@@ -119,11 +119,7 @@ class AnalyticsService {
   }) async {
     await logEvent(
       name: 'checkin',
-      parameters: {
-        'venue_id': venueId,
-        'band_id': ?bandId,
-        'rating': ?rating,
-      },
+      parameters: {'venue_id': venueId, 'band_id': ?bandId, 'rating': ?rating},
     );
   }
 
@@ -136,10 +132,7 @@ class AnalyticsService {
   static Future<void> logVenueView(String venueId, {String? venueName}) async {
     await logEvent(
       name: 'venue_viewed',
-      parameters: {
-        'venue_id': venueId,
-        'venue_name': ?venueName,
-      },
+      parameters: {'venue_id': venueId, 'venue_name': ?venueName},
     );
   }
 
@@ -147,10 +140,7 @@ class AnalyticsService {
   static Future<void> logBandView(String bandId, {String? bandName}) async {
     await logEvent(
       name: 'band_viewed',
-      parameters: {
-        'band_id': bandId,
-        'band_name': ?bandName,
-      },
+      parameters: {'band_id': bandId, 'band_name': ?bandName},
     );
   }
 
@@ -161,10 +151,7 @@ class AnalyticsService {
   }) async {
     await logEvent(
       name: 'follow',
-      parameters: {
-        'target_type': targetType,
-        'target_id': targetId,
-      },
+      parameters: {'target_type': targetType, 'target_id': targetId},
     );
   }
 
@@ -175,10 +162,7 @@ class AnalyticsService {
   }) async {
     await logEvent(
       name: 'unfollow',
-      parameters: {
-        'target_type': targetType,
-        'target_id': targetId,
-      },
+      parameters: {'target_type': targetType, 'target_id': targetId},
     );
   }
 
@@ -189,10 +173,7 @@ class AnalyticsService {
   }) async {
     await logEvent(
       name: 'share',
-      parameters: {
-        'content_type': contentType,
-        'item_id': itemId,
-      },
+      parameters: {'content_type': contentType, 'item_id': itemId},
     );
   }
 

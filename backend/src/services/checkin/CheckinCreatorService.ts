@@ -15,6 +15,7 @@ import { PoolClient } from 'pg';
 import { EventService } from '../EventService';
 import { FeedService } from '../FeedService';
 import { badgeEvalQueue } from '../../jobs/badgeQueue';
+import { QueueContracts } from '../../jobs/queueContracts';
 import { cache, CacheKeys } from '../../utils/cache';
 import { getRedis } from '../../utils/redisRateLimiter';
 import { notificationBatchService } from '../NotificationBatchService';
@@ -182,7 +183,7 @@ export class CheckinCreatorService {
       if (badgeEvalQueue) {
         try {
           await badgeEvalQueue.add(
-            'evaluate',
+            QueueContracts.badgeEvaluation.jobs.evaluate,
             { userId, checkinId },
             {
               delay: 30000,
@@ -358,7 +359,7 @@ export class CheckinCreatorService {
       if (badgeEvalQueue) {
         try {
           await badgeEvalQueue.add(
-            'evaluate',
+            QueueContracts.badgeEvaluation.jobs.evaluate,
             { userId, checkinId },
             {
               delay: 30000,

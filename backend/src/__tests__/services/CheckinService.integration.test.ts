@@ -9,7 +9,8 @@ import { CheckinService } from '../../services/CheckinService';
  * They test the checkins, toasts, checkin_comments, and checkin_vibes tables.
  *
  * Key schema validations:
- * - checkins table uses venue_id and band_id (not event_id)
+ * - events and event_lineup are the canonical show model
+ * - checkins support event-first and manual venue/band check-ins
  * - toasts table (not checkin_toasts)
  * - checkin_comments.content column (not comment_text)
  * - vibe_tags.icon column (not emoji)
@@ -113,7 +114,7 @@ describeIntegration('CheckinService Integration Tests', () => {
   });
 
   describe('Database Schema Verification', () => {
-    it('should have checkins table with venue_id and band_id columns (not event_id)', async () => {
+    it('should have checkins table with the final event-first and manual-checkin columns', async () => {
       const result = await db.query(`
         SELECT column_name, data_type, is_nullable
         FROM information_schema.columns
@@ -126,6 +127,7 @@ describeIntegration('CheckinService Integration Tests', () => {
       // Verify correct columns exist
       expect(columns).toContain('id');
       expect(columns).toContain('user_id');
+      expect(columns).toContain('event_id');
       expect(columns).toContain('venue_id');
       expect(columns).toContain('band_id');
       expect(columns).toContain('rating');
@@ -139,8 +141,11 @@ describeIntegration('CheckinService Integration Tests', () => {
       expect(columns).toContain('created_at');
       expect(columns).toContain('updated_at');
 
-      // Verify event_id does NOT exist (schema mismatch fix)
-      expect(columns).not.toContain('event_id');
+      const eventIdColumn = result.rows.find((row: any) => row.column_name === 'event_id');
+      expect(eventIdColumn).toMatchObject({
+        data_type: 'uuid',
+        is_nullable: 'YES',
+      });
     });
 
     it('should have toasts table (not checkin_toasts)', async () => {
@@ -199,28 +204,41 @@ describeIntegration('CheckinService Integration Tests', () => {
       expect(columns).not.toContain('emoji');
     });
 
-    it('should have shows table (not events)', async () => {
-      // Verify shows table exists
-      const showsResult = await db.query(`
-        SELECT column_name
-        FROM information_schema.columns
-        WHERE table_name = 'shows'
-      `);
-      expect(showsResult.rows.length).toBeGreaterThan(0);
-
-      const showColumns = showsResult.rows.map((row: any) => row.column_name);
-      expect(showColumns).toContain('id');
-      expect(showColumns).toContain('venue_id');
-      expect(showColumns).toContain('band_id');
-      expect(showColumns).toContain('show_date');
-
-      // Verify events table does NOT exist (or is empty)
+    it('should use events and event_lineup as the canonical show schema', async () => {
       const eventsResult = await db.query(`
         SELECT column_name
         FROM information_schema.columns
         WHERE table_name = 'events'
       `);
-      expect(eventsResult.rows.length).toBe(0);
+      expect(eventsResult.rows.length).toBeGreaterThan(0);
+
+      const eventColumns = eventsResult.rows.map((row: any) => row.column_name);
+      expect(eventColumns).toEqual(
+        expect.arrayContaining([
+          'id',
+          'venue_id',
+          'event_date',
+          'event_name',
+          'is_cancelled',
+          'source',
+        ])
+      );
+
+      const lineupResult = await db.query(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'event_lineup'
+      `);
+      const lineupColumns = lineupResult.rows.map((row: any) => row.column_name);
+      expect(lineupColumns).toEqual(
+        expect.arrayContaining(['id', 'event_id', 'band_id', 'set_order', 'is_headliner'])
+      );
+
+      // A migrations-only empty database never creates the retired legacy table.
+      const showsResult = await db.query(`
+        SELECT to_regclass('public.shows') AS relation
+      `);
+      expect(showsResult.rows[0].relation).toBeNull();
     });
 
     it('should enforce rating constraint (0-5)', async () => {

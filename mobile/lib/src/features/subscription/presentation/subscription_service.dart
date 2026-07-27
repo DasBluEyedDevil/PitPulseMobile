@@ -7,6 +7,285 @@ import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../../../core/services/log_service.dart';
 
+class RevenueCatListenerBinding {
+  RevenueCatListenerBinding({
+    required void Function(CustomerInfoUpdateListener listener) add,
+    required void Function(CustomerInfoUpdateListener listener) remove,
+  }) : _add = add,
+       _remove = remove;
+
+  final void Function(CustomerInfoUpdateListener listener) _add;
+  final void Function(CustomerInfoUpdateListener listener) _remove;
+  CustomerInfoUpdateListener? _current;
+  bool _isAttached = false;
+
+  CustomerInfoUpdateListener? get current => _current;
+
+  void onInitialized(
+    CustomerInfoUpdateListener? requested, {
+    required bool sdkConfigured,
+  }) {
+    if (requested != null) {
+      replace(requested, sdkConfigured: sdkConfigured);
+      return;
+    }
+
+    final current = _current;
+    if (current != null && sdkConfigured && !_isAttached) {
+      _add(current);
+      _isAttached = true;
+    }
+  }
+
+  void replace(
+    CustomerInfoUpdateListener? listener, {
+    required bool sdkConfigured,
+  }) {
+    if (identical(listener, _current)) {
+      onInitialized(null, sdkConfigured: sdkConfigured);
+      return;
+    }
+
+    final previous = _current;
+    if (previous != null && _isAttached) {
+      _remove(previous);
+    }
+
+    _current = listener;
+    _isAttached = false;
+    if (listener != null && sdkConfigured) {
+      _add(listener);
+      _isAttached = true;
+    }
+  }
+}
+
+abstract interface class SubscriptionSessionClient {
+  Future<bool> login(String userId);
+
+  Future<CustomerInfo?> getCustomerInfo();
+
+  Future<List<Package>> getPackages();
+
+  Future<CustomerInfo?> purchase(Package package);
+
+  Future<CustomerInfo?> restorePurchases();
+
+  Future<PaywallResult> presentUnlimitedPaywallIfNeeded();
+
+  Future<void> presentCustomerCenter({
+    void Function(CustomerInfo customerInfo)? onRestoreCompleted,
+    void Function(PurchasesError error)? onRestoreFailed,
+    void Function(
+      CustomerInfo customerInfo,
+      StoreTransaction transaction,
+      String offerIdentifier,
+    )?
+    onPromotionalOfferSucceeded,
+  });
+
+  Future<void> logout();
+
+  void setCustomerInfoUpdateListener(CustomerInfoUpdateListener? listener);
+}
+
+/// Injectable boundary around the RevenueCat SDK.
+///
+/// Default method bodies deliberately fail fast so focused tests can override
+/// only the SDK calls exercised by their production path.
+abstract class RevenueCatSdkAdapter {
+  const RevenueCatSdkAdapter();
+
+  Future<bool> login(String userId) => throw UnimplementedError();
+
+  Future<CustomerInfo?> getCustomerInfo() => throw UnimplementedError();
+
+  Future<List<Package>> getPackages() => throw UnimplementedError();
+
+  Future<CustomerInfo?> purchase(Package package) => throw UnimplementedError();
+
+  Future<CustomerInfo?> restorePurchases() => throw UnimplementedError();
+
+  Future<PaywallResult> presentUnlimitedPaywallIfNeeded() =>
+      throw UnimplementedError();
+
+  Future<void> presentCustomerCenter({
+    void Function(CustomerInfo customerInfo)? onRestoreCompleted,
+    void Function(PurchasesError error)? onRestoreFailed,
+    void Function(
+      CustomerInfo customerInfo,
+      StoreTransaction transaction,
+      String offerIdentifier,
+    )?
+    onPromotionalOfferSucceeded,
+  }) => throw UnimplementedError();
+
+  Future<void> logout() => throw UnimplementedError();
+
+  void setCustomerInfoUpdateListener(CustomerInfoUpdateListener? listener) {
+    throw UnimplementedError();
+  }
+}
+
+class DefaultRevenueCatSdkAdapter extends RevenueCatSdkAdapter {
+  const DefaultRevenueCatSdkAdapter();
+
+  @override
+  Future<CustomerInfo?> getCustomerInfo() {
+    return SubscriptionService.getCustomerInfo();
+  }
+
+  @override
+  Future<List<Package>> getPackages() {
+    return SubscriptionService.getPackages();
+  }
+
+  @override
+  Future<bool> login(String userId) {
+    return SubscriptionService.login(userId);
+  }
+
+  @override
+  Future<void> logout() {
+    return SubscriptionService.logout();
+  }
+
+  @override
+  Future<PaywallResult> presentUnlimitedPaywallIfNeeded() {
+    return SubscriptionService.presentUnlimitedPaywallIfNeeded();
+  }
+
+  @override
+  Future<CustomerInfo?> purchase(Package package) {
+    return SubscriptionService.purchase(package);
+  }
+
+  @override
+  Future<CustomerInfo?> restorePurchases() {
+    return SubscriptionService.restorePurchases();
+  }
+
+  @override
+  Future<void> presentCustomerCenter({
+    void Function(CustomerInfo customerInfo)? onRestoreCompleted,
+    void Function(PurchasesError error)? onRestoreFailed,
+    void Function(
+      CustomerInfo customerInfo,
+      StoreTransaction transaction,
+      String offerIdentifier,
+    )?
+    onPromotionalOfferSucceeded,
+  }) {
+    return SubscriptionService.presentCustomerCenter(
+      onRestoreCompleted: onRestoreCompleted,
+      onRestoreFailed: onRestoreFailed,
+      onPromotionalOfferSucceeded: onPromotionalOfferSucceeded,
+    );
+  }
+
+  @override
+  void setCustomerInfoUpdateListener(CustomerInfoUpdateListener? listener) {
+    SubscriptionService.setCustomerInfoUpdateListener(listener);
+  }
+}
+
+class DefaultSubscriptionSessionClient implements SubscriptionSessionClient {
+  const DefaultSubscriptionSessionClient({
+    RevenueCatSdkAdapter sdk = const DefaultRevenueCatSdkAdapter(),
+  }) : _sdk = sdk;
+
+  final RevenueCatSdkAdapter _sdk;
+
+  @override
+  Future<CustomerInfo?> getCustomerInfo() {
+    return _sdk.getCustomerInfo();
+  }
+
+  @override
+  Future<List<Package>> getPackages() {
+    return _sdk.getPackages();
+  }
+
+  @override
+  Future<bool> login(String userId) {
+    return _sdk.login(userId);
+  }
+
+  @override
+  Future<void> logout() {
+    return _sdk.logout();
+  }
+
+  @override
+  Future<PaywallResult> presentUnlimitedPaywallIfNeeded() {
+    return _sdk.presentUnlimitedPaywallIfNeeded();
+  }
+
+  @override
+  Future<CustomerInfo?> purchase(Package package) {
+    return _sdk.purchase(package);
+  }
+
+  @override
+  Future<CustomerInfo?> restorePurchases() {
+    return _sdk.restorePurchases();
+  }
+
+  @override
+  Future<void> presentCustomerCenter({
+    void Function(CustomerInfo customerInfo)? onRestoreCompleted,
+    void Function(PurchasesError error)? onRestoreFailed,
+    void Function(
+      CustomerInfo customerInfo,
+      StoreTransaction transaction,
+      String offerIdentifier,
+    )?
+    onPromotionalOfferSucceeded,
+  }) {
+    return _sdk.presentCustomerCenter(
+      onRestoreCompleted: onRestoreCompleted,
+      onRestoreFailed: onRestoreFailed,
+      onPromotionalOfferSucceeded: onPromotionalOfferSucceeded,
+    );
+  }
+
+  @override
+  void setCustomerInfoUpdateListener(CustomerInfoUpdateListener? listener) {
+    _sdk.setCustomerInfoUpdateListener(listener);
+  }
+}
+
+/// Executes RevenueCat logout while treating only its documented anonymous
+/// identity response as an idempotent success.
+class RevenueCatLogoutOperation {
+  const RevenueCatLogoutOperation({
+    required this.initialize,
+    required this.logout,
+    required this.errorCode,
+  });
+
+  final Future<bool> Function() initialize;
+  final Future<void> Function() logout;
+  final PurchasesErrorCode Function(PlatformException) errorCode;
+
+  Future<void> run() async {
+    try {
+      if (!await initialize()) return;
+      await logout();
+    } on PlatformException catch (error, stackTrace) {
+      if (errorCode(error) == PurchasesErrorCode.logOutWithAnonymousUserError) {
+        return;
+      }
+      LogService.e(
+        'SubscriptionService.logout error: $error',
+        error,
+        stackTrace,
+      );
+      rethrow;
+    }
+  }
+}
+
 class SubscriptionService {
   static const entitlementDisplayName = 'SoundCheck Unlimited';
   static const entitlementIdentifier = 'soundcheck_unlimited';
@@ -18,7 +297,11 @@ class SubscriptionService {
   static const _testStoreApiKey = String.fromEnvironment('RC_TEST_KEY');
   static const _appleApiKey = String.fromEnvironment('RC_APPLE_KEY');
   static const _googleApiKey = String.fromEnvironment('RC_GOOGLE_KEY');
-  static CustomerInfoUpdateListener? _customerInfoUpdateListener;
+  static final RevenueCatListenerBinding _listenerBinding =
+      RevenueCatListenerBinding(
+        add: Purchases.addCustomerInfoUpdateListener,
+        remove: Purchases.removeCustomerInfoUpdateListener,
+      );
   static bool _configured = false;
 
   static List<String> get entitlementIdentifiers => const [
@@ -52,7 +335,10 @@ class SubscriptionService {
 
     if (_configured || await Purchases.isConfigured) {
       _configured = true;
-      setCustomerInfoUpdateListener(onCustomerInfoUpdated);
+      _listenerBinding.onInitialized(
+        onCustomerInfoUpdated,
+        sdkConfigured: true,
+      );
       return true;
     }
 
@@ -72,22 +358,14 @@ class SubscriptionService {
     await Purchases.setLogLevel(kDebugMode ? LogLevel.debug : LogLevel.error);
     await Purchases.configure(PurchasesConfiguration(apiKey));
     _configured = true;
-    setCustomerInfoUpdateListener(onCustomerInfoUpdated);
+    _listenerBinding.onInitialized(onCustomerInfoUpdated, sdkConfigured: true);
     return true;
   }
 
   static void setCustomerInfoUpdateListener(
     CustomerInfoUpdateListener? listener,
   ) {
-    final previous = _customerInfoUpdateListener;
-    if (previous != null) {
-      Purchases.removeCustomerInfoUpdateListener(previous);
-    }
-
-    _customerInfoUpdateListener = listener;
-    if (listener != null && _configured) {
-      Purchases.addCustomerInfoUpdateListener(listener);
-    }
+    _listenerBinding.replace(listener, sdkConfigured: _configured);
   }
 
   static bool hasUnlimitedEntitlement(CustomerInfo customerInfo) {
@@ -107,25 +385,23 @@ class SubscriptionService {
     }
   }
 
-  static Future<void> login(String userId) async {
+  static Future<bool> login(String userId) async {
     try {
-      if (!await initialize()) return;
+      if (!await initialize()) return false;
       await Purchases.logIn(userId);
+      return true;
     } on PlatformException catch (e) {
       LogService.e('SubscriptionService.login error: $e');
+      return false;
     }
   }
 
   static Future<void> logout() async {
-    try {
-      if (!await initialize()) return;
-      await Purchases.logOut();
-    } on PlatformException catch (e) {
-      final errorCode = PurchasesErrorHelper.getErrorCode(e);
-      if (errorCode != PurchasesErrorCode.logOutWithAnonymousUserError) {
-        LogService.e('SubscriptionService.logout error: $e');
-      }
-    }
+    await const RevenueCatLogoutOperation(
+      initialize: initialize,
+      logout: Purchases.logOut,
+      errorCode: PurchasesErrorHelper.getErrorCode,
+    ).run();
   }
 
   static Future<bool> isPremium() async {

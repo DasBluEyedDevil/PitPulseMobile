@@ -22,6 +22,13 @@ Request flow is:
 
 Controllers should not embed SQL or provider logic. Services should not depend on Express response objects. Cross-cutting concerns must enter through explicit utilities or middleware.
 
+Backend deployment runs `npm run migrate:deploy` before application startup.
+That command holds one PostgreSQL advisory lock across the idempotent
+`pgmigrations_bootstrap` baseline and the ordered `pgmigrations` chain.
+Application runtime initialization is fail-closed: a database health result
+with `healthy: false` must not initialize the HTTP listener, WebSocket server,
+workers, or schedulers.
+
 ## Mobile Boundaries
 
 Feature code lives under `mobile/lib/src/features/{feature}/`:
@@ -33,6 +40,14 @@ Feature code lives under `mobile/lib/src/features/{feature}/`:
 App-wide concerns live under `mobile/lib/src/core/`; reusable UI/utilities live under `mobile/lib/src/shared/`.
 
 Generated Dart files are implementation artifacts. Update the source annotations and rerun build_runner rather than editing generated output.
+
+Every successful password, registration, Google, Apple, stored-session, or
+account-transition authentication result flows through the auth notifier's one
+authenticated-session bootstrap. It refreshes realtime credentials,
+RevenueCat/server entitlement state, saved genres, push registration, and
+session-scoped providers. Integration degradation is exposed through
+`authenticatedSessionBootstrapStatusProvider` and retried without clearing the
+authenticated user; logout runs cleanup and never bootstraps.
 
 ## Web Boundaries
 
@@ -61,6 +76,10 @@ The web app is a static frontend surface. It should not own backend business log
 - Notification batching is coordinated through the backend batch helper so Redis list append, marker ownership, delayed queue enqueue, and worker cleanup remain observable and recoverable.
 
 ## External Providers And Storage
+
+- Share-card builds copy the official Inter v4.1 Bold font, its OFL
+  license/provenance, and the landing template into `backend/dist`. Compiled
+  controllers and Satori rendering resolve those validated built paths.
 
 - Feed cache invalidation is versioned. Feed cache keys include scope versions, invalidation increments versions, and old version keys expire naturally by TTL instead of broad pattern deletes.
 - Ticketmaster ingestion uses recursion depth, minimum-window, and midpoint-boundary guards. All Ticketmaster request paths use the shared process-local limiter and 429 retry/backoff handling; truncated dense windows are logged for monitoring.

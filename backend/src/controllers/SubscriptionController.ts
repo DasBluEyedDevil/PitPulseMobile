@@ -12,7 +12,16 @@ import { UnauthorizedError } from '../utils/errors';
 import logger from '../utils/logger';
 
 export class SubscriptionController {
-  private subscriptionService = new SubscriptionService();
+  private subscriptionService: Pick<
+    SubscriptionService,
+    'processWebhookEvent' | 'getSubscriptionStatus'
+  >;
+
+  constructor(
+    dependencies: { subscriptionService?: SubscriptionController['subscriptionService'] } = {}
+  ) {
+    this.subscriptionService = dependencies.subscriptionService ?? new SubscriptionService();
+  }
 
   /**
    * POST /api/subscription/webhook -- RevenueCat webhook handler
@@ -33,10 +42,7 @@ export class SubscriptionController {
     // SEC-016/CFR-018: Use timing-safe comparison to prevent timing attacks
     const tokenBuf = Buffer.from(token);
     const expectedBuf = Buffer.from(webhookAuth);
-    if (
-      tokenBuf.length !== expectedBuf.length ||
-      !crypto.timingSafeEqual(tokenBuf, expectedBuf)
-    ) {
+    if (tokenBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(tokenBuf, expectedBuf)) {
       logger.warn('SubscriptionController: Invalid webhook authorization');
       // Return 200 to prevent RevenueCat retry storms on auth failures
       res.status(200).json({ message: 'Unauthorized' });

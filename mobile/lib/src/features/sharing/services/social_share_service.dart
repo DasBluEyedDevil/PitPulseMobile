@@ -60,18 +60,13 @@ class SocialShareService {
     try {
       final tempFile = await _downloadToTemp(imageUrl, 'share');
       await SharePlus.instance.share(
-        ShareParams(
-          text: '$text\n$shareUrl',
-          files: [XFile(tempFile.path)],
-        ),
+        ShareParams(text: '$text\n$shareUrl', files: [XFile(tempFile.path)]),
       );
       return true;
     } catch (e) {
       // Fallback: share text-only if image download fails
       try {
-        await SharePlus.instance.share(
-          ShareParams(text: '$text\n$shareUrl'),
-        );
+        await SharePlus.instance.share(ShareParams(text: '$text\n$shareUrl'));
         return true;
       } catch (_) {
         return false;

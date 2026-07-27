@@ -7,10 +7,7 @@ jest.mock('../../utils/redisRateLimiter', () => ({
 }));
 
 import { getRedis } from '../../utils/redisRateLimiter';
-import {
-  REALTIME_DELIVERY_CHANNEL,
-  RealtimePublisher,
-} from '../../services/RealtimePublisher';
+import { REALTIME_DELIVERY_CHANNEL, RealtimePublisher } from '../../services/RealtimePublisher';
 
 const mockedGetRedis = getRedis as jest.MockedFunction<typeof getRedis>;
 

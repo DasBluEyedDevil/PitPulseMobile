@@ -185,7 +185,10 @@ describe('EventService', () => {
         .mockResolvedValueOnce({ rows: mockEvents }) // events query
         .mockResolvedValueOnce({ rows: [] }); // lineup query for mapDbEventsWithHeadliner
 
-      const result = await eventService.getEventsByVenue('venue-123', { upcoming: true, limit: 50 });
+      const result = await eventService.getEventsByVenue('venue-123', {
+        upcoming: true,
+        limit: 50,
+      });
 
       expect(result).toHaveLength(2);
       expect(mockDb.query).toHaveBeenCalledWith(
@@ -195,9 +198,7 @@ describe('EventService', () => {
     });
 
     it('should include past events when upcoming is false', async () => {
-      mockDb.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] });
+      mockDb.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
 
       await eventService.getEventsByVenue('venue-123', { upcoming: false });
 
@@ -206,16 +207,14 @@ describe('EventService', () => {
     });
 
     it('should use default options', async () => {
-      mockDb.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] });
+      mockDb.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
 
       await eventService.getEventsByVenue('venue-123');
 
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('LIMIT $2'),
-        ['venue-123', 50]
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('LIMIT $2'), [
+        'venue-123',
+        50,
+      ]);
     });
   });
 
@@ -236,23 +235,19 @@ describe('EventService', () => {
         },
       ];
 
-      mockDb.query
-        .mockResolvedValueOnce({ rows: mockEvents })
-        .mockResolvedValueOnce({ rows: [] });
+      mockDb.query.mockResolvedValueOnce({ rows: mockEvents }).mockResolvedValueOnce({ rows: [] });
 
       const result = await eventService.getEventsByBand('band-123', { upcoming: true, limit: 30 });
 
       expect(result).toHaveLength(1);
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('JOIN event_lineup el'),
-        ['band-123', 30]
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('JOIN event_lineup el'), [
+        'band-123',
+        30,
+      ]);
     });
 
     it('should join through event_lineup table', async () => {
-      mockDb.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] });
+      mockDb.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
 
       await eventService.getEventsByBand('band-123');
 
@@ -321,7 +316,9 @@ describe('EventService', () => {
 
       mockDb.query.mockResolvedValueOnce({ rows: [existingEvent] });
       mockDb.query
-        .mockResolvedValueOnce({ rows: [{ ...existingEvent, venue_id: 'venue-123', event_date: '2024-08-01' }] })
+        .mockResolvedValueOnce({
+          rows: [{ ...existingEvent, venue_id: 'venue-123', event_date: '2024-08-01' }],
+        })
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ checkin_count: '10' }] });
 
@@ -412,9 +409,7 @@ describe('EventService', () => {
     });
 
     it('should create new event when nothing exists', async () => {
-      mockDb.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] });
+      mockDb.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
 
       mockDb.getClient.mockResolvedValueOnce(mockClient);
       mockClient.query
@@ -435,9 +430,7 @@ describe('EventService', () => {
 
   describe('getUpcomingEvents', () => {
     it('should return all upcoming events', async () => {
-      mockDb.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] });
+      mockDb.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
 
       const result = await eventService.getUpcomingEvents(30);
 
@@ -448,9 +441,7 @@ describe('EventService', () => {
     });
 
     it('should filter cancelled events', async () => {
-      mockDb.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] });
+      mockDb.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
 
       await eventService.getUpcomingEvents();
 
@@ -461,9 +452,7 @@ describe('EventService', () => {
 
   describe('getTrendingEvents', () => {
     it('should return events with most check-ins in last 30 days', async () => {
-      mockDb.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] });
+      mockDb.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
 
       const result = await eventService.getTrendingEvents(20);
 
@@ -474,9 +463,7 @@ describe('EventService', () => {
     });
 
     it('should filter hidden checkins', async () => {
-      mockDb.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] });
+      mockDb.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
 
       await eventService.getTrendingEvents();
 
@@ -491,10 +478,7 @@ describe('EventService', () => {
 
       await eventService.deleteEvent('event-123');
 
-      expect(mockDb.query).toHaveBeenCalledWith(
-        'DELETE FROM events WHERE id = $1',
-        ['event-123']
-      );
+      expect(mockDb.query).toHaveBeenCalledWith('DELETE FROM events WHERE id = $1', ['event-123']);
     });
 
     it('should handle database errors', async () => {
@@ -508,10 +492,7 @@ describe('EventService', () => {
     it('should return user-created event id when found', async () => {
       mockDb.query.mockResolvedValueOnce({ rows: [{ id: 'event-user' }] });
 
-      const result = await eventService.findUserCreatedEventAtVenueDate(
-        'venue-123',
-        '2024-08-01'
-      );
+      const result = await eventService.findUserCreatedEventAtVenueDate('venue-123', '2024-08-01');
 
       expect(result).toBe('event-user');
     });
@@ -519,10 +500,7 @@ describe('EventService', () => {
     it('should return null when no user-created event exists', async () => {
       mockDb.query.mockResolvedValueOnce({ rows: [] });
 
-      const result = await eventService.findUserCreatedEventAtVenueDate(
-        'venue-123',
-        '2024-08-01'
-      );
+      const result = await eventService.findUserCreatedEventAtVenueDate('venue-123', '2024-08-01');
 
       expect(result).toBeNull();
     });
@@ -563,18 +541,15 @@ describe('EventService', () => {
         status: 'on_sale',
       });
 
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE events'),
-        [
-          'event-123',
-          'tm-456',
-          'TM Event Name',
-          'https://ticketmaster.com',
-          30,
-          80,
-          'on_sale',
-        ]
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE events'), [
+        'event-123',
+        'tm-456',
+        'TM Event Name',
+        'https://ticketmaster.com',
+        30,
+        80,
+        'on_sale',
+      ]);
     });
   });
 
@@ -593,9 +568,7 @@ describe('EventService', () => {
         distance_km: '2.5',
       };
 
-      mockDb.query
-        .mockResolvedValueOnce({ rows: [mockEvent] })
-        .mockResolvedValueOnce({ rows: [] });
+      mockDb.query.mockResolvedValueOnce({ rows: [mockEvent] }).mockResolvedValueOnce({ rows: [] });
 
       const result = await eventService.getNearbyEvents(40.7128, -74.006, 10, 20);
 
@@ -669,22 +642,18 @@ describe('EventService', () => {
 
   describe('searchEvents', () => {
     it('should search events by name, venue, or band', async () => {
-      mockDb.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] });
+      mockDb.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
 
       await eventService.searchEvents('rock concert', 15);
 
-      expect(mockDb.query).toHaveBeenCalledWith(
-        expect.stringContaining('ILIKE'),
-        ['rock concert', 15]
-      );
+      expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('ILIKE'), [
+        'rock concert',
+        15,
+      ]);
     });
 
     it('should use similarity for relevance ranking', async () => {
-      mockDb.query
-        .mockResolvedValueOnce({ rows: [] })
-        .mockResolvedValueOnce({ rows: [] });
+      mockDb.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
 
       await eventService.searchEvents('jazz');
 

@@ -5,11 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 part 'theme_provider.g.dart';
 
 /// Theme mode options
-enum AppThemeMode {
-  light,
-  dark,
-  system,
-}
+enum AppThemeMode { light, dark, system }
 
 @Riverpod(keepAlive: true)
 class ThemeSetting extends _$ThemeSetting {

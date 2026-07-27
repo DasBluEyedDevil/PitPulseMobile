@@ -33,10 +33,10 @@ describe('ClaimService authorization filters', () => {
     const service = new ClaimService();
     await service.getClaimById('claim-1', { requestingUserId: 'user-1' });
 
-    expect(mockDb.query).toHaveBeenCalledWith(
-      expect.stringContaining('AND vc.user_id = $2'),
-      ['claim-1', 'user-1']
-    );
+    expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('AND vc.user_id = $2'), [
+      'claim-1',
+      'user-1',
+    ]);
   });
 
   it('does not add the owner filter for admin claim reads', async () => {

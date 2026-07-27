@@ -40,10 +40,7 @@ class WishlistRepository {
 
   Future<Either<Failure, void>> removeByBandId(String bandId) async {
     try {
-      await _dioClient.delete(
-        '/wishlist',
-        queryParameters: {'bandId': bandId},
-      );
+      await _dioClient.delete('/wishlist', queryParameters: {'bandId': bandId});
       return const Right(null);
     } catch (e) {
       return Left(_mapError(e));

@@ -147,11 +147,10 @@ class ToastCheckIn extends _$ToastCheckIn {
     final repository = ref.read(checkInRepositoryProvider);
 
     try {
-      if (hasToasted) {
-        await repository.untoastCheckIn(checkInId);
-      } else {
-        await repository.toastCheckIn(checkInId);
-      }
+      final result = hasToasted
+          ? await repository.untoastCheckIn(checkInId)
+          : await repository.toastCheckIn(checkInId);
+      result.fold((failure) => throw Exception(failure.message), (_) {});
 
       // Invalidate related providers
       ref.invalidate(checkInToastsProvider(checkInId));
@@ -213,7 +212,8 @@ class DeleteComment extends _$DeleteComment {
     final repository = ref.read(checkInRepositoryProvider);
 
     try {
-      await repository.deleteComment(checkInId, commentId);
+      final result = await repository.deleteComment(checkInId, commentId);
+      result.fold((failure) => throw Exception(failure.message), (_) {});
 
       // Invalidate comments provider
       ref.invalidate(checkInCommentsProvider(checkInId));
@@ -244,8 +244,10 @@ Future<Map<String, dynamic>> userCheckInStats(Ref ref, String userId) async {
 @riverpod
 Future<List<CheckInBand>> venueRecentBands(Ref ref, String venueId) async {
   final checkInRepository = ref.watch(checkInRepositoryProvider);
-  final result =
-      await checkInRepository.getCheckIns(venueId: venueId, limit: 20);
+  final result = await checkInRepository.getCheckIns(
+    venueId: venueId,
+    limit: 20,
+  );
   final checkIns = result.fold(
     (failure) => throw Exception(failure.message),
     (checkIns) => checkIns,
@@ -277,8 +279,10 @@ Future<List<NearbyEvent>> nearbyEvents(Ref ref) async {
   if (position == null) return [];
 
   final repository = ref.watch(checkInRepositoryProvider);
-  final result =
-      await repository.getNearbyEvents(position.latitude, position.longitude);
+  final result = await repository.getNearbyEvents(
+    position.latitude,
+    position.longitude,
+  );
   return result.fold(
     (failure) => throw Exception(failure.message),
     (events) => events,

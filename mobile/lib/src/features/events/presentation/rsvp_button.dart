@@ -59,9 +59,7 @@ class _RsvpButtonState extends ConsumerState<RsvpButton> {
                   color: AppTheme.voltLime,
                 ),
               )
-            : Icon(
-                isGoing ? Icons.check_circle : Icons.add_circle_outline,
-              ),
+            : Icon(isGoing ? Icons.check_circle : Icons.add_circle_outline),
         label: Text(isGoing ? "I'm Going!" : "I'm Going"),
         style: ElevatedButton.styleFrom(
           backgroundColor: isGoing ? AppTheme.voltLime : Colors.transparent,

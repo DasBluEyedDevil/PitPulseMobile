@@ -7,7 +7,6 @@
 import { Request, Response } from 'express';
 import { routeParam, routeParams } from '../utils/requestParams';
 import fs from 'fs';
-import path from 'path';
 import { WrappedService } from '../services/WrappedService';
 import { ShareCardService } from '../services/ShareCardService';
 import { WrappedSummaryData } from '../templates/share-cards/wrapped-summary-card';
@@ -15,10 +14,24 @@ import { WrappedStatData } from '../templates/share-cards/wrapped-stat-card';
 import { isValidUUID, escapeHtml } from '../utils/validationSchemas';
 import { asyncHandler } from '../utils/asyncHandler';
 import { UnauthorizedError, BadRequestError } from '../utils/errors';
+import { runtimeAssetPaths } from '../runtimeAssets';
 
 export class WrappedController {
-  private wrappedService = new WrappedService();
-  private shareCardService = new ShareCardService();
+  private wrappedService: Pick<WrappedService, 'getWrappedStats' | 'getWrappedDetailStats'>;
+  private shareCardService: Pick<
+    ShareCardService,
+    'generateWrappedCard' | 'generateWrappedStatCard'
+  >;
+
+  constructor(
+    dependencies: {
+      wrappedService?: Pick<WrappedService, 'getWrappedStats' | 'getWrappedDetailStats'>;
+      shareCardService?: Pick<ShareCardService, 'generateWrappedCard' | 'generateWrappedStatCard'>;
+    } = {}
+  ) {
+    this.wrappedService = dependencies.wrappedService ?? new WrappedService();
+    this.shareCardService = dependencies.shareCardService ?? new ShareCardService();
+  }
 
   getWrapped = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     // CFR-017: Guard against missing user from auth middleware
@@ -141,8 +154,7 @@ export class WrappedController {
       return;
     }
 
-    const templatePath = path.join(__dirname, '../templates/share-cards/landing-page.html');
-    let html = fs.readFileSync(templatePath, 'utf-8');
+    let html = fs.readFileSync(runtimeAssetPaths().landingTemplate, 'utf-8');
 
     // API-027: Apply escapeHtml() to all user-influenced values
     const safeUserId = escapeHtml(userId);

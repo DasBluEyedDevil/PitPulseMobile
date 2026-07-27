@@ -26,10 +26,7 @@ class OnboardingRepository {
     List<String> genres,
   ) async {
     try {
-      await _dioClient.post(
-        '/onboarding/genres',
-        data: {'genres': genres},
-      );
+      await _dioClient.post('/onboarding/genres', data: {'genres': genres});
       return const Right(null);
     } catch (e) {
       return Left(_mapErrorToFailure(e));

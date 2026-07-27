@@ -105,8 +105,20 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/brand/
-    - assets/brand/generated/
-    - assets/brand/source/
-    - assets/brand/flash/
-    - assets/brand/flash/source/
+    # Runtime-only brand files. Source artwork and store/design assets stay
+    # tracked outside this explicit Flutter bundle allowlist.
+    - assets/brand/flash/flash_auth_hero.jpg
+    - assets/brand/flash/flash_discover_backdrop.jpg
+    - assets/brand/flash/flash_empty_stage.jpg
+    - assets/brand/flash/flash_feed_backdrop.jpg
+    - assets/brand/flash/flash_logo_wordmark_adobe_express.png
+    - assets/brand/flash/flash_mark_cutout.png
+    - assets/brand/flash/flash_onboarding_hero.jpg
+    - assets/brand/flash/flash_prism_portrait.jpg
+    - assets/brand/flash/flash_profile_header.jpg
+    - assets/brand/flash/flash_profile_wave.jpg
+    - assets/brand/flash/flash_show_card_1.jpg
+    - assets/brand/flash/flash_show_card_2.jpg
+    - assets/brand/flash/flash_show_card_3.jpg
+    - assets/brand/flash/flash_stage_mark_portrait.jpg
+    - assets/brand/flash/flash_wave_panorama.jpg

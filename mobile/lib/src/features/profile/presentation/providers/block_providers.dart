@@ -13,8 +13,10 @@ final blockRepositoryProvider = Provider<BlockRepository>((ref) {
 
 /// Block status for a specific user (bilateral check).
 /// Auto-dispose so it refetches on re-entry.
-final blockStatusProvider =
-    FutureProvider.autoDispose.family<bool, String>((ref, userId) async {
+final blockStatusProvider = FutureProvider.autoDispose.family<bool, String>((
+  ref,
+  userId,
+) async {
   final result = await ref.watch(blockRepositoryProvider).isBlocked(userId);
   return result.fold(
     (failure) => throw Exception(failure.message),
@@ -26,19 +28,19 @@ final blockStatusProvider =
 /// Auto-dispose so it refetches when navigating to the screen.
 final blockedUsersProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
-  final result = await ref.watch(blockRepositoryProvider).getBlockedUsers();
-  return result.fold(
-    (failure) => throw Exception(failure.message),
-    (users) => users,
-  );
-});
+      final result = await ref.watch(blockRepositoryProvider).getBlockedUsers();
+      return result.fold(
+        (failure) => throw Exception(failure.message),
+        (users) => users,
+      );
+    });
 
 /// Provider to fetch another user's public profile.
 /// GET /users/:userId returns the user object, parsed into a User model.
-final userPublicProfileProvider =
-    FutureProvider.autoDispose.family<User, String>((ref, userId) async {
-  final dioClient = ref.watch(dioClientProvider);
-  final response = await dioClient.get('/users/$userId');
-  final data = response.data['data'] as Map<String, dynamic>;
-  return User.fromJson(data);
-});
+final userPublicProfileProvider = FutureProvider.autoDispose
+    .family<User, String>((ref, userId) async {
+      final dioClient = ref.watch(dioClientProvider);
+      final response = await dioClient.get('/users/$userId');
+      final data = response.data['data'] as Map<String, dynamic>;
+      return User.fromJson(data);
+    });

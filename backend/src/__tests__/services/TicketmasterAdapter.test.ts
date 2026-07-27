@@ -102,7 +102,7 @@ describe('TicketmasterAdapter', () => {
       { maxDepth: 0 }
     );
 
-    expect(result.map(event => event.externalId)).toEqual(['first', 'second']);
+    expect(result.map((event) => event.externalId)).toEqual(['first', 'second']);
     expect(mockGet).toHaveBeenCalledTimes(2);
     expect(mockLogger.warn).toHaveBeenCalledWith(
       '[TicketmasterAdapter] Truncated Ticketmaster result range',

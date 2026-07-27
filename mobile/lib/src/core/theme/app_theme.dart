@@ -38,8 +38,6 @@ class AppTheme {
       'assets/brand/flash/flash_show_card_3.jpg';
   static const String flashEmptyStageAsset =
       'assets/brand/flash/flash_empty_stage.jpg';
-  static const String flashModelReferenceAsset =
-      'assets/brand/flash/flash_model_reference.jpg';
 
   // Legacy asset aliases. These intentionally point at the flash roles so old
   // imports compile while screens migrate away from the restrained glass pass.

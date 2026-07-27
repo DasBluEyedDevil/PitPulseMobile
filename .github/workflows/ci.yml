@@ -43,10 +43,16 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Verify dependency brace-glob compatibility
+      run: npm run test:dependency-compatibility
+
     - name: Lint
       # Errors block; warnings are informational (there is a backlog of
       # `no-explicit-any` uses that we're paying down incrementally).
       run: npx eslint . --ext .ts
+
+    - name: Check formatting
+      run: npm run format:check
 
     - name: Type check
       run: npx tsc --noEmit
@@ -54,10 +60,99 @@ jobs:
     - name: Build
       run: npm run build
 
-    - name: Run Tests
+    - name: Verify built runtime assets and share paths
+      run: npm run test:runtime-assets
+
+    - name: Verify unhealthy startup remains closed
+      run: npm run test:startup:unhealthy
+
+    - name: Verify HTTP route classification contract
+      run: npm run test:http-contracts
+
+    - name: Verify asynchronous producer/consumer contracts
+      run: node ../scripts/verify-async-contracts.mjs
+
+    - name: Run fresh coverage
+      run: npm run test:coverage
+      env:
+        JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
+
+    - name: Audit production dependencies
+      run: npm audit --omit=dev --audit-level=low
+
+    - name: Verify declared production licenses
+      run: node ../scripts/check-production-licenses.mjs .
+
+  backend-integration:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: soundcheck_ci
+          POSTGRES_USER: soundcheck
+          POSTGRES_PASSWORD: soundcheck
+        options: >-
+          --health-cmd "pg_isready -U soundcheck -d soundcheck_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+    - name: Setup Node.js
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: '24'
+        cache: 'npm'
+        cache-dependency-path: backend/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build migration artifacts
+      run: npm run build
+
+    - name: Run bootstrap and migrations against disposable PostgreSQL
+      run: npm run migrate:deploy
+      env:
+        DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:5432/soundcheck_ci
+        DB_SSL: 'false'
+
+    - name: Run backend unit and contract suites
       run: npm test
       env:
         JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
+        DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:5432/soundcheck_ci
+        DB_SSL: 'false'
+        REDIS_HOST: localhost
+        REDIS_PORT: '6379'
+        RUN_INTEGRATION_TESTS: 'true'
+
+    - name: Verify PostgreSQL suite closes without open handles
+      run: npm run test:postgres:integration
+      env:
+        JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
+        DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:5432/soundcheck_ci
+        DB_SSL: 'false'
+        RUN_INTEGRATION_TESTS: 'true'
+
+    - name: Run migration deployment recovery matrix
+      run: npm run test:migrations:integration
+      env:
+        PHASE30_DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:5432/soundcheck_ci
 
   mobile-analyze-and-test:
     runs-on: ubuntu-latest
@@ -78,14 +173,102 @@ jobs:
     - name: Get Dependencies
       run: flutter pub get
 
+    - name: Verify runtime-only mobile asset allowlist
+      run: node ../scripts/check-mobile-runtime-assets.mjs
+
     - name: Run Code Generation
       run: flutter pub run build_runner build --delete-conflicting-outputs
+
+    - name: Check generated-code drift
+      run: git diff --exit-code -- lib test
+
+    - name: Check Dart formatting
+      run: dart format --output=none --set-exit-if-changed lib test
 
     - name: Analyze Code
       run: flutter analyze
 
-    - name: Run Tests
-      run: flutter test
+    - name: Run fresh coverage
+      run: flutter test --coverage
+
+    - name: Verify mobile coverage thresholds
+      run: node ../scripts/check-mobile-coverage.mjs
+
+  android-release-configuration:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+    - name: Setup Node.js
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: '24'
+
+    - name: Verify fail-closed Android release configuration
+      run: node --test scripts/__tests__/prepare-android-release.test.mjs
+
+    - name: Create non-secret Android release fixtures
+      run: |
+        mkdir -p "$RUNNER_TEMP/soundcheck-android-release"
+        printf '{"project_info":{"project_number":"fixture"}}\n' > "$RUNNER_TEMP/soundcheck-android-release/google-services.json"
+        printf 'fixture-keystore' > "$RUNNER_TEMP/soundcheck-android-release/release.keystore"
+
+    - name: Verify Gradle release task wiring
+      working-directory: ./mobile/android
+      env:
+        SOUNDCHECK_GOOGLE_SERVICES_JSON_PATH: ${{ runner.temp }}/soundcheck-android-release/google-services.json
+        SOUNDCHECK_ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/soundcheck-android-release/release.keystore
+        SOUNDCHECK_ANDROID_KEYSTORE_PASSWORD: fixture-store-password
+        SOUNDCHECK_ANDROID_KEY_ALIAS: fixture-alias
+        SOUNDCHECK_ANDROID_KEY_PASSWORD: fixture-key-password
+      run: |
+        ./gradlew :app:validateReleaseInputs
+        ./gradlew :app:bundleRelease --dry-run | tee "$RUNNER_TEMP/bundle-release-plan.txt"
+        ./gradlew verifyReleaseCertificate --dry-run | tee "$RUNNER_TEMP/verify-release-certificate-plan.txt"
+        grep -F ':app:prepareReleaseGoogleServices' "$RUNNER_TEMP/bundle-release-plan.txt"
+        grep -F ':app:validateReleaseInputs' "$RUNNER_TEMP/bundle-release-plan.txt"
+        grep -F ':app:bundleRelease' "$RUNNER_TEMP/verify-release-certificate-plan.txt"
+
+    - name: Verify direct Gradle release fails closed without inputs
+      working-directory: ./mobile/android
+      run: |
+        if ./gradlew :app:bundleRelease > "$RUNNER_TEMP/android-release-without-inputs.txt" 2>&1; then
+          echo "Expected :app:bundleRelease to reject absent release inputs"
+          exit 1
+        fi
+        grep -F 'SOUNDCHECK_GOOGLE_SERVICES_JSON_PATH' "$RUNNER_TEMP/android-release-without-inputs.txt"
+
+  web-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web
+
+    steps:
+    - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+    - name: Setup Node.js
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: '24'
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Regenerate deterministic mobile platform icons
+      run: npm run generate:platform-icons
+
+    - name: Check platform-icon drift
+      run: >-
+        git diff --exit-code --
+        ../mobile/android/app/src/main/res
+        ../mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset
+        ../mobile/store-assets/app-icons
+
+    - name: Build release-dependent web surface
+      run: npm run build
 
   secret-scan:
     runs-on: ubuntu-latest

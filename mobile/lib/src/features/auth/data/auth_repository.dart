@@ -4,18 +4,30 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/api/dio_client.dart';
 import '../../../core/api/api_config.dart';
+import '../../../core/api/auth_session_store.dart';
 import '../../../core/error/failures.dart';
 import '../domain/user.dart';
 
+class AuthPersistenceResult {
+  const AuthPersistenceResult({
+    required this.committed,
+    required this.revision,
+  });
+
+  final bool committed;
+  final String? revision;
+}
+
 class AuthRepository {
   final DioClient _dioClient;
-  final FlutterSecureStorage _secureStorage;
+  final AuthSessionStore _authSessionStore;
 
   AuthRepository({
     required DioClient dioClient,
     required FlutterSecureStorage secureStorage,
-  })  : _dioClient = dioClient,
-        _secureStorage = secureStorage;
+    AuthSessionStore? authSessionStore,
+  }) : _dioClient = dioClient,
+       _authSessionStore = authSessionStore ?? dioClient.authSessionStore;
 
   /// Helper method to map errors to Failures
   Failure _mapErrorToFailure(Object e) {
@@ -36,26 +48,7 @@ class AuthRepository {
 
       // Extract data from API wrapper: {success, data, message}
       final data = response.data['data'] as Map<String, dynamic>;
-      final authResponse = AuthResponse.fromJson(data);
-
-      // Save token and user data
-      await _secureStorage.write(
-        key: ApiConfig.tokenKey,
-        value: authResponse.token,
-      );
-      if (authResponse.refreshToken != null &&
-          authResponse.refreshToken!.isNotEmpty) {
-        await _secureStorage.write(
-          key: 'refresh_token',
-          value: authResponse.refreshToken,
-        );
-      }
-      await _secureStorage.write(
-        key: ApiConfig.userKey,
-        value: jsonEncode(authResponse.user.toJson()),
-      );
-
-      return Right(authResponse);
+      return Right(AuthResponse.fromJson(data));
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -71,38 +64,75 @@ class AuthRepository {
 
       // Extract data from API wrapper: {success, data, message}
       final data = response.data['data'] as Map<String, dynamic>;
-      final authResponse = AuthResponse.fromJson(data);
-
-      // Save token and user data
-      await _secureStorage.write(
-        key: ApiConfig.tokenKey,
-        value: authResponse.token,
-      );
-      if (authResponse.refreshToken != null &&
-          authResponse.refreshToken!.isNotEmpty) {
-        await _secureStorage.write(
-          key: 'refresh_token',
-          value: authResponse.refreshToken,
-        );
-      }
-      await _secureStorage.write(
-        key: ApiConfig.userKey,
-        value: jsonEncode(authResponse.user.toJson()),
-      );
-
-      return Right(authResponse);
+      return Right(AuthResponse.fromJson(data));
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
   }
 
-  /// Logout user
-  Future<Either<Failure, void>> logout() async {
+  /// Persists credentials only while the notifier-owned authentication
+  /// operation remains current.
+  ///
+  /// Callers must serialize this method with logout and newer credential
+  /// commits. If the guard changes while a platform write is in flight, the
+  /// partial credential set is removed before the serialized section ends.
+  Future<bool> persistAuthentication(
+    AuthResponse response, {
+    required bool Function() isCurrent,
+  }) async {
+    return (await persistAuthenticationWithRevision(
+      response,
+      isCurrent: isCurrent,
+    )).committed;
+  }
+
+  Future<AuthPersistenceResult> persistAuthenticationWithRevision(
+    AuthResponse response, {
+    required bool Function() isCurrent,
+  }) async {
     try {
-      await _secureStorage.delete(key: ApiConfig.tokenKey);
-      await _secureStorage.delete(key: ApiConfig.userKey);
-      await _secureStorage.delete(key: 'refresh_token');
-      return const Right(null);
+      final committed = await _authSessionStore.commit(
+        accessToken: response.token,
+        refreshToken: response.refreshToken,
+        userJson: jsonEncode(response.user.toJson()),
+        isCurrent: isCurrent,
+      );
+      if (committed == null) {
+        return const AuthPersistenceResult(committed: false, revision: null);
+      }
+      if (!isCurrent()) {
+        await _authSessionStore.invalidateIfActiveRevision(committed.revision);
+        return AuthPersistenceResult(
+          committed: false,
+          revision: committed.revision,
+        );
+      }
+      return AuthPersistenceResult(
+        committed: true,
+        revision: committed.revision,
+      );
+    } catch (error) {
+      throw _mapErrorToFailure(error);
+    }
+  }
+
+  Future<void> invalidateAuthenticationRevision(String revision) async {
+    await _authSessionStore.invalidateIfActiveRevision(revision);
+  }
+
+  /// Logout user
+  Future<Either<Failure, AuthSessionInvalidationResult>> logout() async {
+    try {
+      return Right(await _authSessionStore.invalidate());
+    } catch (e) {
+      return Left(_mapErrorToFailure(e));
+    }
+  }
+
+  Future<Either<Failure, AuthSessionInvalidationResult>>
+  retryLogoutCredentialCleanup() async {
+    try {
+      return Right(await _authSessionStore.retryResidualCleanup());
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -111,10 +141,10 @@ class AuthRepository {
   /// Get current user from storage
   Future<User?> getCurrentUser() async {
     try {
-      final userData = await _secureStorage.read(key: ApiConfig.userKey);
-      if (userData == null) return null;
+      final session = await _authSessionStore.readSession();
+      if (session == null) return null;
 
-      final userJson = jsonDecode(userData) as Map<String, dynamic>;
+      final userJson = jsonDecode(session.userJson) as Map<String, dynamic>;
       return User.fromJson(userJson);
     } catch (e) {
       return null;
@@ -123,11 +153,7 @@ class AuthRepository {
 
   /// Get current auth token
   Future<String?> getToken() async {
-    try {
-      return await _secureStorage.read(key: ApiConfig.tokenKey);
-    } catch (e) {
-      return null;
-    }
+    return _authSessionStore.readAccessToken();
   }
 
   /// Get current user from API
@@ -147,20 +173,27 @@ class AuthRepository {
     Map<String, dynamic> updates,
   ) async {
     try {
+      final initiatingSession = await _authSessionStore.readSession();
+      if (initiatingSession == null) {
+        throw StateError('Cannot update an inactive authentication session');
+      }
       final response = await _dioClient.put(
         '${ApiConfig.auth}/me',
         data: updates,
+        options: _dioClient.optionsForAuthSession(initiatingSession),
       );
 
       // Extract data from API wrapper: {success, data, message}
       final data = response.data['data'] as Map<String, dynamic>;
       final user = User.fromJson(data);
 
-      // Update stored user data
-      await _secureStorage.write(
-        key: ApiConfig.userKey,
-        value: jsonEncode(user.toJson()),
+      final updated = await _authSessionStore.updateUserJson(
+        jsonEncode(user.toJson()),
+        expectedRevision: initiatingSession.revision,
       );
+      if (!updated) {
+        throw StateError('Cannot update an inactive authentication session');
+      }
 
       return Right(user);
     } catch (e) {

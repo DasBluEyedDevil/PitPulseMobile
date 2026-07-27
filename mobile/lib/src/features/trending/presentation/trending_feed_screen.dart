@@ -90,10 +90,7 @@ class TrendingFeedSection extends ConsumerWidget {
                 SizedBox(height: 4),
                 Text(
                   'Hot events with the most buzz',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppTheme.textTertiary,
-                  ),
+                  style: TextStyle(fontSize: 13, color: AppTheme.textTertiary),
                 ),
               ],
             ),
@@ -127,10 +124,7 @@ class TrendingFeedSection extends ConsumerWidget {
             const Expanded(
               child: Text(
                 'Could not load trending shows',
-                style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
               ),
             ),
             TextButton(
@@ -152,10 +146,7 @@ class TrendingFeedSection extends ConsumerWidget {
 
 /// Individual trending event card (horizontal scroll).
 class _TrendingCard extends StatelessWidget {
-  const _TrendingCard({
-    required this.event,
-    required this.onTap,
-  });
+  const _TrendingCard({required this.event, required this.onTap});
 
   final TrendingEvent event;
   final VoidCallback onTap;
@@ -170,8 +161,9 @@ class _TrendingCard extends StatelessWidget {
     } catch (_) {}
 
     // Format distance
-    final distanceText =
-        event.distanceKm < 1 ? '< 1 km' : '${event.distanceKm.round()} km away';
+    final distanceText = event.distanceKm < 1
+        ? '< 1 km'
+        : '${event.distanceKm.round()} km away';
 
     return GestureDetector(
       onTap: onTap,
@@ -278,8 +270,9 @@ class _TrendingCard extends StatelessWidget {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(

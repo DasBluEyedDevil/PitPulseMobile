@@ -127,7 +127,7 @@ class ShareCardPreview extends StatelessWidget {
           label: 'Stories',
           onTap: hasUrls && urls != null
               ? () =>
-                  SocialShareService.shareToInstagramStories(urls.storiesUrl)
+                    SocialShareService.shareToInstagramStories(urls.storiesUrl)
               : null,
         ),
         const SizedBox(width: 24),
@@ -166,11 +166,7 @@ class ShareCardPreview extends StatelessWidget {
 
 /// Individual share target button with icon and label.
 class _ShareButton extends StatelessWidget {
-  const _ShareButton({
-    required this.icon,
-    required this.label,
-    this.onTap,
-  });
+  const _ShareButton({required this.icon, required this.label, this.onTap});
 
   final IconData icon;
   final String label;
