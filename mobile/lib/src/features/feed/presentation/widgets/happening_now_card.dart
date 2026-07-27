@@ -8,11 +8,7 @@ import '../../domain/happening_now_group.dart';
 /// Card showing a group of friends at the same event (Happening Now tab)
 /// Displays event name, venue, friend avatars row, and relative timestamp
 class HappeningNowCard extends StatelessWidget {
-  const HappeningNowCard({
-    required this.group,
-    super.key,
-    this.onTap,
-  });
+  const HappeningNowCard({required this.group, super.key, this.onTap});
 
   final HappeningNowGroup group;
   final VoidCallback? onTap;
@@ -58,8 +54,9 @@ class HappeningNowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final timeAgo = _getTimeAgo(group.lastCheckinAt);
-    final firstFriend =
-        group.friends.isNotEmpty ? group.friends.first.username : 'Friends';
+    final firstFriend = group.friends.isNotEmpty
+        ? group.friends.first.username
+        : 'Friends';
 
     return Semantics(
       label: happeningNowSemantics(
@@ -170,10 +167,7 @@ class HappeningNowCard extends StatelessWidget {
 
 /// Row of friend avatars with +N overflow indicator
 class _FriendAvatarRow extends StatelessWidget {
-  const _FriendAvatarRow({
-    required this.friends,
-    required this.totalCount,
-  });
+  const _FriendAvatarRow({required this.friends, required this.totalCount});
 
   final List<HappeningNowFriend> friends;
   final int totalCount;
@@ -234,10 +228,7 @@ class _FriendAvatarRow extends StatelessWidget {
 }
 
 class _FriendAvatar extends StatelessWidget {
-  const _FriendAvatar({
-    required this.friend,
-    required this.size,
-  });
+  const _FriendAvatar({required this.friend, required this.size});
 
   final HappeningNowFriend friend;
   final double size;
@@ -257,30 +248,22 @@ class _FriendAvatar extends StatelessWidget {
       child: ClipOval(
         child:
             friend.profileImageUrl != null && friend.profileImageUrl!.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: friend.profileImageUrl!,
-                    width: size,
-                    height: size,
-                    fit: BoxFit.cover,
-                    errorWidget: (context, url, error) => _InitialCircle(
-                      username: friend.username,
-                      size: size,
-                    ),
-                  )
-                : _InitialCircle(
-                    username: friend.username,
-                    size: size,
-                  ),
+            ? CachedNetworkImage(
+                imageUrl: friend.profileImageUrl!,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                errorWidget: (context, url, error) =>
+                    _InitialCircle(username: friend.username, size: size),
+              )
+            : _InitialCircle(username: friend.username, size: size),
       ),
     );
   }
 }
 
 class _InitialCircle extends StatelessWidget {
-  const _InitialCircle({
-    required this.username,
-    required this.size,
-  });
+  const _InitialCircle({required this.username, required this.size});
 
   final String username;
   final double size;

@@ -241,14 +241,11 @@ export class EventSyncOrchestrator {
         counters.events_updated++;
       }
 
-      logger.info(
-        '[EventSyncOrchestrator] Auto-merged Ticketmaster data into user-created event',
-        {
-          userEventId: existingUserEvent,
-          externalId: event.externalId,
-          eventName: event.name,
-        }
-      );
+      logger.info('[EventSyncOrchestrator] Auto-merged Ticketmaster data into user-created event', {
+        userEventId: existingUserEvent,
+        externalId: event.externalId,
+        eventName: event.name,
+      });
 
       return existingUserEvent;
     }

@@ -15,8 +15,9 @@ class ProfileSkeleton extends StatelessWidget {
     final highlightColor = isDark
         ? Theme.of(context).colorScheme.surfaceContainerHigh
         : Colors.grey[100]!;
-    final shapeColor =
-        isDark ? Theme.of(context).colorScheme.surface : Colors.white;
+    final shapeColor = isDark
+        ? Theme.of(context).colorScheme.surface
+        : Colors.white;
     final iconColor = isDark ? AppTheme.textMuted : Colors.grey[300];
 
     return SingleChildScrollView(
@@ -31,10 +32,7 @@ class ProfileSkeleton extends StatelessWidget {
                 Shimmer.fromColors(
                   baseColor: baseColor,
                   highlightColor: highlightColor,
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundColor: shapeColor,
-                  ),
+                  child: CircleAvatar(radius: 50, backgroundColor: shapeColor),
                 ),
                 const SizedBox(height: AppTheme.spacing16),
                 Shimmer.fromColors(
@@ -102,11 +100,7 @@ class ProfileSkeleton extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.emoji_events,
-                          size: 32,
-                          color: iconColor,
-                        ),
+                        Icon(Icons.emoji_events, size: 32, color: iconColor),
                         const SizedBox(height: AppTheme.spacing4),
                         Container(
                           height: 12,

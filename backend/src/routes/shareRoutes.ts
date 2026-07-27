@@ -49,10 +49,18 @@ apiRouter.post(
 const publicRouter = Router();
 
 // GET /share/c/:checkinId -- Public check-in landing page
-publicRouter.get('/c/:checkinId', rateLimit(15 * 60 * 1000, 60), shareController.renderCheckinLanding);
+publicRouter.get(
+  '/c/:checkinId',
+  rateLimit(15 * 60 * 1000, 60),
+  shareController.renderCheckinLanding
+);
 
 // GET /share/b/:badgeAwardId -- Public badge landing page
-publicRouter.get('/b/:badgeAwardId', rateLimit(15 * 60 * 1000, 60), shareController.renderBadgeLanding);
+publicRouter.get(
+  '/b/:badgeAwardId',
+  rateLimit(15 * 60 * 1000, 60),
+  shareController.renderBadgeLanding
+);
 
 // ============================================
 // Export both routers

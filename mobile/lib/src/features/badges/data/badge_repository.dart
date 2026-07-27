@@ -96,8 +96,9 @@ class BadgeRepository {
   /// Check for newly earned badges (manual debug trigger -- badge eval is automatic)
   Future<Either<Failure, List<UserBadge>>> checkNewBadges() async {
     try {
-      final response =
-          await _dioClient.post('${ApiConfig.badges}/check-awards');
+      final response = await _dioClient.post(
+        '${ApiConfig.badges}/check-awards',
+      );
       final List<dynamic> data = response.data['data'] as List<dynamic>;
       return Right(
         data

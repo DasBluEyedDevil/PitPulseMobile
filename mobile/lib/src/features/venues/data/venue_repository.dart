@@ -24,10 +24,7 @@ class VenueRepository {
     String? sortBy,
   }) async {
     try {
-      final queryParams = <String, dynamic>{
-        'page': page,
-        'limit': limit,
-      };
+      final queryParams = <String, dynamic>{'page': page, 'limit': limit};
 
       if (search != null && search.isNotEmpty) queryParams['q'] = search;
       if (city != null && city.isNotEmpty) queryParams['city'] = city;

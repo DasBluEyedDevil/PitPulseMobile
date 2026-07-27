@@ -33,10 +33,7 @@ export class SubscriptionController {
     // SEC-016/CFR-018: Use timing-safe comparison to prevent timing attacks
     const tokenBuf = Buffer.from(token);
     const expectedBuf = Buffer.from(webhookAuth);
-    if (
-      tokenBuf.length !== expectedBuf.length ||
-      !crypto.timingSafeEqual(tokenBuf, expectedBuf)
-    ) {
+    if (tokenBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(tokenBuf, expectedBuf)) {
       logger.warn('SubscriptionController: Invalid webhook authorization');
       // Return 200 to prevent RevenueCat retry storms on auth failures
       res.status(200).json({ message: 'Unauthorized' });

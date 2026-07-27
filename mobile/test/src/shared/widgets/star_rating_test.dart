@@ -7,25 +7,18 @@ void main() {
   group('StarRating Widget', () {
     testWidgets('displays 5 stars', (WidgetTester tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: StarRating(rating: 3.0),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: StarRating(rating: 3.0))),
       );
 
       final starIcons = find.byType(Icon);
       expect(starIcons, findsNWidgets(5));
     });
 
-    testWidgets('displays full stars for integer rating',
-        (WidgetTester tester) async {
+    testWidgets('displays full stars for integer rating', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: StarRating(rating: 3.0),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: StarRating(rating: 3.0))),
       );
 
       final fullStars = find.byIcon(Icons.star);
@@ -35,14 +28,11 @@ void main() {
       expect(emptyStars, findsNWidgets(2));
     });
 
-    testWidgets('displays half star for decimal rating',
-        (WidgetTester tester) async {
+    testWidgets('displays half star for decimal rating', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: StarRating(rating: 3.5),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: StarRating(rating: 3.5))),
       );
 
       final fullStars = find.byIcon(Icons.star);
@@ -54,28 +44,22 @@ void main() {
       expect(emptyStars, findsOneWidget);
     });
 
-    testWidgets('displays all full stars for rating 5.0',
-        (WidgetTester tester) async {
+    testWidgets('displays all full stars for rating 5.0', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: StarRating(rating: 5.0),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: StarRating(rating: 5.0))),
       );
 
       final fullStars = find.byIcon(Icons.star);
       expect(fullStars, findsNWidgets(5));
     });
 
-    testWidgets('displays all empty stars for rating 0.0',
-        (WidgetTester tester) async {
+    testWidgets('displays all empty stars for rating 0.0', (
+      WidgetTester tester,
+    ) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: StarRating(rating: 0.0),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: StarRating(rating: 0.0))),
       );
 
       final emptyStars = find.byIcon(Icons.star_border);
@@ -87,12 +71,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: StarRating(
-              rating: 3.0,
-              size: customSize,
-            ),
-          ),
+          home: Scaffold(body: StarRating(rating: 3.0, size: customSize)),
         ),
       );
 
@@ -102,11 +81,7 @@ void main() {
 
     testWidgets('uses default warning color', (WidgetTester tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: StarRating(rating: 3.0),
-          ),
-        ),
+        const MaterialApp(home: Scaffold(body: StarRating(rating: 3.0))),
       );
 
       final icon = tester.widget<Icon>(find.byType(Icon).first);
@@ -118,12 +93,7 @@ void main() {
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: StarRating(
-              rating: 3.0,
-              color: customColor,
-            ),
-          ),
+          home: Scaffold(body: StarRating(rating: 3.0, color: customColor)),
         ),
       );
 

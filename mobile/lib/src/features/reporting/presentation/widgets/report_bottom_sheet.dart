@@ -48,10 +48,8 @@ void showReportBottomSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
-    builder: (context) => ReportBottomSheet(
-      contentType: contentType,
-      contentId: contentId,
-    ),
+    builder: (context) =>
+        ReportBottomSheet(contentType: contentType, contentId: contentId),
   );
 }
 
@@ -102,7 +100,9 @@ class _ReportBottomSheetState extends ConsumerState<ReportBottomSheet> {
     setState(() => _isSubmitting = true);
 
     try {
-      await ref.read(reportRepositoryProvider).submitReport(
+      await ref
+          .read(reportRepositoryProvider)
+          .submitReport(
             contentType: widget.contentType,
             contentId: widget.contentId,
             reason: _selectedReason!.value,
@@ -196,10 +196,7 @@ class _ReportBottomSheetState extends ConsumerState<ReportBottomSheet> {
               const Center(
                 child: Text(
                   'Why are you reporting this content?',
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                 ),
               ),
               const SizedBox(height: 20),
@@ -253,8 +250,9 @@ class _ReportBottomSheetState extends ConsumerState<ReportBottomSheet> {
                       : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.error,
-                    disabledBackgroundColor:
-                        AppTheme.error.withValues(alpha: 0.3),
+                    disabledBackgroundColor: AppTheme.error.withValues(
+                      alpha: 0.3,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),

@@ -91,11 +91,7 @@ class SnackbarHelper {
       SnackBar(
         content: Row(
           children: [
-            Icon(
-              icon,
-              color: Colors.white,
-              size: 24,
-            ),
+            Icon(icon, color: Colors.white, size: 24),
             const SizedBox(width: AppTheme.spacing12),
             Expanded(
               child: Text(
@@ -132,10 +128,7 @@ class SnackbarHelper {
   }
 
   /// Shows a loading snackbar (can be dismissed manually)
-  static void showLoading(
-    BuildContext context,
-    String message,
-  ) {
+  static void showLoading(BuildContext context, String message) {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

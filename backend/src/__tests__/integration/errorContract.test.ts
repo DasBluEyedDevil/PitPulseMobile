@@ -24,7 +24,8 @@ describe('API error contract', () => {
     });
     app.use((error: any, _req: Request, res: Response, _next: NextFunction) => {
       const statusCode = error.statusCode || error.status || 500;
-      const message = statusCode >= 500 ? 'Internal server error' : error.message || 'Request failed';
+      const message =
+        statusCode >= 500 ? 'Internal server error' : error.message || 'Request failed';
       res.status(statusCode).json(buildErrorResponseForStatus(statusCode, message, error.details));
     });
   });

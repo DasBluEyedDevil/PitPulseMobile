@@ -19,13 +19,7 @@ sealed class VibeTag with _$VibeTag {
 }
 
 /// Predefined vibe categories
-enum VibeCategory {
-  energy,
-  sound,
-  crowd,
-  atmosphere,
-  special,
-}
+enum VibeCategory { energy, sound, crowd, atmosphere, special }
 
 extension VibeCategoryExtension on VibeCategory {
   String get displayName {

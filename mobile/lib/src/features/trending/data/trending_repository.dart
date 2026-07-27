@@ -50,13 +50,14 @@ class TrendingEvent {
           (json['checkinVelocity'] ?? json['checkin_velocity'] ?? 0) as int,
       friendSignals:
           (json['friendSignals'] ?? json['friend_signals'] ?? 0) as int,
-      distanceKm:
-          ((json['distanceKm'] ?? json['distance_km'] ?? 0) as num).toDouble(),
+      distanceKm: ((json['distanceKm'] ?? json['distance_km'] ?? 0) as num)
+          .toDouble(),
       trendingScore:
           ((json['trendingScore'] ?? json['trending_score'] ?? 0) as num)
               .toDouble(),
       imageUrl: json['imageUrl'] as String? ?? json['image_url'] as String?,
-      lineupBands: (json['lineupBands'] as List<dynamic>?)
+      lineupBands:
+          (json['lineupBands'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           (json['lineup_bands'] as List<dynamic>?)

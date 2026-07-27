@@ -32,11 +32,7 @@ class CheckInRepository {
     try {
       final response = await _dioClient.get(
         ApiConfig.feed,
-        queryParameters: {
-          'filter': filter,
-          'limit': limit,
-          'offset': offset,
-        },
+        queryParameters: {'filter': filter, 'limit': limit, 'offset': offset},
       );
 
       final List<dynamic> data = response.data['data'] as List<dynamic>;
@@ -55,10 +51,7 @@ class CheckInRepository {
     int limit = 20,
   }) async {
     try {
-      final queryParams = <String, dynamic>{
-        'page': page,
-        'limit': limit,
-      };
+      final queryParams = <String, dynamic>{'page': page, 'limit': limit};
 
       if (venueId != null) queryParams['venueId'] = venueId;
       if (bandId != null) queryParams['bandId'] = bandId;
@@ -146,16 +139,11 @@ class CheckInRepository {
     double? locationLon,
   }) async {
     try {
-      final body = <String, dynamic>{
-        'eventId': eventId,
-      };
+      final body = <String, dynamic>{'eventId': eventId};
       if (locationLat != null) body['locationLat'] = locationLat;
       if (locationLon != null) body['locationLon'] = locationLon;
 
-      final response = await _dioClient.post(
-        ApiConfig.checkins,
-        data: body,
-      );
+      final response = await _dioClient.post(ApiConfig.checkins, data: body);
       final checkinData = response.data['data'] as Map<String, dynamic>;
       return Right(CheckIn.fromJson(checkinData));
     } catch (e) {
@@ -175,10 +163,7 @@ class CheckInRepository {
     double? locationLon,
   }) async {
     try {
-      final body = <String, dynamic>{
-        'bandId': bandId,
-        'venueId': venueId,
-      };
+      final body = <String, dynamic>{'bandId': bandId, 'venueId': venueId};
       if (rating != null && rating > 0) body['rating'] = rating;
       if (comment != null && comment.isNotEmpty) body['comment'] = comment;
       if (vibeTagIds != null && vibeTagIds.isNotEmpty) {
@@ -187,10 +172,7 @@ class CheckInRepository {
       if (locationLat != null) body['locationLat'] = locationLat;
       if (locationLon != null) body['locationLon'] = locationLon;
 
-      final response = await _dioClient.post(
-        ApiConfig.checkins,
-        data: body,
-      );
+      final response = await _dioClient.post(ApiConfig.checkins, data: body);
       final checkinData = response.data['data'] as Map<String, dynamic>;
       return Right(CheckIn.fromJson(checkinData));
     } catch (e) {
@@ -226,9 +208,7 @@ class CheckInRepository {
   /// Backend returns success-only response, no toast data
   Future<Either<Failure, void>> toastCheckIn(String checkInId) async {
     try {
-      await _dioClient.post(
-        '${ApiConfig.checkins}/$checkInId/toast',
-      );
+      await _dioClient.post('${ApiConfig.checkins}/$checkInId/toast');
       // Backend returns { success: true, message: "Toasted!" }
       // No toast data is returned, just confirm success
       return const Right(null);
@@ -290,10 +270,7 @@ class CheckInRepository {
     try {
       final response = await _dioClient.get(
         '${ApiConfig.checkins}/$checkInId/comments',
-        queryParameters: {
-          'page': page,
-          'limit': limit,
-        },
+        queryParameters: {'page': page, 'limit': limit},
       );
       final List<dynamic> data = response.data['data'] as List<dynamic>;
       return Right(data.map((json) => CheckInComment.fromJson(json)).toList());
@@ -324,9 +301,7 @@ class CheckInRepository {
     String userId,
   ) async {
     try {
-      final response = await _dioClient.get(
-        '${ApiConfig.auth}/$userId/stats',
-      );
+      final response = await _dioClient.get('${ApiConfig.auth}/$userId/stats');
       return Right(response.data['data'] as Map<String, dynamic>);
     } catch (e) {
       return Left(_mapErrorToFailure(e));

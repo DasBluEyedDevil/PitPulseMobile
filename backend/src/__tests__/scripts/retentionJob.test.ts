@@ -237,7 +237,13 @@ describe('retentionJob', () => {
       const { runRetentionJob } = await import('../../scripts/retentionJob');
       await runRetentionJob();
 
-      expect(callOrder).toEqual(['consents', 'notifications', 'audit_logs', 'webhooks', 'password_reset']);
+      expect(callOrder).toEqual([
+        'consents',
+        'notifications',
+        'audit_logs',
+        'webhooks',
+        'password_reset',
+      ]);
       expect(mockCleanupExpiredTokens).toHaveBeenCalled();
     });
   });

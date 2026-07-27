@@ -24,8 +24,8 @@ class StoryProgressBar extends StatelessWidget {
             child: index < currentSlide
                 ? _buildCompleted()
                 : index == currentSlide
-                    ? _buildActive()
-                    : _buildUpcoming(),
+                ? _buildActive()
+                : _buildUpcoming(),
           ),
         );
       }),

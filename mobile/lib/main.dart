@@ -10,39 +10,29 @@ import 'src/features/subscription/presentation/subscription_service.dart';
 void main() {
   // Capture async errors not caught by Flutter
   // NOTE: All initialization must happen inside the same zone as runApp
-  runZonedGuarded(
-    () async {
-      // Ensure Flutter binding is initialized (inside zone)
-      WidgetsFlutterBinding.ensureInitialized();
+  runZonedGuarded(() async {
+    // Ensure Flutter binding is initialized (inside zone)
+    WidgetsFlutterBinding.ensureInitialized();
 
-      // Initialize crash reporting (Sentry)
-      await CrashReportingService.init();
+    // Initialize crash reporting (Sentry)
+    await CrashReportingService.init();
 
-      // Initialize analytics (Firebase Analytics)
-      await AnalyticsService.initialize();
+    // Initialize analytics (Firebase Analytics)
+    await AnalyticsService.initialize();
 
-      // Initialize RevenueCat subscriptions
-      await SubscriptionService.initialize();
+    // Initialize RevenueCat subscriptions
+    await SubscriptionService.initialize();
 
-      // Capture Flutter framework errors
-      FlutterError.onError = (FlutterErrorDetails details) {
-        FlutterError.presentError(details);
+    // Capture Flutter framework errors
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
 
-        // Send to crash reporting service
-        CrashReportingService.captureException(
-          details.exception,
-          details.stack,
-        );
-      };
+      // Send to crash reporting service
+      CrashReportingService.captureException(details.exception, details.stack);
+    };
 
-      runApp(
-        const ProviderScope(
-          child: SoundCheckApp(),
-        ),
-      );
-    },
-    CrashReportingService.captureException,
-  );
+    runApp(const ProviderScope(child: SoundCheckApp()));
+  }, CrashReportingService.captureException);
 }
 
 class SoundCheckApp extends ConsumerWidget {

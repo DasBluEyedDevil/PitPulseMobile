@@ -57,32 +57,17 @@ class ImageCompression {
 
   /// Compress image for profile picture (smaller size)
   static Future<File?> compressProfileImage(File file) async {
-    return compressImage(
-      file,
-      maxWidth: 512,
-      maxHeight: 512,
-      quality: 90,
-    );
+    return compressImage(file, maxWidth: 512, maxHeight: 512, quality: 90);
   }
 
   /// Compress image for check-in photo (medium size)
   static Future<File?> compressCheckinImage(File file) async {
-    return compressImage(
-      file,
-      maxWidth: 1920,
-      maxHeight: 1920,
-      quality: 85,
-    );
+    return compressImage(file, maxWidth: 1920, maxHeight: 1920, quality: 85);
   }
 
   /// Compress image for venue/band cover (large size, high quality)
   static Future<File?> compressCoverImage(File file) async {
-    return compressImage(
-      file,
-      maxWidth: 2048,
-      maxHeight: 2048,
-      quality: 90,
-    );
+    return compressImage(file, maxWidth: 2048, maxHeight: 2048, quality: 90);
   }
 
   /// Get compressed file size in KB

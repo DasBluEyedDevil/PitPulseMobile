@@ -33,11 +33,7 @@ class StarRating extends StatelessWidget {
               icon = Icons.star_border;
             }
 
-            return Icon(
-              icon,
-              size: size,
-              color: color,
-            );
+            return Icon(icon, size: size, color: color);
           }),
         ),
       ),

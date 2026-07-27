@@ -5,7 +5,11 @@
  * and other consumers.
  */
 
-export { BadgeDefinitionService, BadgeWithEarnedCount, BadgeLeaderboardEntry } from './BadgeDefinitionService';
+export {
+  BadgeDefinitionService,
+  BadgeWithEarnedCount,
+  BadgeLeaderboardEntry,
+} from './BadgeDefinitionService';
 export { BadgeEvaluationService, BadgeProgress, EvaluationResult } from './BadgeEvaluationService';
 export { BadgeAwardService, AwardResult } from './BadgeAwardService';
 export { BadgeNotificationService, NotificationResult } from './BadgeNotificationService';

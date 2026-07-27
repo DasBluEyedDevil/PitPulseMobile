@@ -29,10 +29,7 @@ class BandRepository {
     int limit = 20,
   }) async {
     try {
-      final queryParams = <String, dynamic>{
-        'page': page,
-        'limit': limit,
-      };
+      final queryParams = <String, dynamic>{'page': page, 'limit': limit};
 
       if (search != null) queryParams['q'] = search;
       if (genre != null) queryParams['genre'] = genre;

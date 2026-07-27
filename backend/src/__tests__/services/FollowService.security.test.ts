@@ -46,30 +46,28 @@ describe('FollowService security behavior', () => {
   });
 
   it('returns public followers without email, date of birth, admin, or premium fields', async () => {
-    mockDb.query
-      .mockResolvedValueOnce({ rows: [{ id: followingId }] })
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: followerId,
-            email: 'private@example.com',
-            username: 'public_user',
-            first_name: 'Public',
-            last_name: 'User',
-            bio: null,
-            profile_image_url: null,
-            location: null,
-            date_of_birth: '1990-01-01',
-            is_verified: true,
-            is_active: true,
-            is_admin: true,
-            is_premium: true,
-            created_at: '2026-01-01T00:00:00.000Z',
-            updated_at: '2026-01-02T00:00:00.000Z',
-            total_count: '1',
-          },
-        ],
-      });
+    mockDb.query.mockResolvedValueOnce({ rows: [{ id: followingId }] }).mockResolvedValueOnce({
+      rows: [
+        {
+          id: followerId,
+          email: 'private@example.com',
+          username: 'public_user',
+          first_name: 'Public',
+          last_name: 'User',
+          bio: null,
+          profile_image_url: null,
+          location: null,
+          date_of_birth: '1990-01-01',
+          is_verified: true,
+          is_active: true,
+          is_admin: true,
+          is_premium: true,
+          created_at: '2026-01-01T00:00:00.000Z',
+          updated_at: '2026-01-02T00:00:00.000Z',
+          total_count: '1',
+        },
+      ],
+    });
 
     const service = new FollowService(notificationService as any, blockService as any);
     const result = await service.getFollowers(followingId);

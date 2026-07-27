@@ -219,11 +219,7 @@ export class BadgeAwardService {
         WHERE user_id = $1 AND badge_id = $2
       `;
 
-      const result = await this.db.query(query, [
-        userId,
-        badgeId,
-        JSON.stringify(metadata),
-      ]);
+      const result = await this.db.query(query, [userId, badgeId, JSON.stringify(metadata)]);
 
       return (result.rowCount ?? 0) > 0;
     } catch (err) {

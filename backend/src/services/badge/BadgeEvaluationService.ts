@@ -186,7 +186,11 @@ export class BadgeEvaluationService {
    * Get badge progress for a user (how close they are to earning badges).
    * Uses evaluator registry for data-driven progress calculation.
    */
-  async getUserBadgeProgress(userId: string, allBadges: Badge[], earnedBadgeIds: Set<string>): Promise<BadgeProgress[]> {
+  async getUserBadgeProgress(
+    userId: string,
+    allBadges: Badge[],
+    earnedBadgeIds: Set<string>
+  ): Promise<BadgeProgress[]> {
     // Group badges by criteria.type (genre_explorer grouped by genre)
     const typeGroups = new Map<string, Badge[]>();
     const badgesWithoutCriteria: Badge[] = [];

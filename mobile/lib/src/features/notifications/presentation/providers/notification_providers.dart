@@ -49,8 +49,10 @@ class MarkNotificationAsRead extends _$MarkNotificationAsRead {
     final result = await repository.markAsRead(notificationId);
     return result.fold(
       (failure) {
-        state =
-            AsyncValue.error(Exception(failure.message), StackTrace.current);
+        state = AsyncValue.error(
+          Exception(failure.message),
+          StackTrace.current,
+        );
         return false;
       },
       (_) {
@@ -108,8 +110,10 @@ class DeleteNotification extends _$DeleteNotification {
     final result = await repository.deleteNotification(notificationId);
     return result.fold(
       (failure) {
-        state =
-            AsyncValue.error(Exception(failure.message), StackTrace.current);
+        state = AsyncValue.error(
+          Exception(failure.message),
+          StackTrace.current,
+        );
         return false;
       },
       (_) {

@@ -120,12 +120,7 @@ export class SyncLogService {
    * Mark a sync as failed with error message
    */
   async failSync(syncLogId: string, error: Error): Promise<void> {
-    await this.completeSync(
-      syncLogId,
-      this.getEmptyCounters(),
-      'failed',
-      error.message
-    );
+    await this.completeSync(syncLogId, this.getEmptyCounters(), 'failed', error.message);
   }
 
   /**

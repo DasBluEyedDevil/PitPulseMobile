@@ -38,10 +38,7 @@ class VenueFilters extends _$VenueFilters {
   }
 
   void setCapacityRange({int? min, int? max}) {
-    state = state.copyWith(
-      minCapacity: min,
-      maxCapacity: max,
-    );
+    state = state.copyWith(minCapacity: min, maxCapacity: max);
   }
 
   void setMinRating(double? rating) {

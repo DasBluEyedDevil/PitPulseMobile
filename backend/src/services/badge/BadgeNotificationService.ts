@@ -122,9 +122,12 @@ export class BadgeNotificationService {
       }
       return true;
     } catch (err) {
-      logger.error(`[BadgeNotificationService] Realtime notification failed for badge ${badge.id}`, {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      logger.error(
+        `[BadgeNotificationService] Realtime notification failed for badge ${badge.id}`,
+        {
+          error: err instanceof Error ? err.message : String(err),
+        }
+      );
       return false;
     }
   }
@@ -143,9 +146,12 @@ export class BadgeNotificationService {
       });
       return true;
     } catch (err) {
-      logger.error(`[BadgeNotificationService] Persistent notification failed for badge ${badge.id}`, {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      logger.error(
+        `[BadgeNotificationService] Persistent notification failed for badge ${badge.id}`,
+        {
+          error: err instanceof Error ? err.message : String(err),
+        }
+      );
       return false;
     }
   }

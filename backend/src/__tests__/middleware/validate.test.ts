@@ -131,7 +131,9 @@ describe('Validation Middleware', () => {
 
     it('should return 500 on unexpected non-Zod errors', async () => {
       const schema = {
-        parseAsync: jest.fn<() => Promise<unknown>>().mockRejectedValue(new Error('Unexpected error')),
+        parseAsync: jest
+          .fn<() => Promise<unknown>>()
+          .mockRejectedValue(new Error('Unexpected error')),
       } as unknown as z.ZodType<unknown>;
 
       const middleware = validate(schema);

@@ -11,7 +11,7 @@ class NotificationRepository {
   final DioClient _dioClient;
 
   NotificationRepository({required DioClient dioClient})
-      : _dioClient = dioClient;
+    : _dioClient = dioClient;
 
   /// Helper method to map errors to Failures
   Failure _mapErrorToFailure(Object e) {
@@ -28,10 +28,7 @@ class NotificationRepository {
     try {
       final response = await _dioClient.get(
         ApiConfig.notifications,
-        queryParameters: {
-          'limit': limit,
-          'offset': offset,
-        },
+        queryParameters: {'limit': limit, 'offset': offset},
       );
 
       final data = response.data['data'] as Map<String, dynamic>;
@@ -58,9 +55,7 @@ class NotificationRepository {
   /// Mark a single notification as read
   Future<Either<Failure, void>> markAsRead(String notificationId) async {
     try {
-      await _dioClient.post(
-        '${ApiConfig.notifications}/$notificationId/read',
-      );
+      await _dioClient.post('${ApiConfig.notifications}/$notificationId/read');
       return const Right(null);
     } catch (e) {
       return Left(_mapErrorToFailure(e));
@@ -86,9 +81,7 @@ class NotificationRepository {
     String notificationId,
   ) async {
     try {
-      await _dioClient.delete(
-        '${ApiConfig.notifications}/$notificationId',
-      );
+      await _dioClient.delete('${ApiConfig.notifications}/$notificationId');
       return const Right(null);
     } catch (e) {
       return Left(_mapErrorToFailure(e));

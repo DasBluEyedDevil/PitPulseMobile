@@ -32,10 +32,8 @@ sealed class WrappedStats with _$WrappedStats {
 
 @freezed
 sealed class MonthlyActivity with _$MonthlyActivity {
-  const factory MonthlyActivity({
-    required int month,
-    required int showCount,
-  }) = _MonthlyActivity;
+  const factory MonthlyActivity({required int month, required int showCount}) =
+      _MonthlyActivity;
 
   factory MonthlyActivity.fromJson(Map<String, dynamic> json) =>
       _$MonthlyActivityFromJson(json);

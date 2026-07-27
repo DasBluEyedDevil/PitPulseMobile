@@ -39,9 +39,7 @@ class AccountRepository {
   /// Throws if no pending deletion request exists.
   Future<Either<Failure, void>> cancelDeletion() async {
     try {
-      await _dioClient.post(
-        '${ApiConfig.auth}/me/cancel-deletion',
-      );
+      await _dioClient.post('${ApiConfig.auth}/me/cancel-deletion');
       return const Right(null);
     } catch (e) {
       return Left(_mapErrorToFailure(e));

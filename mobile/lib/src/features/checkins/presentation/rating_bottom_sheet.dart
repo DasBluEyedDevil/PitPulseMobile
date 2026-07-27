@@ -86,12 +86,7 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
     // Build band ratings list (only include rated bands)
     final bandRatings = _bandRatings.entries
         .where((e) => e.value > 0)
-        .map(
-          (e) => {
-            'bandId': e.key,
-            'rating': e.value,
-          },
-        )
+        .map((e) => {'bandId': e.key, 'rating': e.value})
         .toList();
 
     final submitNotifier = ref.read(submitRatingsProvider.notifier);
@@ -237,8 +232,9 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
                             : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.voltLime,
-                          disabledBackgroundColor:
-                              AppTheme.voltLime.withValues(alpha: 0.3),
+                          disabledBackgroundColor: AppTheme.voltLime.withValues(
+                            alpha: 0.3,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -258,8 +254,9 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                   color: _hasAnyRatings
-                                      ? Theme.of(context)
-                                          .scaffoldBackgroundColor
+                                      ? Theme.of(
+                                          context,
+                                        ).scaffoldBackgroundColor
                                       : AppTheme.textTertiary,
                                 ),
                               ),
@@ -284,10 +281,7 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
           padding: EdgeInsets.all(32),
           child: Text(
             'No bands in lineup for this event',
-            style: TextStyle(
-              color: AppTheme.textTertiary,
-              fontSize: 16,
-            ),
+            style: TextStyle(color: AppTheme.textTertiary, fontSize: 16),
           ),
         ),
       );
@@ -311,9 +305,7 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(16),
             border: currentRating > 0
-                ? Border.all(
-                    color: AppTheme.voltLime.withValues(alpha: 0.5),
-                  )
+                ? Border.all(color: AppTheme.voltLime.withValues(alpha: 0.5))
                 : null,
           ),
           child: Column(
@@ -384,10 +376,8 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
                     itemCount: 5,
                     itemSize: 36,
                     unratedColor: AppTheme.ratingInactive,
-                    itemBuilder: (context, _) => const Icon(
-                      Icons.star,
-                      color: AppTheme.voltLime,
-                    ),
+                    itemBuilder: (context, _) =>
+                        const Icon(Icons.star, color: AppTheme.voltLime),
                     onRatingUpdate: (rating) {
                       setState(() {
                         _bandRatings[bandId] = rating;
@@ -440,10 +430,7 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
           const SizedBox(height: 8),
           const Text(
             'How was the venue experience?',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: 32),
 
@@ -459,10 +446,8 @@ class _RatingBottomSheetState extends ConsumerState<RatingBottomSheet>
               itemCount: 5,
               itemSize: 48,
               unratedColor: AppTheme.ratingInactive,
-              itemBuilder: (context, _) => const Icon(
-                Icons.star,
-                color: AppTheme.voltLime,
-              ),
+              itemBuilder: (context, _) =>
+                  const Icon(Icons.star, color: AppTheme.voltLime),
               onRatingUpdate: (rating) {
                 setState(() {
                   _venueRating = rating;

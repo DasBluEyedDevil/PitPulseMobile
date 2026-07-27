@@ -77,8 +77,9 @@ class PaginatedVenuesNotifier extends _$PaginatedVenuesNotifier {
       final result = await repository.getVenues(
         search:
             null, // Search is handled separately via a different provider if needed
-        city:
-            state.filters.cities.isNotEmpty ? state.filters.cities.first : null,
+        city: state.filters.cities.isNotEmpty
+            ? state.filters.cities.first
+            : null,
         venueType: state.filters.venueTypes.isNotEmpty
             ? state.filters.venueTypes.first.name
             : null,
@@ -93,16 +94,14 @@ class PaginatedVenuesNotifier extends _$PaginatedVenuesNotifier {
       state = state.copyWith(
         venues: [...state.venues, ...result.venues],
         currentPage: state.currentPage + 1,
-        hasMore: result.venues.length == _pageSize &&
+        hasMore:
+            result.venues.length == _pageSize &&
             state.currentPage + 1 < result.totalPages,
         isLoading: false,
         error: null,
       );
     } on Failure catch (failure) {
-      state = state.copyWith(
-        isLoading: false,
-        error: failure,
-      );
+      state = state.copyWith(isLoading: false, error: failure);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

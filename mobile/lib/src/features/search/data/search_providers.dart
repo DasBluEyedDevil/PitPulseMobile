@@ -58,11 +58,7 @@ Future<SearchResults> unifiedSearch(Ref ref) async {
   try {
     final response = await dioClient.get(
       '/search',
-      queryParameters: {
-        'q': query.trim(),
-        'types': types,
-        'limit': 10,
-      },
+      queryParameters: {'q': query.trim(), 'types': types, 'limit': 10},
     );
 
     final data = response.data['data'] as Map<String, dynamic>;
@@ -149,15 +145,14 @@ class SearchUser {
   });
 
   factory SearchUser.fromJson(Map<String, dynamic> json) => SearchUser(
-        id: json['id'] as String,
-        username: json['username'] as String,
-        displayName:
-            json['displayName'] as String? ?? json['username'] as String,
-        profileImageUrl: json['profileImageUrl'] as String?,
-        bio: json['bio'] as String?,
-        totalCheckins: json['totalCheckins'] as int? ?? 0,
-        isVerified: json['isVerified'] as bool? ?? false,
-      );
+    id: json['id'] as String,
+    username: json['username'] as String,
+    displayName: json['displayName'] as String? ?? json['username'] as String,
+    profileImageUrl: json['profileImageUrl'] as String?,
+    bio: json['bio'] as String?,
+    totalCheckins: json['totalCheckins'] as int? ?? 0,
+    isVerified: json['isVerified'] as bool? ?? false,
+  );
 }
 
 /// Combined search results with categorized bands, venues, events, and users.
@@ -178,28 +173,28 @@ class SearchResults {
     this.error,
   });
 
-  factory SearchResults.empty() => SearchResults(
-        venues: [],
-        bands: [],
-        events: [],
-        users: [],
-      );
+  factory SearchResults.empty() =>
+      SearchResults(venues: [], bands: [], events: [], users: []);
 
   factory SearchResults.fromJson(Map<String, dynamic> json) {
     return SearchResults(
-      bands: (json['bands'] as List<dynamic>?)
+      bands:
+          (json['bands'] as List<dynamic>?)
               ?.map((e) => Band.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      venues: (json['venues'] as List<dynamic>?)
+      venues:
+          (json['venues'] as List<dynamic>?)
               ?.map((e) => Venue.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      events: (json['events'] as List<dynamic>?)
+      events:
+          (json['events'] as List<dynamic>?)
               ?.map((e) => SearchEvent.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      users: (json['users'] as List<dynamic>?)
+      users:
+          (json['users'] as List<dynamic>?)
               ?.map((e) => SearchUser.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],

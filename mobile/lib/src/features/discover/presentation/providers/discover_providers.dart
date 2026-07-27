@@ -41,20 +41,16 @@ class DiscoverSearchResults {
     this.error,
   });
 
-  factory DiscoverSearchResults.empty() => const DiscoverSearchResults(
-        bands: [],
-        venues: [],
-        users: [],
-        events: [],
-      );
+  factory DiscoverSearchResults.empty() =>
+      const DiscoverSearchResults(bands: [], venues: [], users: [], events: []);
 
   factory DiscoverSearchResults.loading() => const DiscoverSearchResults(
-        bands: [],
-        venues: [],
-        users: [],
-        events: [],
-        isLoading: true,
-      );
+    bands: [],
+    venues: [],
+    users: [],
+    events: [],
+    isLoading: true,
+  );
 
   bool get isEmpty =>
       bands.isEmpty && venues.isEmpty && users.isEmpty && events.isEmpty;
@@ -76,10 +72,7 @@ Future<List<Band>> discoverBandSearch(Ref ref) async {
 
   final repository = ref.watch(bandRepositoryProvider);
   final result = await repository.getBands(search: query, limit: 10);
-  return result.fold(
-    (failure) => [],
-    (bands) => bands,
-  );
+  return result.fold((failure) => [], (bands) => bands);
 }
 
 /// Provider for venue search results in discover (debounced)
@@ -92,8 +85,11 @@ Future<List<Venue>> discoverVenueSearch(Ref ref) async {
   if (ref.watch(discoverSearchQueryProvider) != query) return [];
 
   final repository = ref.watch(venueRepositoryProvider);
-  final paginatedResult =
-      await repository.getVenues(search: query, page: 1, limit: 10);
+  final paginatedResult = await repository.getVenues(
+    search: query,
+    page: 1,
+    limit: 10,
+  );
   return paginatedResult.venues;
 }
 
@@ -155,17 +151,15 @@ Future<List<User>> discoverUserSearch(Ref ref) async {
   try {
     final response = await dioClient.get(
       '/search/users',
-      queryParameters: {
-        'q': query,
-        'limit': 10,
-      },
+      queryParameters: {'q': query, 'limit': 10},
     );
 
     if (response.data['success'] == true && response.data['data'] != null) {
       return (response.data['data'] as List)
           .map(
-            (json) => UserSearchResult.fromJson(json as Map<String, dynamic>)
-                .toUser(),
+            (json) => UserSearchResult.fromJson(
+              json as Map<String, dynamic>,
+            ).toUser(),
           )
           .toList();
     }
@@ -190,10 +184,7 @@ Future<List<DiscoverEvent>> discoverEventSearch(Ref ref) async {
 
   try {
     final result = await repository.searchEvents(query: query, limit: 10);
-    return result.fold(
-      (failure) => [],
-      (events) => events,
-    );
+    return result.fold((failure) => [], (events) => events);
   } catch (e) {
     return [];
   }
@@ -214,12 +205,14 @@ DiscoverSearchResults discoverSearchResults(Ref ref) {
   final usersAsync = ref.watch(discoverUserSearchProvider);
   final eventsAsync = ref.watch(discoverEventSearchProvider);
 
-  final isLoading = bandsAsync.isLoading ||
+  final isLoading =
+      bandsAsync.isLoading ||
       venuesAsync.isLoading ||
       usersAsync.isLoading ||
       eventsAsync.isLoading;
 
-  final hasError = bandsAsync.hasError ||
+  final hasError =
+      bandsAsync.hasError ||
       venuesAsync.hasError ||
       usersAsync.hasError ||
       eventsAsync.hasError;
@@ -239,9 +232,9 @@ DiscoverSearchResults discoverSearchResults(Ref ref) {
     isLoading: isLoading,
     error: hasError
         ? (bandsAsync.error ??
-            venuesAsync.error ??
-            usersAsync.error ??
-            eventsAsync.error)
+              venuesAsync.error ??
+              usersAsync.error ??
+              eventsAsync.error)
         : null,
   );
 }
@@ -265,16 +258,10 @@ Future<List<DiscoverEvent>> recommendedEvents(Ref ref) async {
         radiusKm: 50,
         limit: 15,
       );
-      return result.fold(
-        (failure) => [],
-        (events) => events,
-      );
+      return result.fold((failure) => [], (events) => events);
     } else {
       final result = await repository.getRecommendations(limit: 15);
-      return result.fold(
-        (failure) => [],
-        (events) => events,
-      );
+      return result.fold((failure) => [], (events) => events);
     }
   } catch (e) {
     // Graceful degradation: return empty list on error (section hides itself)
@@ -296,10 +283,7 @@ Future<List<DiscoverEvent>> nearbyUpcomingEvents(Ref ref) async {
     days: 30,
     limit: 20,
   );
-  return result.fold(
-    (failure) => [],
-    (events) => events,
-  );
+  return result.fold((failure) => [], (events) => events);
 }
 
 /// Trending events near user (sorted by recent check-in count)
@@ -315,10 +299,7 @@ Future<List<DiscoverEvent>> trendingNearbyEvents(Ref ref) async {
     radiusKm: 50,
     limit: 20,
   );
-  return result.fold(
-    (failure) => [],
-    (events) => events,
-  );
+  return result.fold((failure) => [], (events) => events);
 }
 
 /// Available genres list (from bands endpoint)
@@ -326,10 +307,7 @@ Future<List<DiscoverEvent>> trendingNearbyEvents(Ref ref) async {
 Future<List<String>> genreList(Ref ref) async {
   final repository = ref.watch(bandRepositoryProvider);
   final result = await repository.getGenres();
-  return result.fold(
-    (failure) => [],
-    (genres) => genres,
-  );
+  return result.fold((failure) => [], (genres) => genres);
 }
 
 /// Events filtered by genre (family provider)
@@ -337,8 +315,5 @@ Future<List<String>> genreList(Ref ref) async {
 Future<List<DiscoverEvent>> genreEvents(Ref ref, String genre) async {
   final repository = ref.watch(discoveryRepositoryProvider);
   final result = await repository.getEventsByGenre(genre: genre, limit: 20);
-  return result.fold(
-    (failure) => [],
-    (events) => events,
-  );
+  return result.fold((failure) => [], (events) => events);
 }
