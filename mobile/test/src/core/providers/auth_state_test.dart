@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -97,6 +99,114 @@ void main() {
       },
     );
 
+    test(
+      'in-flight account B supersedes A and receives its own bootstrap',
+      () async {
+        final harness = await _AuthHarness.create();
+        addTearDown(harness.dispose);
+        harness.repository.loginResponses.addAll([
+          _authResponse(_userA),
+          _authResponse(_userB),
+        ]);
+        final delayedWebSocket = harness.integrations.delay(
+          AuthenticatedSessionBootstrapStep.webSocket,
+          _userA,
+        );
+
+        final loginA = harness.notifier.login('a@example.com', 'Password1!');
+        await delayedWebSocket.entered.future;
+        final loginB = harness.notifier.login('b@example.com', 'Password1!');
+        await Future<void>.delayed(Duration.zero);
+        delayedWebSocket.release.complete();
+        await Future.wait([loginA, loginB]);
+
+        expect(harness.container.read(authStateProvider).value, _userB);
+        expect(
+          harness.integrations.bootstrapCalls,
+          containsAllInOrder(_expectedBootstrapCalls(_userB)),
+        );
+        expect(
+          harness.container
+              .read(authenticatedSessionBootstrapStatusProvider)
+              .userId,
+          _userB.id,
+        );
+      },
+    );
+
+    test(
+      'account B is not published before cache invalidation completes',
+      () async {
+        final harness = await _AuthHarness.create();
+        addTearDown(harness.dispose);
+        harness.repository.loginResponses.addAll([
+          _authResponse(_userA),
+          _authResponse(_userB),
+        ]);
+        await harness.notifier.login('a@example.com', 'Password1!');
+        final delayedInvalidation = harness.integrations.delay(
+          AuthenticatedSessionBootstrapStep.sessionProviders,
+          _userB,
+        );
+
+        final loginB = harness.notifier.login('b@example.com', 'Password1!');
+        await delayedInvalidation.entered.future;
+
+        expect(harness.container.read(authStateProvider).value, _userA);
+
+        delayedInvalidation.release.complete();
+        await loginB;
+        expect(harness.container.read(authStateProvider).value, _userB);
+      },
+    );
+
+    for (final delayedStep in [
+      AuthenticatedSessionBootstrapStep.webSocket,
+      AuthenticatedSessionBootstrapStep.revenueCat,
+      AuthenticatedSessionBootstrapStep.pushRegistration,
+    ]) {
+      test(
+        'logout fences delayed ${delayedStep.name} and does not resurrect A',
+        () async {
+          final harness = await _AuthHarness.create();
+          addTearDown(harness.dispose);
+          harness.repository.loginResponses.addAll([
+            _authResponse(_userA),
+            _authResponse(_userB),
+          ]);
+          final delayed = harness.integrations.delay(delayedStep, _userA);
+
+          final loginA = harness.notifier.login('a@example.com', 'Password1!');
+          await delayed.entered.future;
+          final logout = harness.notifier.logout();
+          await Future<void>.delayed(Duration.zero);
+          delayed.release.complete();
+          await Future.wait([loginA, logout]);
+
+          final cleanupIndex = harness.integrations.lifecycleEvents.indexOf(
+            'logoutCleanup',
+          );
+          expect(cleanupIndex, greaterThanOrEqualTo(0));
+          expect(
+            harness.integrations.lifecycleEvents
+                .skip(cleanupIndex + 1)
+                .where((event) => event.endsWith(':${_userA.id}')),
+            isEmpty,
+          );
+          expect(harness.container.read(authStateProvider).value, isNull);
+
+          await harness.notifier.login('b@example.com', 'Password1!');
+
+          expect(harness.container.read(authStateProvider).value, _userB);
+          expect(harness.integrations.accountTransitionResetUsers, isEmpty);
+          expect(
+            harness.integrations.bootstrapCalls,
+            containsAllInOrder(_expectedBootstrapCalls(_userB)),
+          );
+        },
+      );
+    }
+
     test('logout cleans up without bootstrapping another session', () async {
       final harness = await _AuthHarness.create();
       addTearDown(harness.dispose);
@@ -112,9 +222,149 @@ void main() {
       expect(harness.repository.logoutCalls, 1);
       expect(
         harness.container.read(authenticatedSessionBootstrapStatusProvider),
-        const AuthenticatedSessionBootstrapState.idle(),
+        isA<AuthenticatedSessionBootstrapState>()
+            .having((status) => status.userId, 'userId', isNull)
+            .having(
+              (status) => status.failedCleanupSteps,
+              'failedCleanupSteps',
+              isEmpty,
+            )
+            .having((status) => status.cleanupAttempts, 'cleanupAttempts', 1),
       );
     });
+
+    test(
+      'failed transition cleanup remains attached to A and retries before B',
+      () async {
+        final previousDebugPrint = debugPrint;
+        debugPrint = (message, {wrapWidth}) {};
+        addTearDown(() => debugPrint = previousDebugPrint);
+        final harness = await _AuthHarness.create();
+        addTearDown(harness.dispose);
+        harness.repository.loginResponses.addAll([
+          _authResponse(_userA),
+          _authResponse(_userB),
+        ]);
+        await harness.notifier.login('a@example.com', 'Password1!');
+        harness.integrations.transitionCleanupResults.addAll([
+          const AuthenticatedSessionCleanupResult(
+            failedSteps: {AuthenticatedSessionCleanupStep.pushReset},
+            pushToken: 'token-a',
+          ),
+          const AuthenticatedSessionCleanupResult(),
+        ]);
+
+        await harness.notifier.login('b@example.com', 'Password1!');
+
+        expect(
+          harness.container
+              .read(authenticatedSessionBootstrapStatusProvider)
+              .failedCleanupSteps,
+          {AuthenticatedSessionCleanupStep.pushReset},
+        );
+        expect(harness.integrations.accountTransitionResetUsers, [_userA.id]);
+
+        await harness.notifier.retryAuthenticatedSessionBootstrap();
+
+        expect(harness.integrations.accountTransitionResetUsers, [
+          _userA.id,
+          _userA.id,
+        ]);
+        expect(harness.integrations.transitionRetrySteps, [
+          null,
+          {AuthenticatedSessionCleanupStep.pushReset},
+        ]);
+        expect(harness.integrations.transitionRetryTokens, [null, 'token-a']);
+        expect(
+          harness.container
+              .read(authenticatedSessionBootstrapStatusProvider)
+              .failedCleanupSteps,
+          isEmpty,
+        );
+      },
+    );
+
+    test(
+      'logout retries only failed cleanup steps before clearing auth storage',
+      () async {
+        final previousDebugPrint = debugPrint;
+        debugPrint = (message, {wrapWidth}) {};
+        addTearDown(() => debugPrint = previousDebugPrint);
+        final harness = await _AuthHarness.create();
+        addTearDown(harness.dispose);
+        harness.repository.loginResponses.add(_authResponse(_userA));
+        await harness.notifier.login('a@example.com', 'Password1!');
+        harness.integrations.logoutCleanupResults.addAll([
+          const AuthenticatedSessionCleanupResult(
+            failedSteps: {
+              AuthenticatedSessionCleanupStep.pushReset,
+              AuthenticatedSessionCleanupStep.revenueCatLogout,
+            },
+            pushToken: 'token-a',
+          ),
+          const AuthenticatedSessionCleanupResult(),
+        ]);
+
+        await harness.notifier.logout();
+
+        expect(harness.repository.logoutCalls, 1);
+        expect(harness.integrations.logoutCleanupCalls, 2);
+        expect(harness.integrations.logoutRetrySteps, [
+          null,
+          {
+            AuthenticatedSessionCleanupStep.pushReset,
+            AuthenticatedSessionCleanupStep.revenueCatLogout,
+          },
+        ]);
+        expect(harness.integrations.logoutRetryTokens, [null, 'token-a']);
+        expect(
+          harness.container
+              .read(authenticatedSessionBootstrapStatusProvider)
+              .cleanupAttempts,
+          2,
+        );
+      },
+    );
+
+    test(
+      'logout records permanent cleanup degradation and still clears auth',
+      () async {
+        final previousDebugPrint = debugPrint;
+        debugPrint = (message, {wrapWidth}) {};
+        addTearDown(() => debugPrint = previousDebugPrint);
+        final harness = await _AuthHarness.create();
+        addTearDown(harness.dispose);
+        harness.repository.loginResponses.add(_authResponse(_userA));
+        await harness.notifier.login('a@example.com', 'Password1!');
+        harness.integrations.logoutCleanupResults.addAll([
+          const AuthenticatedSessionCleanupResult(
+            failedSteps: {AuthenticatedSessionCleanupStep.pushTokenUnregister},
+            pushToken: 'token-a',
+          ),
+          const AuthenticatedSessionCleanupResult(
+            failedSteps: {AuthenticatedSessionCleanupStep.pushTokenUnregister},
+            pushToken: 'token-a',
+          ),
+        ]);
+
+        await harness.notifier.logout();
+
+        expect(harness.container.read(authStateProvider).value, isNull);
+        expect(harness.repository.logoutCalls, 1);
+        expect(
+          harness.container.read(authenticatedSessionBootstrapStatusProvider),
+          isA<AuthenticatedSessionBootstrapState>()
+              .having((status) => status.userId, 'userId', isNull)
+              .having(
+                (status) => status.failedCleanupSteps,
+                'failedCleanupSteps',
+                {AuthenticatedSessionCleanupStep.pushTokenUnregister},
+              )
+              .having((status) => status.cleanupAttempts, 'cleanupAttempts', 2)
+              .having((status) => status.canRetry, 'canRetry', isFalse),
+        );
+      },
+    );
 
     test('ordinary profile refresh does not bootstrap again', () async {
       final harness = await _AuthHarness.create();
@@ -296,17 +546,38 @@ class _FakeAuthRepository extends AuthRepository {
 class _RecordingSessionIntegrations
     implements AuthenticatedSessionIntegrations {
   final bootstrapCalls = <String>[];
+  final lifecycleEvents = <String>[];
   final accountTransitionResetUsers = <String>[];
   final failedSteps = <AuthenticatedSessionBootstrapStep>{};
+  final _delays = <String, _StepDelay>{};
+  final transitionCleanupResults = <AuthenticatedSessionCleanupResult>[];
+  final logoutCleanupResults = <AuthenticatedSessionCleanupResult>[];
+  final transitionRetrySteps = <Set<AuthenticatedSessionCleanupStep>?>[];
+  final transitionRetryTokens = <String?>[];
+  final logoutRetrySteps = <Set<AuthenticatedSessionCleanupStep>?>[];
+  final logoutRetryTokens = <String?>[];
   bool? revenueCatPremium = false;
   bool serverPremium = false;
   int logoutCleanupCalls = 0;
+
+  _StepDelay delay(AuthenticatedSessionBootstrapStep step, User user) {
+    final delay = _StepDelay();
+    _delays['${step.name}:${user.id}'] = delay;
+    return delay;
+  }
 
   Future<void> _record(
     AuthenticatedSessionBootstrapStep step,
     User user,
   ) async {
-    bootstrapCalls.add('${step.name}:${user.id}');
+    final call = '${step.name}:${user.id}';
+    bootstrapCalls.add(call);
+    lifecycleEvents.add(call);
+    final delay = _delays[call];
+    if (delay != null) {
+      delay.entered.complete();
+      await delay.release.future;
+    }
     if (failedSteps.contains(step)) {
       throw StateError('${step.name} unavailable');
     }
@@ -345,14 +616,40 @@ class _RecordingSessionIntegrations
   }
 
   @override
-  Future<void> resetForAccountTransition(User previousUser) async {
+  Future<AuthenticatedSessionCleanupResult> resetForAccountTransition(
+    User previousUser, {
+    Set<AuthenticatedSessionCleanupStep>? retrySteps,
+    String? pushToken,
+  }) async {
     accountTransitionResetUsers.add(previousUser.id);
+    transitionRetrySteps.add(retrySteps);
+    transitionRetryTokens.add(pushToken);
+    lifecycleEvents.add('transitionCleanup:${previousUser.id}');
+    if (transitionCleanupResults.isNotEmpty) {
+      return transitionCleanupResults.removeAt(0);
+    }
+    return const AuthenticatedSessionCleanupResult();
   }
 
   @override
-  Future<void> cleanupForLogout() async {
+  Future<AuthenticatedSessionCleanupResult> cleanupForLogout({
+    Set<AuthenticatedSessionCleanupStep>? retrySteps,
+    String? pushToken,
+  }) async {
     logoutCleanupCalls++;
+    logoutRetrySteps.add(retrySteps);
+    logoutRetryTokens.add(pushToken);
+    lifecycleEvents.add('logoutCleanup');
+    if (logoutCleanupResults.isNotEmpty) {
+      return logoutCleanupResults.removeAt(0);
+    }
+    return const AuthenticatedSessionCleanupResult();
   }
+}
+
+class _StepDelay {
+  final entered = Completer<void>();
+  final release = Completer<void>();
 }
 
 List<String> _expectedBootstrapCalls(User user) {

@@ -383,10 +383,17 @@ class _RecordingSocialSessionIntegrations
   }
 
   @override
-  Future<void> resetForAccountTransition(User previousUser) async {}
+  Future<AuthenticatedSessionCleanupResult> resetForAccountTransition(
+    User previousUser, {
+    Set<AuthenticatedSessionCleanupStep>? retrySteps,
+    String? pushToken,
+  }) async => const AuthenticatedSessionCleanupResult();
 
   @override
-  Future<void> cleanupForLogout() async {}
+  Future<AuthenticatedSessionCleanupResult> cleanupForLogout({
+    Set<AuthenticatedSessionCleanupStep>? retrySteps,
+    String? pushToken,
+  }) async => const AuthenticatedSessionCleanupResult();
 }
 
 const _socialUser = User(

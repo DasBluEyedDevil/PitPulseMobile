@@ -74,6 +74,7 @@ class WebSocketService {
   String? _clientId;
   String? _authToken;
   int _reconnectAttempts = 0;
+  int _connectionGeneration = 0;
   static const int _maxReconnectAttempts = 5;
   String? _userId;
 
@@ -146,6 +147,7 @@ class WebSocketService {
       return;
     }
 
+    final generation = ++_connectionGeneration;
     _authToken = authToken;
     _userId = userId;
     _intentionalDisconnect = false;
@@ -154,10 +156,15 @@ class WebSocketService {
       final uri = _uriBuilder(_authToken);
       LogService.i('Connecting to WebSocket');
 
-      _channel = _channelFactory(uri, authToken: _authToken);
+      final channel = _channelFactory(uri, authToken: _authToken);
+      _channel = channel;
 
       // Wait for connection to be ready
-      await _channel!.ready;
+      await channel.ready;
+      if (generation != _connectionGeneration) {
+        await channel.sink.close(status.goingAway);
+        return;
+      }
 
       _isConnected = true;
       _reconnectAttempts = 0;
@@ -165,10 +172,14 @@ class WebSocketService {
       LogService.i('WebSocket connected');
 
       // Listen to messages
-      _subscription = _channel!.stream.listen(
-        _handleMessage,
-        onError: _handleError,
-        onDone: _handleDisconnect,
+      _subscription = channel.stream.listen(
+        (data) {
+          if (generation == _connectionGeneration) {
+            _handleMessage(data);
+          }
+        },
+        onError: (Object error) => _handleError(error, generation),
+        onDone: () => _handleDisconnect(generation),
       );
 
       // Start ping timer to keep connection alive
@@ -177,10 +188,11 @@ class WebSocketService {
       // Initial auth happens during upgrade via the Authorization header.
       // authenticate() remains available for compatibility with older servers.
     } catch (e, stack) {
+      if (generation != _connectionGeneration) return;
       LogService.e('WebSocket connection failed', e, stack);
       _isConnected = false;
       _connectionController.add(false);
-      _scheduleReconnect();
+      _scheduleReconnect(generation);
     }
   }
 
@@ -188,12 +200,15 @@ class WebSocketService {
   void disconnect({bool clearCredentials = true}) {
     LogService.i('Disconnecting WebSocket');
 
+    _connectionGeneration++;
     _intentionalDisconnect = true;
     _pingTimer?.cancel();
     _reconnectTimer?.cancel();
     _subscription?.cancel();
 
     _channel?.sink.close(status.goingAway);
+    _channel = null;
+    _subscription = null;
 
     _isConnected = false;
     _isAuthenticated = false;
@@ -363,23 +378,25 @@ class WebSocketService {
   }
 
   /// Handle WebSocket error
-  void _handleError(dynamic error) {
+  void _handleError(dynamic error, int generation) {
+    if (generation != _connectionGeneration) return;
     LogService.e('WebSocket error', error);
     _isConnected = false;
     _isAuthenticated = false;
     _pingTimer?.cancel();
     _connectionController.add(false);
-    _scheduleReconnect();
+    _scheduleReconnect(generation);
   }
 
   /// Handle WebSocket disconnect
-  void _handleDisconnect() {
+  void _handleDisconnect(int generation) {
+    if (generation != _connectionGeneration) return;
     LogService.w('WebSocket disconnected');
     _isConnected = false;
     _isAuthenticated = false;
     _pingTimer?.cancel();
     _connectionController.add(false);
-    _scheduleReconnect();
+    _scheduleReconnect(generation);
   }
 
   /// Start ping timer to keep connection alive
@@ -393,7 +410,8 @@ class WebSocketService {
   }
 
   /// Schedule a reconnection attempt with exponential backoff
-  void _scheduleReconnect() {
+  void _scheduleReconnect(int generation) {
+    if (generation != _connectionGeneration) return;
     _reconnectTimer?.cancel();
 
     if (_intentionalDisconnect || _authToken == null || _userId == null) {
@@ -413,7 +431,8 @@ class WebSocketService {
     _reconnectAttempts++;
 
     _reconnectTimer = Timer(delay, () {
-      if (!_isConnected &&
+      if (generation == _connectionGeneration &&
+          !_isConnected &&
           !_intentionalDisconnect &&
           _authToken != null &&
           _userId != null) {

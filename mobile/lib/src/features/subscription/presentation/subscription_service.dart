@@ -7,6 +7,93 @@ import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 import '../../../core/services/log_service.dart';
 
+class RevenueCatListenerBinding {
+  RevenueCatListenerBinding({
+    required void Function(CustomerInfoUpdateListener listener) add,
+    required void Function(CustomerInfoUpdateListener listener) remove,
+  }) : _add = add,
+       _remove = remove;
+
+  final void Function(CustomerInfoUpdateListener listener) _add;
+  final void Function(CustomerInfoUpdateListener listener) _remove;
+  CustomerInfoUpdateListener? _current;
+  bool _isAttached = false;
+
+  CustomerInfoUpdateListener? get current => _current;
+
+  void onInitialized(
+    CustomerInfoUpdateListener? requested, {
+    required bool sdkConfigured,
+  }) {
+    if (requested != null) {
+      replace(requested, sdkConfigured: sdkConfigured);
+      return;
+    }
+
+    final current = _current;
+    if (current != null && sdkConfigured && !_isAttached) {
+      _add(current);
+      _isAttached = true;
+    }
+  }
+
+  void replace(
+    CustomerInfoUpdateListener? listener, {
+    required bool sdkConfigured,
+  }) {
+    if (identical(listener, _current)) {
+      onInitialized(null, sdkConfigured: sdkConfigured);
+      return;
+    }
+
+    final previous = _current;
+    if (previous != null && _isAttached) {
+      _remove(previous);
+    }
+
+    _current = listener;
+    _isAttached = false;
+    if (listener != null && sdkConfigured) {
+      _add(listener);
+      _isAttached = true;
+    }
+  }
+}
+
+abstract interface class SubscriptionSessionClient {
+  Future<bool> login(String userId);
+
+  Future<CustomerInfo?> getCustomerInfo();
+
+  Future<void> logout();
+
+  void setCustomerInfoUpdateListener(CustomerInfoUpdateListener? listener);
+}
+
+class DefaultSubscriptionSessionClient implements SubscriptionSessionClient {
+  const DefaultSubscriptionSessionClient();
+
+  @override
+  Future<CustomerInfo?> getCustomerInfo() {
+    return SubscriptionService.getCustomerInfo();
+  }
+
+  @override
+  Future<bool> login(String userId) {
+    return SubscriptionService.login(userId);
+  }
+
+  @override
+  Future<void> logout() {
+    return SubscriptionService.logout();
+  }
+
+  @override
+  void setCustomerInfoUpdateListener(CustomerInfoUpdateListener? listener) {
+    SubscriptionService.setCustomerInfoUpdateListener(listener);
+  }
+}
+
 class SubscriptionService {
   static const entitlementDisplayName = 'SoundCheck Unlimited';
   static const entitlementIdentifier = 'soundcheck_unlimited';
@@ -18,7 +105,11 @@ class SubscriptionService {
   static const _testStoreApiKey = String.fromEnvironment('RC_TEST_KEY');
   static const _appleApiKey = String.fromEnvironment('RC_APPLE_KEY');
   static const _googleApiKey = String.fromEnvironment('RC_GOOGLE_KEY');
-  static CustomerInfoUpdateListener? _customerInfoUpdateListener;
+  static final RevenueCatListenerBinding _listenerBinding =
+      RevenueCatListenerBinding(
+        add: Purchases.addCustomerInfoUpdateListener,
+        remove: Purchases.removeCustomerInfoUpdateListener,
+      );
   static bool _configured = false;
 
   static List<String> get entitlementIdentifiers => const [
@@ -52,7 +143,10 @@ class SubscriptionService {
 
     if (_configured || await Purchases.isConfigured) {
       _configured = true;
-      setCustomerInfoUpdateListener(onCustomerInfoUpdated);
+      _listenerBinding.onInitialized(
+        onCustomerInfoUpdated,
+        sdkConfigured: true,
+      );
       return true;
     }
 
@@ -72,22 +166,14 @@ class SubscriptionService {
     await Purchases.setLogLevel(kDebugMode ? LogLevel.debug : LogLevel.error);
     await Purchases.configure(PurchasesConfiguration(apiKey));
     _configured = true;
-    setCustomerInfoUpdateListener(onCustomerInfoUpdated);
+    _listenerBinding.onInitialized(onCustomerInfoUpdated, sdkConfigured: true);
     return true;
   }
 
   static void setCustomerInfoUpdateListener(
     CustomerInfoUpdateListener? listener,
   ) {
-    final previous = _customerInfoUpdateListener;
-    if (previous != null) {
-      Purchases.removeCustomerInfoUpdateListener(previous);
-    }
-
-    _customerInfoUpdateListener = listener;
-    if (listener != null && _configured) {
-      Purchases.addCustomerInfoUpdateListener(listener);
-    }
+    _listenerBinding.replace(listener, sdkConfigured: _configured);
   }
 
   static bool hasUnlimitedEntitlement(CustomerInfo customerInfo) {

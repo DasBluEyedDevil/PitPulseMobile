@@ -31,6 +31,46 @@ void main() {
       );
     });
   });
+
+  group('RevenueCatListenerBinding', () {
+    test(
+      'initialize without a new listener retains the installed listener',
+      () {
+        final added = <CustomerInfoUpdateListener>[];
+        final removed = <CustomerInfoUpdateListener>[];
+        final binding = RevenueCatListenerBinding(
+          add: added.add,
+          remove: removed.add,
+        );
+        void listener(CustomerInfo _) {}
+
+        binding.replace(listener, sdkConfigured: true);
+        binding.onInitialized(null, sdkConfigured: true);
+
+        expect(binding.current, same(listener));
+        expect(added, [same(listener)]);
+        expect(removed, isEmpty);
+      },
+    );
+
+    test('explicit clear removes the installed listener exactly once', () {
+      final added = <CustomerInfoUpdateListener>[];
+      final removed = <CustomerInfoUpdateListener>[];
+      final binding = RevenueCatListenerBinding(
+        add: added.add,
+        remove: removed.add,
+      );
+      void listener(CustomerInfo _) {}
+      binding.replace(listener, sdkConfigured: true);
+
+      binding.replace(null, sdkConfigured: true);
+      binding.replace(null, sdkConfigured: true);
+
+      expect(binding.current, isNull);
+      expect(added, [same(listener)]);
+      expect(removed, [same(listener)]);
+    });
+  });
 }
 
 CustomerInfo _customerInfoWithActiveEntitlement(String identifier) {

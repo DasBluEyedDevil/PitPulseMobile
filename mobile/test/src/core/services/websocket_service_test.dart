@@ -7,8 +7,10 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:soundcheck_flutter/src/core/services/websocket_service.dart';
 
 class _FakeWebSocketChannel implements WebSocketChannel {
-  _FakeWebSocketChannel();
+  _FakeWebSocketChannel({Completer<void>? ready})
+    : _ready = ready ?? (Completer<void>()..complete());
 
+  final Completer<void> _ready;
   final StreamController<dynamic> incoming = StreamController<dynamic>();
   final _FakeWebSocketSink _sink = _FakeWebSocketSink();
 
@@ -22,7 +24,7 @@ class _FakeWebSocketChannel implements WebSocketChannel {
   String? get protocol => null;
 
   @override
-  Future<void> get ready => Future.value();
+  Future<void> get ready => _ready.future;
 
   @override
   WebSocketSink get sink => _sink;
@@ -174,6 +176,35 @@ void main() {
       expect(channels.single.isClosed, isTrue);
 
       service.dispose();
+    },
+  );
+
+  test(
+    'disconnect fences a channel whose ready future completes later',
+    () async {
+      final ready = Completer<void>();
+      final channel = _FakeWebSocketChannel(ready: ready);
+      final connectionEvents = <bool>[];
+      final service = WebSocketService(
+        uriBuilder: (_) => Uri.parse('wss://example.test/socket'),
+        channelFactory: (_, {authToken}) => channel,
+      );
+      final subscription = service.connectionStream.listen(
+        connectionEvents.add,
+      );
+      addTearDown(subscription.cancel);
+      addTearDown(service.dispose);
+
+      final connect = service.connect(authToken: 'token-a', userId: 'user-a');
+      await Future<void>.delayed(Duration.zero);
+      service.disconnect();
+      ready.complete();
+      await connect;
+
+      expect(service.isConnected, isFalse);
+      expect(service.isAuthenticated, isFalse);
+      expect(channel.isClosed, isTrue);
+      expect(connectionEvents, isNot(contains(true)));
     },
   );
 }
