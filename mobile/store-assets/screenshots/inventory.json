@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "status": "pending-signed-release-capture",
+  "releaseCandidateSha": null,
+  "capturePolicy": {
+    "signedReleaseBuildRequired": true,
+    "minimumOsAndCurrentOsRequired": true,
+    "phoneAndTabletReviewRequired": true
+  },
+  "journeys": [
+    {
+      "id": "login",
+      "android": "01-login.png",
+      "ios": "01-login.png"
+    },
+    {
+      "id": "registration",
+      "android": "02-sign-up.png",
+      "ios": "02-sign-up.png"
+    },
+    {
+      "id": "discovery",
+      "android": "03-discover.png",
+      "ios": "03-discover.png"
+    },
+    {
+      "id": "profile",
+      "android": "04-profile.png",
+      "ios": "04-profile.png"
+    },
+    {
+      "id": "check-in",
+      "android": "05-check-in.png",
+      "ios": "05-check-in.png"
+    }
+  ]
+}

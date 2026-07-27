@@ -12,10 +12,17 @@
     "sync:legal": "node scripts/sync-legal.mjs",
     "sync:brand": "node scripts/sync-brand.mjs",
     "optimize:store-badges": "node scripts/optimize-store-badges.mjs",
+    "generate:assetlinks": "node scripts/generate-assetlinks.mjs",
+    "validate:aasa": "node scripts/validate-associations.mjs --aasa-only",
+    "validate:associations": "node scripts/validate-associations.mjs",
+    "generate:platform-icons": "node scripts/generate-platform-icons.mjs",
+    "validate:platform-icons": "node scripts/validate-platform-icons.mjs",
+    "validate:public-build": "node scripts/validate-public-build.mjs",
     "predev": "npm run sync:legal && npm run sync:brand && npm run optimize:store-badges",
     "dev": "astro dev --host 127.0.0.1",
     "prebuild": "npm run sync:legal && npm run sync:brand && npm run optimize:store-badges",
     "build": "astro build",
+    "postbuild": "npm run validate:public-build && npm run validate:platform-icons",
     "preview": "astro preview --host 127.0.0.1"
   },
   "dependencies": {
@@ -24,6 +31,7 @@
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.0",
+    "sharp": "0.34.5",
     "tailwindcss": "^4.3.0",
     "typescript": "^5.8.3",
     "wrangler": "^4.92.0"

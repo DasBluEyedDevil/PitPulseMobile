@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": "mobile/assets/brand/flash/flash_mark_cutout.png",
+  "sourceSha256": "d00d3b58ccc6886641d735593470f4c228b8d262d6229fe03abf3b669d77d665",
+  "generator": "web/scripts/generate-platform-icons.mjs",
+  "generatorDependency": "sharp@0.34.5",
+  "background": "#030713",
+  "android": {
+    "packageName": "com.soundcheck.app",
+    "adaptiveCanvasDp": 108,
+    "adaptiveMarkBoundsDp": 48,
+    "adaptiveSafeZoneDiameterDp": 66,
+    "legacyCanvasDp": 48
+  },
+  "ios": {
+    "bundleIdentifier": "com.9thlevelsoftware.soundcheck",
+    "opaque": true
+  }
+}

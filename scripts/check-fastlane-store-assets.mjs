@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -43,6 +44,30 @@ function pngFiles(relDir) {
     .sort();
 }
 
+function readPngDimensions(relPath) {
+  const filePath = abs(relPath);
+  if (!fs.existsSync(filePath)) {
+    failures.push(`Missing ${relPath}`);
+    return null;
+  }
+
+  const buffer = fs.readFileSync(filePath);
+  if (
+    buffer.length < 24 ||
+    buffer.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' ||
+    buffer.subarray(12, 16).toString('ascii') !== 'IHDR'
+  ) {
+    failures.push(`${relPath} is not a valid PNG.`);
+    return null;
+  }
+
+  return {
+    width: buffer.readUInt32BE(16),
+    height: buffer.readUInt32BE(20),
+    sha256: crypto.createHash('sha256').update(buffer).digest('hex'),
+  };
+}
+
 [
   'mobile/android/Gemfile',
   'mobile/android/fastlane/Appfile',
@@ -73,17 +98,83 @@ readRequired('mobile/ios/fastlane/metadata/default/support_url.txt');
 readRequired('mobile/ios/fastlane/metadata/default/marketing_url.txt');
 readRequired('mobile/ios/fastlane/metadata/default/privacy_url.txt');
 
-const androidScreenshots = pngFiles('mobile/store-assets/screenshots/android/curated');
-if (androidScreenshots.length < 2 || androidScreenshots.length > 8) {
+const inventory = JSON.parse(
+  readRequired('mobile/store-assets/screenshots/inventory.json') || '{}',
+);
+if (inventory.schemaVersion !== 1) {
+  failures.push('Screenshot inventory schemaVersion must be 1.');
+}
+if (inventory.status !== 'ready-for-store-review') {
   failures.push(
-    `Android curated phone screenshots must contain 2-8 PNG files; found ${androidScreenshots.length}`,
+    `Screenshot inventory status is ${String(inventory.status)}; expected ready-for-store-review after signed release capture and content review.`,
+  );
+}
+if (!/^[0-9a-f]{40}$/.test(inventory.releaseCandidateSha || '')) {
+  failures.push('Screenshot inventory must record the exact 40-character releaseCandidateSha.');
+}
+if (
+  inventory.capturePolicy?.signedReleaseBuildRequired !== true ||
+  inventory.capturePolicy?.minimumOsAndCurrentOsRequired !== true ||
+  inventory.capturePolicy?.phoneAndTabletReviewRequired !== true
+) {
+  failures.push('Screenshot inventory capture policy must retain every signed-device review gate.');
+}
+
+const journeys = Array.isArray(inventory.journeys) ? inventory.journeys : [];
+if (journeys.length !== 5 || new Set(journeys.map(({ id }) => id)).size !== 5) {
+  failures.push('Screenshot inventory must define exactly five unique journeys.');
+}
+
+const androidScreenshots = pngFiles('mobile/store-assets/screenshots/android/curated');
+const iosScreenshots = pngFiles('mobile/store-assets/screenshots/ios/curated');
+const expectedAndroid = journeys.map(({ android }) => android).sort();
+const expectedIos = journeys.map(({ ios }) => ios).sort();
+
+if (JSON.stringify(androidScreenshots) !== JSON.stringify(expectedAndroid)) {
+  failures.push(
+    `Android curated inventory mismatch. Expected [${expectedAndroid.join(', ')}]; found [${androidScreenshots.join(', ')}].`,
+  );
+}
+if (JSON.stringify(iosScreenshots) !== JSON.stringify(expectedIos)) {
+  failures.push(
+    `iOS curated inventory mismatch. Expected [${expectedIos.join(', ')}]; found [${iosScreenshots.join(', ')}].`,
   );
 }
 
-const iosScreenshots = pngFiles('mobile/store-assets/screenshots/ios/curated');
-if (iosScreenshots.length === 0) {
+const seenHashes = new Map();
+for (const [platform, files] of [
+  ['android', expectedAndroid],
+  ['ios', expectedIos],
+]) {
+  for (const file of files) {
+    const relPath = `mobile/store-assets/screenshots/${platform}/curated/${file}`;
+    const dimensions = readPngDimensions(relPath);
+    if (!dimensions) {
+      continue;
+    }
+    if (
+      dimensions.width < 320 ||
+      dimensions.height < 320 ||
+      dimensions.width > 3840 ||
+      dimensions.height > 3840 ||
+      dimensions.height <= dimensions.width
+    ) {
+      failures.push(
+        `${relPath} must be a portrait store screenshot with each edge between 320 and 3840 pixels; found ${dimensions.width}x${dimensions.height}.`,
+      );
+    }
+    const existing = seenHashes.get(dimensions.sha256);
+    if (existing) {
+      failures.push(`${relPath} duplicates ${existing}; each journey must show distinct content.`);
+    } else {
+      seenHashes.set(dimensions.sha256, relPath);
+    }
+  }
+}
+
+if (androidScreenshots.length === 0 || iosScreenshots.length === 0) {
   warnings.push(
-    'No curated iOS screenshots found yet. Add PNGs under mobile/store-assets/screenshots/ios/curated or run the iOS snapshot lane on macOS before App Store screenshot upload.',
+    'Signed Android and iOS release-candidate screenshots are intentionally absent; capture all five corresponding journeys before changing inventory status.',
   );
 }
 

@@ -32,5 +32,9 @@ for (const [src, dest] of mappings) {
 
 copyFileSync(resolve(brandDir, 'mark.png'), resolve(currentDir, '../public/favicon.png'));
 copyFileSync(resolve(brandDir, 'wordmark.png'), resolve(currentDir, '../public/og-image.png'));
+copyFileSync(
+  resolve(brandDir, 'wordmark.png'),
+  resolve(currentDir, '../public/soundcheck-header-logo.png'),
+);
 
 console.log('Synced brand assets to public/brand/');
