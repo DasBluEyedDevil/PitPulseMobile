@@ -1,5 +1,15 @@
 import { describe, it, expect, beforeEach, afterAll, jest } from '@jest/globals';
-import { cache, getCacheVersion, incrementCacheVersion } from '../../utils/cache';
+import {
+  cache,
+  CacheKeys,
+  CacheTTL,
+  deleteCache,
+  getCache,
+  getCacheKey,
+  getCacheVersion,
+  incrementCacheVersion,
+  setCache,
+} from '../../utils/cache';
 import { getRedis } from '../../utils/redisRateLimiter';
 
 jest.mock('../../utils/redisRateLimiter', () => ({
@@ -48,5 +58,174 @@ describe('cache version helpers', () => {
     expect(redis.get).toHaveBeenCalledWith('cache:version:feed:friends:user-1');
     expect(redis.set).toHaveBeenCalledWith('cache:version:feed:friends:user-1', '1', 'NX');
     expect(redis.incr).toHaveBeenCalledWith('cache:version:feed:friends:user-1');
+  });
+
+  it('normalizes invalid Redis versions and invalid increments', async () => {
+    const redis = {
+      get: jest.fn<() => Promise<string | null>>().mockResolvedValue('-3'),
+      set: jest.fn<() => Promise<string>>().mockResolvedValue('OK'),
+      incr: jest.fn<() => Promise<number>>().mockResolvedValue(0),
+    } as any;
+    mockedGetRedis.mockReturnValue(redis);
+
+    await expect(getCacheVersion('feed:global')).resolves.toBe(1);
+    await expect(incrementCacheVersion('feed:global')).resolves.toBe(2);
+  });
+
+  it('falls back to memory versions when Redis commands fail', async () => {
+    const redis = {
+      get: jest.fn<() => Promise<string>>().mockRejectedValue(new Error('get failed')),
+      set: jest.fn<() => Promise<string>>().mockRejectedValue(new Error('set failed')),
+      incr: jest.fn(),
+    } as any;
+    mockedGetRedis.mockReturnValue(redis);
+
+    await expect(getCacheVersion('fallback-scope')).resolves.toBe(1);
+    await expect(incrementCacheVersion('fallback-scope')).resolves.toBe(2);
+    mockedGetRedis.mockReturnValue(null);
+    await expect(getCacheVersion('fallback-scope')).resolves.toBe(2);
+  });
+});
+
+describe('cache values and cache-aside behavior', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockedGetRedis.mockReturnValue(null);
+    await cache.clear();
+  });
+
+  afterAll(async () => {
+    await cache.close();
+  });
+
+  it('sets, reads, checks, and deletes memory fallback entries', async () => {
+    await setCache('profile:user-1', { username: 'alice' }, 30);
+
+    await expect(getCache('profile:user-1')).resolves.toEqual({ username: 'alice' });
+    await expect(cache.has('profile:user-1')).resolves.toBe(true);
+    expect(cache.getStats()).toEqual({ size: 1, type: 'memory' });
+
+    await deleteCache('profile:user-1');
+    await expect(getCache('profile:user-1')).resolves.toBeNull();
+    await expect(cache.has('profile:user-1')).resolves.toBe(false);
+  });
+
+  it('evicts expired memory entries on get and has', async () => {
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+    await cache.set('expired-on-get', 'value', 1);
+    await cache.set('expired-on-has', 'value', 1);
+    now.mockReturnValue(2_001);
+
+    await expect(cache.get('expired-on-get')).resolves.toBeNull();
+    await expect(cache.has('expired-on-has')).resolves.toBe(false);
+    now.mockRestore();
+  });
+
+  it('uses the cache-aside factory only on a miss', async () => {
+    const factory = jest.fn<() => Promise<string>>().mockResolvedValue('computed');
+
+    await expect(cache.getOrSet('aside', factory, 60)).resolves.toBe('computed');
+    await expect(cache.getOrSet('aside', factory, 60)).resolves.toBe('computed');
+
+    expect(factory).toHaveBeenCalledTimes(1);
+  });
+
+  it('deletes matching memory keys without deleting unrelated entries', async () => {
+    await cache.set('feed:user-1:one', 1);
+    await cache.set('feed:user-1:two', 2);
+    await cache.set('feed:user-2:one', 3);
+
+    await cache.delPattern('feed:user-1:*');
+
+    await expect(cache.get('feed:user-1:one')).resolves.toBeNull();
+    await expect(cache.get('feed:user-1:two')).resolves.toBeNull();
+    await expect(cache.get('feed:user-2:one')).resolves.toBe(3);
+  });
+
+  it('uses Redis value commands and distributed cache statistics when available', async () => {
+    const redis = {
+      get: jest.fn<() => Promise<string | null>>().mockResolvedValue('{"username":"bob"}'),
+      setex: jest.fn<() => Promise<string>>().mockResolvedValue('OK'),
+      del: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+      exists: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+      flushdb: jest.fn<() => Promise<string>>().mockResolvedValue('OK'),
+    } as any;
+    mockedGetRedis.mockReturnValue(redis);
+
+    await expect(getCache('profile:user-2')).resolves.toEqual({ username: 'bob' });
+    await setCache('profile:user-2', { username: 'bob' }, 90);
+    await expect(cache.has('profile:user-2')).resolves.toBe(true);
+    expect(cache.getStats().type).toBe('redis');
+    await deleteCache('profile:user-2');
+    await cache.clear();
+
+    expect(redis.setex).toHaveBeenCalledWith(
+      'profile:user-2',
+      90,
+      JSON.stringify({ username: 'bob' })
+    );
+    expect(redis.del).toHaveBeenCalledWith('profile:user-2');
+    expect(redis.flushdb).toHaveBeenCalledTimes(1);
+  });
+
+  it('scans and unlinks Redis pattern matches across cursor pages', async () => {
+    const redis = {
+      scan: jest
+        .fn<() => Promise<[string, string[]]>>()
+        .mockResolvedValueOnce(['9', ['feed:one']])
+        .mockResolvedValueOnce(['0', ['feed:two', 'feed:three']]),
+      unlink: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+    } as any;
+    mockedGetRedis.mockReturnValue(redis);
+
+    await cache.delPattern('feed:*');
+
+    expect(redis.scan).toHaveBeenNthCalledWith(1, '0', 'MATCH', 'feed:*', 'COUNT', 100);
+    expect(redis.scan).toHaveBeenNthCalledWith(2, '9', 'MATCH', 'feed:*', 'COUNT', 100);
+    expect(redis.unlink).toHaveBeenNthCalledWith(1, 'feed:one');
+    expect(redis.unlink).toHaveBeenNthCalledWith(2, 'feed:two', 'feed:three');
+  });
+
+  it('falls back to memory for Redis value and pattern failures', async () => {
+    const redis = {
+      setex: jest.fn<() => Promise<string>>().mockRejectedValue(new Error('set failed')),
+      get: jest.fn<() => Promise<string>>().mockRejectedValue(new Error('get failed')),
+      exists: jest.fn<() => Promise<number>>().mockRejectedValue(new Error('exists failed')),
+      del: jest.fn<() => Promise<number>>().mockRejectedValue(new Error('delete failed')),
+      scan: jest
+        .fn<() => Promise<[string, string[]]>>()
+        .mockRejectedValue(new Error('scan failed')),
+      flushdb: jest.fn<() => Promise<string>>().mockRejectedValue(new Error('flush failed')),
+    } as any;
+    mockedGetRedis.mockReturnValue(redis);
+
+    await setCache('fallback:one', 'one', 60);
+    await expect(getCache('fallback:one')).resolves.toBe('one');
+    await expect(cache.has('fallback:one')).resolves.toBe(true);
+    await cache.set('fallback:two', 'two', 60);
+    await cache.delPattern('fallback:*');
+    await expect(cache.get('fallback:one')).resolves.toBeNull();
+    await expect(cache.get('fallback:two')).resolves.toBeNull();
+
+    await setCache('fallback:clear', 'value', 60);
+    await cache.clear();
+    mockedGetRedis.mockReturnValue(null);
+    await expect(cache.get('fallback:clear')).resolves.toBeNull();
+
+    await setCache('fallback:delete', 'value', 60);
+    mockedGetRedis.mockReturnValue(redis);
+    await deleteCache('fallback:delete');
+    mockedGetRedis.mockReturnValue(null);
+    await expect(getCache('fallback:delete')).resolves.toBeNull();
+  });
+
+  it('builds stable normalized keys and exposes versioned TTLs', () => {
+    expect(getCacheKey('user:1')).toMatch(/^v[^:]*:user:1$/);
+    expect(CacheKeys.searchVenues('  Radio   City ')).toBe('search:venues:radio city');
+    expect(CacheKeys.searchBands('  The   Tests ')).toBe('search:bands:the tests');
+    expect(CacheKeys.nearbyEvents(40.7128, -74.006, 25)).toBe('events:nearby:40.71:-74.01:25');
+    expect(CacheKeys.trendingEvents(40.7128, -74.006)).toBe('events:trending:40.71:-74.01');
+    expect(CacheKeys.genreEvents('PUNK')).toBe('events:genre:punk');
+    expect(CacheTTL).toEqual({ SHORT: 60, MEDIUM: 300, LONG: 3600, DAY: 86400 });
   });
 });

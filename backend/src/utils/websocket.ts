@@ -24,7 +24,7 @@
  *
  * // Room-based messaging
  * joinRoom(userId, 'venue:123');
- * broadcastToRoom('venue:123', 'new_review', reviewData);
+ * broadcastToRoom('checkin:123', 'new_comment', commentData);
  */
 
 import { Server } from 'http';
@@ -708,12 +708,12 @@ export const WebSocketEvents = {
   // Real-time updates
   NEW_CHECKIN: 'new_checkin',
   SAME_EVENT_CHECKIN: 'same_event_checkin',
-  NEW_REVIEW: 'new_review',
   NEW_FOLLOWER: 'new_follower',
   NEW_COMMENT: 'new_comment',
   NEW_TOAST: 'new_toast',
   TOAST_REMOVED: 'toast_removed',
   COMMENT_DELETED: 'comment_deleted',
+  BADGE_EARNED: 'badge_earned',
 
   // Typing indicators
   USER_TYPING: 'user_typing',

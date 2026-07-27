@@ -12,6 +12,7 @@
 import { Queue } from 'bullmq';
 import { createBullMQConnection, getRedisUrl } from '../config/redis';
 import logger from '../utils/logger';
+import { QueueContracts } from './queueContracts';
 
 /**
  * Badge evaluation queue instance.
@@ -21,7 +22,7 @@ let badgeEvalQueue: Queue | null = null;
 
 try {
   getRedisUrl();
-  badgeEvalQueue = new Queue('badge-eval', {
+  badgeEvalQueue = new Queue(QueueContracts.badgeEvaluation.queueName, {
     connection: createBullMQConnection(),
     defaultJobOptions: {
       attempts: 3,

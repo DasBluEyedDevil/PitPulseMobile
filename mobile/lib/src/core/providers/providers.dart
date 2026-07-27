@@ -7,6 +7,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/dio_client.dart';
+import '../security/secure_storage_options.dart';
 import '../session/authenticated_session.dart';
 import '../services/analytics_service.dart';
 import '../services/log_service.dart';
@@ -56,7 +57,7 @@ WebSocketService webSocketService(Ref ref) {
 
 @Riverpod(keepAlive: true)
 FlutterSecureStorage secureStorage(Ref ref) {
-  return const FlutterSecureStorage();
+  return SecureStorageOptions.createStorage();
 }
 
 @Riverpod(keepAlive: true)

@@ -147,11 +147,10 @@ class ToastCheckIn extends _$ToastCheckIn {
     final repository = ref.read(checkInRepositoryProvider);
 
     try {
-      if (hasToasted) {
-        await repository.untoastCheckIn(checkInId);
-      } else {
-        await repository.toastCheckIn(checkInId);
-      }
+      final result = hasToasted
+          ? await repository.untoastCheckIn(checkInId)
+          : await repository.toastCheckIn(checkInId);
+      result.fold((failure) => throw Exception(failure.message), (_) {});
 
       // Invalidate related providers
       ref.invalidate(checkInToastsProvider(checkInId));
@@ -213,7 +212,8 @@ class DeleteComment extends _$DeleteComment {
     final repository = ref.read(checkInRepositoryProvider);
 
     try {
-      await repository.deleteComment(checkInId, commentId);
+      final result = await repository.deleteComment(checkInId, commentId);
+      result.fold((failure) => throw Exception(failure.message), (_) {});
 
       // Invalidate comments provider
       ref.invalidate(checkInCommentsProvider(checkInId));

@@ -181,10 +181,10 @@ export class FoursquareService {
         const categoryName = venueData.categories[0].name.toLowerCase();
         if (categoryName.includes('arena') || categoryName.includes('stadium')) {
           venueType = 'arena';
-        } else if (categoryName.includes('concert') || categoryName.includes('theater')) {
-          venueType = 'concert_hall';
         } else if (categoryName.includes('outdoor') || categoryName.includes('amphitheater')) {
           venueType = 'outdoor';
+        } else if (categoryName.includes('concert') || categoryName.includes('theater')) {
+          venueType = 'concert_hall';
         } else if (categoryName.includes('bar') || categoryName.includes('club')) {
           venueType = 'club';
         }

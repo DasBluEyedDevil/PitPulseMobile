@@ -12,6 +12,7 @@ import Database from '../config/database';
 import { Report, CreateReportRequest, ContentType } from '../types';
 import { mapDbRowToReport } from '../utils/dbMappers';
 import { moderationQueue } from '../jobs/moderationQueue';
+import { QueueContracts } from '../jobs/queueContracts';
 import { logInfo } from '../utils/logger';
 import { BlockService } from './BlockService';
 
@@ -66,7 +67,7 @@ export class ReportService {
 
       // If this is a photo report, enqueue a SafeSearch scan job
       if (data.contentType === 'photo' && contentInfo.imageUrl && moderationQueue) {
-        await moderationQueue.add('scan-image', {
+        await moderationQueue.add(QueueContracts.imageModeration.jobs.scanImage, {
           contentType: 'photo',
           contentId: data.contentId,
           imageUrl: contentInfo.imageUrl,

@@ -312,7 +312,7 @@ export class AuditService {
 
     // Count total matching records
     const countQuery = `SELECT COUNT(*) FROM audit_logs ${whereClause}`;
-    const countResult = await this.db.query(countQuery, values);
+    const countResult = await this.db.query(countQuery, [...values]);
     const total = parseInt(countResult.rows[0].count, 10);
 
     // Fetch paginated results

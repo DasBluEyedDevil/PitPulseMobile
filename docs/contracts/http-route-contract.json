@@ -1,0 +1,285 @@
+{
+  "schemaVersion": 1,
+  "description": "Executable classification contract for the current Express HTTP surface. The earlier audit's 160-row artifact was not versioned; this contract derives the current equivalent directly from TypeScript and fingerprints all 156 active endpoints.",
+  "allowedClassifications": [
+    "mobile-used",
+    "operational/admin",
+    "public",
+    "deliberately removed"
+  ],
+  "semantics": {
+    "canonicalErrors": "API failures use { success: false, error: { code, message, details? } }; mobile retains legacy string parsing during rollout.",
+    "statusEvidence": "Status behavior remains owned by the route handler/controller and the global error middleware; the validator reports the exact handler and source line for every row.",
+    "requestModelEvidence": "Route Zod schema names are extracted when present. Inline schema parsing and handler-defined input are reported explicitly rather than claimed as route validation.",
+    "responseModelEvidence": "API handlers return ApiResponse/domain DTOs; public landing handlers return HTML and authenticated upload handlers return binary content.",
+    "effectsEvidence": "The extracted final handler identifies the controller/service boundary that owns persistence, queues, realtime, push, webhooks, or rendering effects."
+  },
+  "routeGroups": {
+    "src/routes/adminRoutes.ts#router": {
+      "mountPath": "/api/admin",
+      "mountExpression": "adminRoutes",
+      "classification": "operational/admin",
+      "expectedEndpointCount": 6,
+      "signatureSha256": "d70fd9452313415855c8f52d35bdefdb4ab9ca61a54ee4f0d4a49a0a8c4fef7c"
+    },
+    "src/routes/badgeRoutes.ts#router": {
+      "mountPath": "/api/badges",
+      "mountExpression": "badgeRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 8,
+      "signatureSha256": "6fc175c7bcf6647fdb297106f200a24498f59096292df949fadfa51f9f396cff"
+    },
+    "src/routes/bandRoutes.ts#router": {
+      "mountPath": "/api/bands",
+      "mountExpression": "bandRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 11,
+      "signatureSha256": "08758b153204146d6d8368cf59759ce5495af09dd73a1bd6b2fe89aaff84f5ba"
+    },
+    "src/routes/blockRoutes.ts#router": {
+      "mountPath": "/api/blocks",
+      "mountExpression": "blockRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 4,
+      "signatureSha256": "a1fc767f6a23c157124491692424ca979edfaef622e83956dbf9a999c63c81b9"
+    },
+    "src/routes/checkinRoutes.ts#router": {
+      "mountPath": "/api/checkins",
+      "mountExpression": "checkinRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 15,
+      "signatureSha256": "ed4a12575586b2fbfbef2a6a7ccd17f1b0c0e4262e3dd1bd0200920a48202007"
+    },
+    "src/routes/claimRoutes.ts#publicRouter": {
+      "mountPath": "/api/claims",
+      "mountExpression": "claimRoutes.public",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 4,
+      "signatureSha256": "a04e7d41d02fcaedd93e1919feff38ab69125f946809e5d9bc1b83c9743a8b56"
+    },
+    "src/routes/claimRoutes.ts#adminRouter": {
+      "mountPath": "/api/admin/claims",
+      "mountExpression": "claimRoutes.admin",
+      "classification": "operational/admin",
+      "expectedEndpointCount": 3,
+      "signatureSha256": "265b0593db0c385e5d5d406b42af5d4afc91fb1ee4da5f42d8382e63ec0786b0"
+    },
+    "src/routes/consentRoutes.ts#router": {
+      "mountPath": "/api/users/consents",
+      "mountExpression": "consentRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 3,
+      "signatureSha256": "93bde64faf6ee8961f0779d276d29846ad954af3d4f44fbef5f1f4e339237b43"
+    },
+    "src/routes/dataExportRoutes.ts#router": {
+      "mountPath": "/api/users",
+      "mountExpression": "dataExportRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 1,
+      "signatureSha256": "3c77036074481e2784a1998bc13101d84dde2aab6fe2017f4c677a26787598de"
+    },
+    "src/routes/discoveryRoutes.ts#router": {
+      "mountPath": "/api/discover",
+      "mountExpression": "discoveryRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 5,
+      "signatureSha256": "ab975dd160c90a583ee61eff694e7cb726db8103fe18d7659404fcc8361c80f4"
+    },
+    "src/routes/eventRoutes.ts#router": {
+      "mountPath": "/api/events",
+      "mountExpression": "eventRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 11,
+      "signatureSha256": "ac5927136bba471ab6fca7553bbc37f92b1a5d90d7310fb811600f9b727f4fdf"
+    },
+    "src/routes/feedRoutes.ts#router": {
+      "mountPath": "/api/feed",
+      "mountExpression": "feedRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 7,
+      "signatureSha256": "df2449d7e369d026e8537c5f962e3e05a7f99ed66c5081f57586206571972046"
+    },
+    "src/routes/followRoutes.ts#router": {
+      "mountPath": "/api/follow",
+      "mountExpression": "followRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 3,
+      "signatureSha256": "01fbf598b1ceab4c52af5ec69c4913fc29e9fcd6c7fd02efbb3f7b19519412af"
+    },
+    "src/routes/moderationRoutes.ts#router": {
+      "mountPath": "/api/admin/moderation",
+      "mountExpression": "moderationRoutes",
+      "classification": "operational/admin",
+      "expectedEndpointCount": 2,
+      "signatureSha256": "8acb411cc0c02dd98d1a90bfb27336c9f420faa3f33eb3b0f09f71a7b76a2f5d"
+    },
+    "src/routes/notificationRoutes.ts#router": {
+      "mountPath": "/api/notifications",
+      "mountExpression": "notificationRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 5,
+      "signatureSha256": "3d22dba5f2541f1a1e4360efc3005a5ea89f85314f3d9598d4275e46a7017aaf"
+    },
+    "src/routes/onboardingRoutes.ts#router": {
+      "mountPath": "/api/onboarding",
+      "mountExpression": "onboardingRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 4,
+      "signatureSha256": "fc729cccc0a06b235c10270e138c7f16f02c8de7ca81e289bf8daa59866510e2"
+    },
+    "src/routes/passwordResetRoutes.ts#router": {
+      "mountPath": "/api/auth",
+      "mountExpression": "passwordResetRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 2,
+      "signatureSha256": "945944beec449c99beae091ac98ccb8f0e15ec4f19db71c0e313dd6649c7bd28"
+    },
+    "src/routes/reportRoutes.ts#router": {
+      "mountPath": "/api/reports",
+      "mountExpression": "reportRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 1,
+      "signatureSha256": "7571cce85568636232703eae17caad6cec5b92ac75a4d8f8c17dbf55768d646b"
+    },
+    "src/routes/rsvpRoutes.ts#router": {
+      "mountPath": "/api/rsvp",
+      "mountExpression": "rsvpRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 3,
+      "signatureSha256": "2e171da9d83e8368716cca667f9e9985cb6f0d70fb58b284c57c9f02fed32119"
+    },
+    "src/routes/searchRoutes.ts#router": {
+      "mountPath": "/api/search",
+      "mountExpression": "searchRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 3,
+      "signatureSha256": "c1791cb0f3ac89aac4dbb3373ecad46955b8f7759df5cb4270c7eef4e079a861"
+    },
+    "src/routes/shareRoutes.ts#apiRouter": {
+      "mountPath": "/api/share",
+      "mountExpression": "shareRoutes.api",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 2,
+      "signatureSha256": "c9d5629f40cc97b1259fc2cc60801cd8de20e9c2311034fe3f8bc53f89c7af56"
+    },
+    "src/routes/shareRoutes.ts#publicRouter": {
+      "mountPath": "/share",
+      "mountExpression": "shareRoutes.public",
+      "classification": "public",
+      "expectedEndpointCount": 2,
+      "signatureSha256": "4e2301e17d52728ef4796f0b1986244a9173534d2a7a375575fd1722eb548f85"
+    },
+    "src/routes/socialAuthRoutes.ts#router": {
+      "mountPath": "/api/auth/social",
+      "mountExpression": "socialAuthRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 3,
+      "signatureSha256": "106be9e6e7c32e841cc440fc19e6c3d6d8d55966836e2770b638e5964d453b19"
+    },
+    "src/routes/subscriptionRoutes.ts#router": {
+      "mountPath": "/api/subscription",
+      "mountExpression": "subscriptionRoutes",
+      "classification": "mobile-used",
+      "classificationOverrides": {
+        "POST /webhook": "operational/admin"
+      },
+      "authenticationOverrides": {
+        "POST /webhook": "webhook authorization"
+      },
+      "expectedEndpointCount": 2,
+      "signatureSha256": "905502a5ce41ba41dc50459b5740bda76f6eac7fe5dc250b91555f6fcdede33e"
+    },
+    "src/routes/tokenRoutes.ts#router": {
+      "mountPath": "/api/tokens",
+      "mountExpression": "tokenRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 2,
+      "signatureSha256": "2c2fc4ba20aaf40f258b589d7089486cf0f21edac8c68a42ee3eb985f0c35db7"
+    },
+    "src/routes/trendingRoutes.ts#router": {
+      "mountPath": "/api/trending",
+      "mountExpression": "trendingRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 1,
+      "signatureSha256": "c767025d0edc7a064cf0003cc4d5a2f5f9e013c608f7a6909554afcdb1126fb2"
+    },
+    "src/routes/uploadsRoutes.ts#router": {
+      "mountPath": "/api/uploads",
+      "mountExpression": "uploadsRoutes",
+      "classification": "mobile-used",
+      "responseModel": "authenticated binary file",
+      "expectedEndpointCount": 1,
+      "signatureSha256": "5ea711df9054a99f9dee200d0c4acae11e1874c34e640e06fd34b78c63b11aa3"
+    },
+    "src/routes/userRoutes.ts#router": {
+      "mountPath": "/api/users",
+      "mountExpression": "userRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 18,
+      "signatureSha256": "d4b0ca1ff847271e9aaa7a94783b411e79463fb4b064bb32177a461f5cc1fabe"
+    },
+    "src/routes/venueRoutes.ts#router": {
+      "mountPath": "/api/venues",
+      "mountExpression": "venueRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 9,
+      "signatureSha256": "e51de972fa365d22aef8dcb64195e90a3884ecdfacf5b9b5729c877c7d9df2b9"
+    },
+    "src/routes/wishlistRoutes.ts#router": {
+      "mountPath": "/api/wishlist",
+      "mountExpression": "wishlistRoutes",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 6,
+      "signatureSha256": "a9f278bcf0aa1b8725c1bb9c2e92d75691066318730f42e32fc32a4c7f449b37"
+    },
+    "src/routes/wrappedRoutes.ts#apiRouter": {
+      "mountPath": "/api/wrapped",
+      "mountExpression": "wrappedRoutes.api",
+      "classification": "mobile-used",
+      "expectedEndpointCount": 4,
+      "signatureSha256": "87b6d4c1aed04f7a01f816789f66aaec771b8210baa4bb0d7381b746306e14cd"
+    },
+    "src/routes/wrappedRoutes.ts#publicRouter": {
+      "mountPath": "/wrapped",
+      "mountExpression": "wrappedRoutes.public",
+      "classification": "public",
+      "expectedEndpointCount": 1,
+      "signatureSha256": "42dc9a6be2dd3f3705e3ec3f3a029249673cb6e1a855a3bd578cdc8a3b1efb8f"
+    }
+  },
+  "directRoutes": {
+    "GET /health": {
+      "classification": "operational/admin",
+      "authentication": "public health probe"
+    },
+    "GET /health/queues": {
+      "classification": "operational/admin",
+      "authentication": "public health probe"
+    },
+    "GET /": {
+      "classification": "public",
+      "authentication": "public"
+    },
+    "GET /api/debug/sentry-test": {
+      "classification": "operational/admin",
+      "authentication": "administrator"
+    }
+  },
+  "deliberatelyRemoved": [
+    {
+      "signature": "ALL /api/reviews/*",
+      "replacement": "Check-in ratings and comments",
+      "evidence": "docs/reviews/phase1-backend-services.md"
+    },
+    {
+      "signature": "ALL /api/shows/*",
+      "replacement": "/api/events",
+      "evidence": "backend/src/__tests__/services/CheckinService.integration.test.ts"
+    },
+    {
+      "signature": "GET /uploads/*",
+      "replacement": "Authenticated /api/uploads/profiles/:filename",
+      "evidence": "backend/src/index.ts"
+    }
+  ]
+}

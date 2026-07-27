@@ -163,7 +163,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            validator: Validators.email,
+            validator: (value) => Validators.email(value?.trim()),
             enabled: !_isLoading,
           ),
           const SizedBox(height: AppTheme.spacing24),

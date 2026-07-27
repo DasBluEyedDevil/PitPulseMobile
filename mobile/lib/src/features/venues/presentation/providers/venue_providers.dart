@@ -116,7 +116,7 @@ class PaginatedVenuesNotifier extends _$PaginatedVenuesNotifier {
       venues: [],
       currentPage: 0,
       hasMore: true,
-      isLoading: true,
+      isLoading: false,
       error: null,
     );
     await loadMore();
@@ -131,7 +131,7 @@ class PaginatedVenuesNotifier extends _$PaginatedVenuesNotifier {
       venues: [],
       currentPage: 0,
       hasMore: true,
-      isLoading: true,
+      isLoading: false,
       filters: newFilters,
     );
 

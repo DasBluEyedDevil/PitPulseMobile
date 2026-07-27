@@ -12,7 +12,16 @@ import { UnauthorizedError } from '../utils/errors';
 import logger from '../utils/logger';
 
 export class SubscriptionController {
-  private subscriptionService = new SubscriptionService();
+  private subscriptionService: Pick<
+    SubscriptionService,
+    'processWebhookEvent' | 'getSubscriptionStatus'
+  >;
+
+  constructor(
+    dependencies: { subscriptionService?: SubscriptionController['subscriptionService'] } = {}
+  ) {
+    this.subscriptionService = dependencies.subscriptionService ?? new SubscriptionService();
+  }
 
   /**
    * POST /api/subscription/webhook -- RevenueCat webhook handler

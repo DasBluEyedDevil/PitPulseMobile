@@ -53,11 +53,10 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
     // Index 0 is Discover (global feed) — no mark-read needed
     if (tabIndex == 0) return;
 
-    final feedItems = ref.read(friendsFeedProvider).value;
-    if (feedItems == null || feedItems.isEmpty) return;
-
     if (tabIndex == 1) {
       // Friends tab
+      final feedItems = ref.read(friendsFeedProvider).value;
+      if (feedItems == null || feedItems.isEmpty) return;
       ref
           .read(feedRepositoryProvider)
           .markFeedRead(
@@ -67,6 +66,8 @@ class _FeedScreenState extends ConsumerState<FeedScreen>
           );
     } else if (tabIndex == 2) {
       // Merged Events tab — mark both event and happening_now as read
+      final feedItems = ref.read(eventsFeedProvider).value;
+      if (feedItems == null || feedItems.isEmpty) return;
       ref
           .read(feedRepositoryProvider)
           .markFeedRead(

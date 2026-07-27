@@ -214,15 +214,17 @@ class NewCheckinCount extends _$NewCheckinCount {
 /// Used for O(1) same-event detection when WebSocket events arrive
 @riverpod
 class ActiveEventIds extends _$ActiveEventIds {
+  Set<String> _activeIds = {};
+
   @override
   Set<String> build() {
+    final wsService = ref.read(webSocketServiceProvider);
     ref.onDispose(() {
-      final wsService = ref.read(webSocketServiceProvider);
-      for (final eventId in state) {
+      for (final eventId in _activeIds) {
         wsService.leaveEventRoom(eventId);
       }
     });
-    return {};
+    return _activeIds;
   }
 
   void addEventId(String eventId) {
@@ -231,6 +233,7 @@ class ActiveEventIds extends _$ActiveEventIds {
 
   void setEventIds(Set<String> ids) {
     final previousIds = state;
+    _activeIds = ids;
     state = ids;
     _reconcileEventRooms(previousIds, ids);
   }

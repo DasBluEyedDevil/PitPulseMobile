@@ -1,0 +1,288 @@
+{
+  "schemaVersion": 1,
+  "description": "Producer, transport, consumer, and executable evidence for beta-critical asynchronous and cross-surface contracts.",
+  "contracts": [
+    {
+      "id": "realtime-websocket-events",
+      "kind": "websocket",
+      "evidence": [
+        {
+          "role": "producer",
+          "file": "backend/src/utils/websocket.ts",
+          "contains": ["export const WebSocketEvents = {"]
+        },
+        {
+          "role": "consumer",
+          "file": "mobile/lib/src/core/services/websocket_service.dart",
+          "contains": ["class WebSocketEvents", "class WebSocketMessage"]
+        },
+        {
+          "role": "test",
+          "file": "backend/src/__tests__/utils/websocket.test.ts",
+          "contains": ["badge_earned", "sentMessages"]
+        },
+        {
+          "role": "test",
+          "file": "mobile/test/src/core/services/websocket_service_test.dart",
+          "contains": [
+            "routes backend realtime envelopes to typed and general streams",
+            "malformed envelopes are ignored without poisoning later messages"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "push-notification-deep-links",
+      "kind": "push",
+      "evidence": [
+        {
+          "role": "producer",
+          "file": "backend/src/jobs/notificationWorker.ts",
+          "contains": ["deepLink: '/feed'", "`/checkins/${checkin.checkinId}`"]
+        },
+        {
+          "role": "consumer",
+          "file": "mobile/lib/src/core/services/push_notification_service.dart",
+          "contains": ["String? parseDeepLink", "'/feed'", "'/checkins/'"]
+        },
+        {
+          "role": "consumer",
+          "file": "mobile/lib/src/core/router/app_router.dart",
+          "contains": ["path: '/feed'", "path: '/checkins/:id'"]
+        },
+        {
+          "role": "test",
+          "file": "backend/src/__tests__/jobs/notificationWorker.test.ts",
+          "contains": [
+            "sends single friend check-in payload with route data",
+            "sends batch payload with count and feed deep link",
+            "handles malformed and empty batches without throwing"
+          ]
+        },
+        {
+          "role": "test",
+          "file": "mobile/test/src/core/services/push_notification_service_test.dart",
+          "contains": [
+            "accepts internal deepLink routes",
+            "rejects external and unknown deepLink routes",
+            "backend registration failure leaves initialization retryable"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "password-reset-email-link",
+      "kind": "email-link",
+      "evidence": [
+        {
+          "role": "producer",
+          "file": "backend/src/services/EmailService.ts",
+          "contains": ["new URL('/reset-password'", "resetUrl.searchParams.set('token'"]
+        },
+        {
+          "role": "consumer",
+          "file": "mobile/lib/src/core/router/app_router.dart",
+          "contains": ["path: '/reset-password'", "ResetPasswordScreen(token: token)"]
+        },
+        {
+          "role": "test",
+          "file": "backend/src/__tests__/services/EmailService.test.ts",
+          "contains": [
+            "should construct a verified HTTPS reset URL with encoded token",
+            "https://soundcheck.app/reset-password?token=",
+            "should handle tokens with special characters"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "notification-batch-queue",
+      "kind": "queue",
+      "evidence": [
+        {
+          "role": "producer",
+          "file": "backend/src/services/NotificationBatchService.ts",
+          "contains": ["QueueContracts.notificationBatch.jobs.sendBatch"]
+        },
+        {
+          "role": "consumer",
+          "file": "backend/src/jobs/notificationWorker.ts",
+          "contains": ["QueueContracts.notificationBatch.queueName", "processNotificationBatch"]
+        },
+        {
+          "role": "test",
+          "file": "backend/src/__tests__/services/NotificationBatchService.test.ts",
+          "contains": [
+            "enqueues only for a new marker",
+            "deletes the marker when delayed job enqueue fails"
+          ]
+        },
+        {
+          "role": "test",
+          "file": "backend/src/__tests__/jobs/notificationWorker.test.ts",
+          "contains": ["processNotificationBatch"]
+        }
+      ]
+    },
+    {
+      "id": "badge-evaluation-queue",
+      "kind": "queue",
+      "evidence": [
+        {
+          "role": "producer",
+          "file": "backend/src/services/checkin/CheckinCreatorService.ts",
+          "contains": ["QueueContracts.badgeEvaluation.jobs.evaluate"]
+        },
+        {
+          "role": "consumer",
+          "file": "backend/src/jobs/badgeWorker.ts",
+          "contains": [
+            "QueueContracts.badgeEvaluation.queueName",
+            "processBadgeEvaluation"
+          ]
+        },
+        {
+          "role": "test",
+          "file": "backend/src/__tests__/jobs/asyncWorkers.test.ts",
+          "contains": [
+            "consumes the producer payload and returns the awarded count",
+            "rejects when badge evaluation fails so BullMQ can retry it"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "image-moderation-queue",
+      "kind": "queue",
+      "evidence": [
+        {
+          "role": "producer",
+          "file": "backend/src/services/ReportService.ts",
+          "contains": ["QueueContracts.imageModeration.jobs.scanImage"]
+        },
+        {
+          "role": "consumer",
+          "file": "backend/src/jobs/moderationWorker.ts",
+          "contains": [
+            "QueueContracts.imageModeration.queueName",
+            "processModerationJob"
+          ]
+        },
+        {
+          "role": "test",
+          "file": "backend/src/__tests__/jobs/asyncWorkers.test.ts",
+          "contains": [
+            "auto-hides and queues flagged content for review",
+            "leaves clean content visible",
+            "rejects provider failures so BullMQ retry policy remains effective"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "event-sync-queue",
+      "kind": "queue",
+      "evidence": [
+        {
+          "role": "producer",
+          "file": "backend/src/jobs/syncScheduler.ts",
+          "contains": [
+            "QueueContracts.eventSync.jobs.scheduledSync",
+            "QueueContracts.eventSync.jobs.checkCancellations",
+            "QueueContracts.eventSync.jobs.regionSync",
+            "QueueContracts.eventSync.jobs.retentionCleanup"
+          ]
+        },
+        {
+          "role": "consumer",
+          "file": "backend/src/jobs/eventSyncWorker.ts",
+          "contains": ["QueueContracts.eventSync.queueName", "processEventSyncJob"]
+        },
+        {
+          "role": "test",
+          "file": "backend/src/__tests__/jobs/asyncWorkers.test.ts",
+          "contains": [
+            "passes the requested region to an on-demand sync",
+            "routes retention cleanup without starting an event sync",
+            "rejects a sync failure so BullMQ can retry it"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "revenuecat-webhook",
+      "kind": "webhook",
+      "evidence": [
+        {
+          "role": "producer",
+          "file": "backend/src/routes/subscriptionRoutes.ts",
+          "contains": ["'/webhook'", "subscriptionController.handleWebhook"]
+        },
+        {
+          "role": "consumer",
+          "file": "backend/src/controllers/SubscriptionController.ts",
+          "contains": [
+            "crypto.timingSafeEqual",
+            "this.subscriptionService.processWebhookEvent",
+            "entitlement_ids:"
+          ]
+        },
+        {
+          "role": "test",
+          "file": "backend/src/__tests__/controllers/SubscriptionController.contract.test.ts",
+          "contains": [
+            "acknowledges an invalid authorization token without processing",
+            "maps a valid RevenueCat envelope and returns the canonical response",
+            "surfaces processing failures so provider retries remain available"
+          ]
+        },
+        {
+          "role": "test",
+          "file": "backend/src/__tests__/services/SubscriptionService.test.ts",
+          "contains": [
+            "should skip already processed events (idempotency)",
+            "should use ON CONFLICT for race condition safety"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "share-card-api",
+      "kind": "sharing",
+      "evidence": [
+        {
+          "role": "producer",
+          "file": "backend/src/routes/shareRoutes.ts",
+          "contains": ["'/checkin/:checkinId'", "'/badge/:badgeAwardId'"]
+        },
+        {
+          "role": "consumer",
+          "file": "mobile/lib/src/features/sharing/data/share_repository.dart",
+          "contains": [
+            "'/share/checkin/$checkinId'",
+            "'/share/badge/$badgeAwardId'",
+            "ShareCardUrls"
+          ]
+        },
+        {
+          "role": "test",
+          "file": "backend/src/__tests__/controllers/ShareController.contract.test.ts",
+          "contains": [
+            "requires authentication before generating a check-in card",
+            "generates a badge card only from an award owned by the authenticated user",
+            "serves a safe public landing page even when image generation is degraded"
+          ]
+        },
+        {
+          "role": "test",
+          "file": "mobile/test/src/features/sharing/data/share_repository_test.dart",
+          "contains": [
+            "parses check-in share-card URLs and sends the canonical path",
+            "parses badge share-card URLs and sends the canonical path",
+            "returns an observable server failure for malformed payloads"
+          ]
+        }
+      ]
+    }
+  ]
+}

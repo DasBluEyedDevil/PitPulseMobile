@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:soundcheck_flutter/src/core/providers/providers.dart';
+import 'package:soundcheck_flutter/src/features/subscription/domain/subscription_state.dart';
 import 'package:soundcheck_flutter/src/features/subscription/presentation/subscription_providers.dart';
 import 'package:soundcheck_flutter/src/features/subscription/presentation/subscription_service.dart';
 import 'package:soundcheck_flutter/src/features/subscription/presentation/widgets/premium_paywall_sheet.dart';
@@ -49,6 +50,115 @@ void main() {
       expect(find.byType(PremiumPaywallSheet), findsOneWidget);
     },
   );
+
+  testWidgets('modal entry point renders perks and reports paywall errors', (
+    tester,
+  ) async {
+    final sdk = _ImmediateRevenueCatSdk(paywallResult: PaywallResult.error);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [revenueCatSdkAdapterProvider.overrideWithValue(sdk)],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => showPremiumPaywallSheet(context),
+                child: const Text('Open Unlimited'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open Unlimited'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unlock SoundCheck Unlimited'), findsOneWidget);
+    expect(find.text('Detailed Wrapped analytics'), findsOneWidget);
+    expect(find.text('Year-round analytics'), findsOneWidget);
+
+    await tester.tap(find.text('Subscribe'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not open subscription options'), findsOneWidget);
+  });
+
+  testWidgets('restore reports when no previous purchase exists', (
+    tester,
+  ) async {
+    final sdk = _ImmediateRevenueCatSdk();
+    await _pumpSheet(tester, sdk);
+
+    await tester.tap(find.text('Restore Purchases'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No previous purchases found'), findsOneWidget);
+  });
+
+  testWidgets('restore keeps sheet open for an inactive entitlement', (
+    tester,
+  ) async {
+    final sdk = _ImmediateRevenueCatSdk(
+      restoredCustomerInfo: _inactiveCustomerInfo(),
+    );
+    await _pumpSheet(tester, sdk);
+
+    await tester.tap(find.text('Restore Purchases'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No active subscription found'), findsOneWidget);
+    expect(find.byType(PremiumPaywallSheet), findsOneWidget);
+  });
+
+  testWidgets('restore closes the sheet for an active entitlement', (
+    tester,
+  ) async {
+    final sdk = _ImmediateRevenueCatSdk(
+      restoredCustomerInfo: _activeCustomerInfo(),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          revenueCatSdkAdapterProvider.overrideWithValue(sdk),
+          serverSubscriptionStatusProvider.overrideWith(
+            (ref) async => const SubscriptionStatus(isPremium: true),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => showPremiumPaywallSheet(context),
+                child: const Text('Open Unlimited'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open Unlimited'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Restore Purchases'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PremiumPaywallSheet), findsNothing);
+  });
+}
+
+Future<void> _pumpSheet(WidgetTester tester, RevenueCatSdkAdapter sdk) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        revenueCatSdkAdapterProvider.overrideWithValue(sdk),
+        serverSubscriptionStatusProvider.overrideWith(
+          (ref) async => const SubscriptionStatus(isPremium: false),
+        ),
+      ],
+      child: const MaterialApp(home: Scaffold(body: PremiumPaywallSheet())),
+    ),
+  );
 }
 
 class _DelayedRevenueCatSdk extends RevenueCatSdkAdapter {
@@ -67,6 +177,26 @@ class _DelayedRevenueCatSdk extends RevenueCatSdkAdapter {
   }
 }
 
+class _ImmediateRevenueCatSdk extends RevenueCatSdkAdapter {
+  _ImmediateRevenueCatSdk({
+    this.paywallResult = PaywallResult.cancelled,
+    this.restoredCustomerInfo,
+  });
+
+  final PaywallResult paywallResult;
+  final CustomerInfo? restoredCustomerInfo;
+
+  @override
+  Future<PaywallResult> presentUnlimitedPaywallIfNeeded() async {
+    return paywallResult;
+  }
+
+  @override
+  Future<CustomerInfo?> restorePurchases() async {
+    return restoredCustomerInfo;
+  }
+}
+
 CustomerInfo _activeCustomerInfo() {
   const identifier = SubscriptionService.entitlementIdentifier;
   const entitlement = EntitlementInfo(
@@ -80,6 +210,30 @@ CustomerInfo _activeCustomerInfo() {
   );
   return const CustomerInfo(
     EntitlementInfos({identifier: entitlement}, {identifier: entitlement}),
+    {},
+    [],
+    [],
+    [],
+    '2026-07-26T00:00:00Z',
+    'user-a',
+    {},
+    '2026-07-26T00:00:00Z',
+  );
+}
+
+CustomerInfo _inactiveCustomerInfo() {
+  const identifier = SubscriptionService.entitlementIdentifier;
+  const entitlement = EntitlementInfo(
+    identifier,
+    false,
+    true,
+    '2026-07-26T00:00:00Z',
+    '2026-07-26T00:00:00Z',
+    SubscriptionService.productMonthly,
+    true,
+  );
+  return const CustomerInfo(
+    EntitlementInfos({identifier: entitlement}, {}),
     {},
     [],
     [],

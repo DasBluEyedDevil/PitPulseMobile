@@ -24,6 +24,8 @@
     "test": "jest --maxWorkers=4",
     "test:watch": "jest --watch --maxWorkers=4",
     "test:coverage": "jest --coverage --maxWorkers=4",
+    "test:http-contracts": "node scripts/verify-http-contracts.mjs",
+    "test:postgres:integration": "jest --runInBand --detectOpenHandles src/__tests__/services/CheckinService.integration.test.ts",
     "test:migrations:integration": "node scripts/verify-migrations.cjs",
     "test:dependency-compatibility": "node --test scripts/__tests__/brace-glob-compatibility.test.cjs",
     "test:runtime-assets": "node scripts/verify-built-runtime.cjs",
@@ -131,6 +133,14 @@
       "!src/**/*.d.ts",
       "!src/index.ts"
     ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 50,
+        "functions": 50,
+        "lines": 60,
+        "statements": 60
+      }
+    },
     "setupFilesAfterEnv": [
       "<rootDir>/src/__tests__/setup.ts"
     ]

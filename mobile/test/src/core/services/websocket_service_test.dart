@@ -153,6 +153,77 @@ void main() {
   );
 
   test(
+    'routes backend realtime envelopes to typed and general streams',
+    () async {
+      final channel = _FakeWebSocketChannel();
+      final service = WebSocketService(
+        uriBuilder: (_) => Uri.parse('wss://example.test/socket'),
+        channelFactory: (_, {authToken}) => channel,
+      );
+      addTearDown(service.dispose);
+      await service.connect(authToken: 'abc123', userId: 'user-1');
+
+      final toast = service.toastStream.first;
+      final comment = service.commentStream.first;
+      final checkin = service.newCheckinStream.first;
+      final sameEvent = service.sameEventCheckinStream.first;
+      final general = service.messageStream.take(6).toList();
+
+      channel
+        ..addServerMessage(WebSocketEvents.newToast, {'checkinId': 'checkin-1'})
+        ..addServerMessage(WebSocketEvents.newComment, {
+          'checkinId': 'checkin-1',
+          'commentId': 'comment-1',
+        })
+        ..addServerMessage(WebSocketEvents.newCheckin, {
+          'checkinId': 'checkin-2',
+        })
+        ..addServerMessage(WebSocketEvents.sameEventCheckin, {
+          'eventId': 'event-1',
+        })
+        ..addServerMessage(WebSocketEvents.badgeEarned, {'badgeId': 'badge-1'})
+        ..addServerMessage(WebSocketEvents.newFollower, {'userId': 'user-2'});
+
+      expect(await toast, {'checkinId': 'checkin-1'});
+      expect(await comment, {
+        'checkinId': 'checkin-1',
+        'commentId': 'comment-1',
+      });
+      expect(await checkin, {'checkinId': 'checkin-2'});
+      expect(await sameEvent, {'eventId': 'event-1'});
+      expect((await general).map((message) => message.type), [
+        WebSocketEvents.newToast,
+        WebSocketEvents.newComment,
+        WebSocketEvents.newCheckin,
+        WebSocketEvents.sameEventCheckin,
+        WebSocketEvents.badgeEarned,
+        WebSocketEvents.newFollower,
+      ]);
+    },
+  );
+
+  test(
+    'malformed envelopes are ignored without poisoning later messages',
+    () async {
+      final channel = _FakeWebSocketChannel();
+      final service = WebSocketService(
+        uriBuilder: (_) => Uri.parse('wss://example.test/socket'),
+        channelFactory: (_, {authToken}) => channel,
+      );
+      addTearDown(service.dispose);
+      await service.connect(authToken: 'abc123', userId: 'user-1');
+
+      final nextMessage = service.messageStream.first;
+      channel.incoming.add('{malformed-json');
+      channel.addServerMessage(WebSocketEvents.newCheckin, {
+        'checkinId': 'checkin-after-error',
+      });
+
+      expect((await nextMessage).payload, {'checkinId': 'checkin-after-error'});
+    },
+  );
+
+  test(
     'intentional disconnect clears credentials and suppresses reconnect',
     () async {
       final channels = <_FakeWebSocketChannel>[];

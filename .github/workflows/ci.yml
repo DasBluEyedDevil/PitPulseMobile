@@ -66,6 +66,12 @@ jobs:
     - name: Verify unhealthy startup remains closed
       run: npm run test:startup:unhealthy
 
+    - name: Verify HTTP route classification contract
+      run: npm run test:http-contracts
+
+    - name: Verify asynchronous producer/consumer contracts
+      run: node ../scripts/verify-async-contracts.mjs
+
     - name: Run fresh coverage
       run: npm run test:coverage
       env:
@@ -125,7 +131,7 @@ jobs:
         DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:5432/soundcheck_ci
         DB_SSL: 'false'
 
-    - name: Run backend integration suite
+    - name: Run backend unit and contract suites
       run: npm test
       env:
         JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
@@ -133,6 +139,14 @@ jobs:
         DB_SSL: 'false'
         REDIS_HOST: localhost
         REDIS_PORT: '6379'
+        RUN_INTEGRATION_TESTS: 'true'
+
+    - name: Verify PostgreSQL suite closes without open handles
+      run: npm run test:postgres:integration
+      env:
+        JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
+        DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:5432/soundcheck_ci
+        DB_SSL: 'false'
         RUN_INTEGRATION_TESTS: 'true'
 
     - name: Run migration deployment recovery matrix
@@ -176,6 +190,9 @@ jobs:
 
     - name: Run fresh coverage
       run: flutter test --coverage
+
+    - name: Verify mobile coverage thresholds
+      run: node ../scripts/check-mobile-coverage.mjs
 
   android-release-configuration:
     runs-on: ubuntu-latest

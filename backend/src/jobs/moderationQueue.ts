@@ -14,6 +14,7 @@
 import { Queue } from 'bullmq';
 import { createBullMQConnection, getRedisUrl } from '../config/redis';
 import logger from '../utils/logger';
+import { QueueContracts } from './queueContracts';
 
 /**
  * Image moderation queue instance.
@@ -23,7 +24,7 @@ let moderationQueue: Queue | null = null;
 
 try {
   getRedisUrl();
-  moderationQueue = new Queue('image-moderation', {
+  moderationQueue = new Queue(QueueContracts.imageModeration.queueName, {
     connection: createBullMQConnection(),
     defaultJobOptions: {
       attempts: 3,

@@ -22,6 +22,7 @@ import { pushNotificationService } from '../services/PushNotificationService';
 import { getRedis } from '../utils/redisRateLimiter';
 import { captureException } from '../utils/sentry';
 import logger from '../utils/logger';
+import { QueueContracts } from './queueContracts';
 
 let notificationWorker: Worker | null = null;
 
@@ -147,7 +148,7 @@ export function startNotificationWorker(): Worker | null {
     return null;
   }
 
-  const worker = new Worker('notification-batch', processNotificationBatch, {
+  const worker = new Worker(QueueContracts.notificationBatch.queueName, processNotificationBatch, {
     connection: createBullMQConnection(),
     concurrency: 5,
     lockDuration: 30000, // 30s — notification sends are quick

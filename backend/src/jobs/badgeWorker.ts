@@ -16,6 +16,48 @@ import { createBullMQConnection, getRedisUrl } from '../config/redis';
 import { BadgeService } from '../services/BadgeService';
 import { captureException } from '../utils/sentry';
 import logger from '../utils/logger';
+import { QueueContracts } from './queueContracts';
+
+type BadgeEvaluationJob = Pick<Job, 'id' | 'data'>;
+
+export type BadgeEvaluationProcessorDependencies = {
+  createBadgeService: () => Pick<BadgeService, 'evaluateAndAward'>;
+  now: () => number;
+};
+
+const defaultBadgeEvaluationDependencies: BadgeEvaluationProcessorDependencies = {
+  createBadgeService: () => new BadgeService(),
+  now: Date.now,
+};
+
+/**
+ * Process one badge evaluation job.
+ *
+ * Exported separately from BullMQ worker construction so the producer payload
+ * and side effects can be exercised without a live Redis connection.
+ */
+export async function processBadgeEvaluation(
+  job: BadgeEvaluationJob,
+  dependencies: BadgeEvaluationProcessorDependencies = defaultBadgeEvaluationDependencies
+) {
+  const startTime = dependencies.now();
+  const { userId, checkinId } = job.data;
+  logger.info(`Processing badge evaluation`, { jobId: job.id, userId, checkinId });
+
+  const badgeService = dependencies.createBadgeService();
+  const newBadges = await badgeService.evaluateAndAward(userId);
+
+  const duration = dependencies.now() - startTime;
+  logger.info(`Badge evaluation complete`, {
+    jobId: job.id,
+    userId,
+    checkinId,
+    newBadges: newBadges.length,
+    durationMs: duration,
+  });
+
+  return { newBadges: newBadges.length, checkinId };
+}
 
 /**
  * Start the BullMQ worker for badge evaluation jobs.
@@ -32,26 +74,8 @@ export function startBadgeEvalWorker(): Worker | null {
   }
 
   const worker = new Worker(
-    'badge-eval',
-    async (job: Job) => {
-      const startTime = Date.now();
-      const { userId, checkinId } = job.data;
-      logger.info(`Processing badge evaluation`, { jobId: job.id, userId, checkinId });
-
-      const badgeService = new BadgeService();
-      const newBadges = await badgeService.evaluateAndAward(userId);
-
-      const duration = Date.now() - startTime;
-      logger.info(`Badge evaluation complete`, {
-        jobId: job.id,
-        userId,
-        checkinId,
-        newBadges: newBadges.length,
-        durationMs: duration,
-      });
-
-      return { newBadges: newBadges.length, checkinId };
-    },
+    QueueContracts.badgeEvaluation.queueName,
+    (job) => processBadgeEvaluation(job),
     {
       connection: createBullMQConnection(),
       concurrency: 3,

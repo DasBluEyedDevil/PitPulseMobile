@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/providers/providers.dart';
+import '../../../core/services/websocket_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/brand_widgets.dart';
 import '../../reporting/presentation/widgets/report_bottom_sheet.dart';
@@ -28,19 +29,20 @@ class CheckInDetailScreen extends ConsumerStatefulWidget {
 class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
   final TextEditingController _commentController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  late final WebSocketService _webSocketService;
   StreamSubscription<Map<String, dynamic>>? _toastSubscription;
   StreamSubscription<Map<String, dynamic>>? _commentSubscription;
 
   @override
   void initState() {
     super.initState();
-    final wsService = ref.read(webSocketServiceProvider);
-    wsService.joinCheckinRoom(widget.checkinId);
-    _toastSubscription = wsService.toastStream.listen((payload) {
+    _webSocketService = ref.read(webSocketServiceProvider);
+    _webSocketService.joinCheckinRoom(widget.checkinId);
+    _toastSubscription = _webSocketService.toastStream.listen((payload) {
       if (_payloadCheckinId(payload) != widget.checkinId) return;
       _invalidateRealtimeCheckInState();
     });
-    _commentSubscription = wsService.commentStream.listen((payload) {
+    _commentSubscription = _webSocketService.commentStream.listen((payload) {
       if (_payloadCheckinId(payload) != widget.checkinId) return;
       _invalidateRealtimeCheckInState();
     });
@@ -48,7 +50,7 @@ class _CheckInDetailScreenState extends ConsumerState<CheckInDetailScreen> {
 
   @override
   void dispose() {
-    ref.read(webSocketServiceProvider).leaveCheckinRoom(widget.checkinId);
+    _webSocketService.leaveCheckinRoom(widget.checkinId);
     _toastSubscription?.cancel();
     _commentSubscription?.cancel();
     _commentController.dispose();

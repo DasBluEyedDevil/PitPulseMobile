@@ -13,6 +13,7 @@
  */
 
 import { eventSyncQueue } from './queue';
+import { QueueContracts } from './queueContracts';
 import logger from '../utils/logger';
 
 /**
@@ -30,7 +31,7 @@ export async function registerSyncJobs(): Promise<void> {
   try {
     // Main sync: every 4 hours
     await eventSyncQueue.add(
-      'scheduled-sync',
+      QueueContracts.eventSync.jobs.scheduledSync,
       {},
       {
         repeat: {
@@ -42,7 +43,7 @@ export async function registerSyncJobs(): Promise<void> {
 
     // Cancellation check: daily at 6 AM UTC
     await eventSyncQueue.add(
-      'check-cancellations',
+      QueueContracts.eventSync.jobs.checkCancellations,
       {},
       {
         repeat: {
@@ -53,7 +54,7 @@ export async function registerSyncJobs(): Promise<void> {
     );
 
     await eventSyncQueue.add(
-      'retention-cleanup',
+      QueueContracts.eventSync.jobs.retentionCleanup,
       {},
       {
         repeat: {
@@ -88,7 +89,7 @@ export async function triggerManualSync(regionId?: string): Promise<string | nul
 
   try {
     const job = await eventSyncQueue.add(
-      'region-sync',
+      QueueContracts.eventSync.jobs.regionSync,
       { regionId: regionId || null },
       {
         // No repeat -- one-off job
