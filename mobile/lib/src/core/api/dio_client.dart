@@ -41,6 +41,7 @@ class _TokenRefreshResult {
 
 const _authSessionRevisionExtra = '_authSessionRevision';
 const _preserveAuthorizationExtra = '_preserveAuthorization';
+const _authRefreshReplayExtra = '_authRefreshReplay';
 
 /// DioClient provides a configured Dio instance with interceptors
 class DioClient {
@@ -48,6 +49,8 @@ class DioClient {
   final Dio? _refreshDio;
   final AuthSessionStore _authSessionStore;
   final VoidCallback? _onAuthFailure;
+  Future<_TokenRefreshResult>? _refreshInFlight;
+  String? _refreshInFlightRevision;
 
   DioClient({
     required FlutterSecureStorage secureStorage,
@@ -92,11 +95,8 @@ class DioClient {
   }
 
   void _initializeInterceptors() {
-    // QueuedInterceptorsWrapper serializes interceptor execution so that
-    // multiple concurrent 401s do not race against each other. The first
-    // 401 triggers a refresh attempt; subsequent 401s queue behind it.
     _dio.interceptors.add(
-      QueuedInterceptorsWrapper(
+      InterceptorsWrapper(
         onRequest: (options, handler) async {
           if (options.extra[_preserveAuthorizationExtra] == true) {
             return handler.next(options);
@@ -114,8 +114,17 @@ class DioClient {
             final initiatingRevision =
                 error.requestOptions.extra[_authSessionRevisionExtra]
                     as String?;
+            if (error.requestOptions.extra[_authRefreshReplayExtra] == true) {
+              await _invalidateAfterTerminalUnauthorized(
+                initiatingRevision,
+                error,
+                handler,
+              );
+              return;
+            }
+
             // Attempt token refresh before wiping credentials
-            final refreshResult = await _attemptTokenRefresh(
+            final refreshResult = await _coordinateTokenRefresh(
               initiatingRevision,
             );
             var revisionToInvalidate = refreshResult.initiatingRevision;
@@ -135,10 +144,16 @@ class DioClient {
                 error.requestOptions.extra[_authSessionRevisionExtra] =
                     refreshedSession.revision;
                 error.requestOptions.extra[_preserveAuthorizationExtra] = true;
+                error.requestOptions.extra[_authRefreshReplayExtra] = true;
                 final retryResponse = await _dio.fetch(error.requestOptions);
                 return handler.resolve(retryResponse);
+              } on DioException catch (retryError) {
+                // A non-auth replay failure does not invalidate a session
+                // whose refresh already succeeded. A replayed 401 is handled
+                // by the marked nested request above.
+                return handler.next(retryError);
               } catch (_) {
-                // Retry failed -- fall through to credential wipe
+                return handler.next(error);
               }
             }
             if (refreshResult.status == _TokenRefreshStatus.stale) {
@@ -248,6 +263,64 @@ class DioClient {
     }
   }
 
+  Future<void> _invalidateAfterTerminalUnauthorized(
+    String? revision,
+    DioException error,
+    ErrorInterceptorHandler handler,
+  ) async {
+    if (revision == null) {
+      handler.next(error);
+      return;
+    }
+    try {
+      final invalidation = await _authSessionStore.invalidateIfActiveRevision(
+        revision,
+      );
+      if (invalidation == null) {
+        handler.next(error);
+        return;
+      }
+      if (invalidation.hasResidualCredentials) {
+        LogService.e(
+          'Authentication invalidated with secure-storage residue: '
+          '${invalidation.failedKeys.join(', ')}',
+        );
+      }
+      _onAuthFailure?.call();
+    } catch (invalidationError, stackTrace) {
+      LogService.e(
+        'Failed to durably invalidate authentication after replayed 401',
+        invalidationError,
+        stackTrace,
+      );
+    }
+    handler.next(error);
+  }
+
+  Future<_TokenRefreshResult> _coordinateTokenRefresh(
+    String? initiatingRevision,
+  ) {
+    if (initiatingRevision == null) {
+      return Future.value(const _TokenRefreshResult.stale(null));
+    }
+
+    final inFlight = _refreshInFlight;
+    if (inFlight != null && _refreshInFlightRevision == initiatingRevision) {
+      return inFlight;
+    }
+
+    late final Future<_TokenRefreshResult> refresh;
+    refresh = _attemptTokenRefresh(initiatingRevision).whenComplete(() {
+      if (identical(_refreshInFlight, refresh)) {
+        _refreshInFlight = null;
+        _refreshInFlightRevision = null;
+      }
+    });
+    _refreshInFlightRevision = initiatingRevision;
+    _refreshInFlight = refresh;
+    return refresh;
+  }
+
   /// Attempt to refresh the access token using the stored refresh token.
   /// Returns whether the refresh committed, became stale, or failed.
   Future<_TokenRefreshResult> _attemptTokenRefresh(
@@ -257,13 +330,18 @@ class DioClient {
       return const _TokenRefreshResult.stale(null);
     }
     try {
-      final session = await _authSessionStore.readSession();
-      if (session == null || session.revision != initiatingRevision) {
+      final session = await _authSessionStore.resolveActiveRefreshSuccessor(
+        initiatingRevision,
+      );
+      if (session == null) {
         return _TokenRefreshResult.stale(initiatingRevision);
+      }
+      if (session.revision != initiatingRevision) {
+        return _TokenRefreshResult.refreshed(initiatingRevision, session);
       }
       final refreshToken = session.refreshToken;
       if (refreshToken == null) {
-        return _TokenRefreshResult.failed(initiatingRevision);
+        return _TokenRefreshResult.failed(session.revision);
       }
 
       // Use a fresh Dio instance to avoid interceptor recursion

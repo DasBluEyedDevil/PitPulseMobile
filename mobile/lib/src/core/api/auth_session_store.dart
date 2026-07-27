@@ -55,6 +55,7 @@ class AuthSessionStore {
 
   final FlutterSecureStorage _storage;
   final Random _random = Random.secure();
+  final Map<String, String> _refreshSuccessors = {};
   int _revisionSequence = 0;
   Future<void>? _writeTail;
 
@@ -165,23 +166,51 @@ class AuthSessionStore {
     );
     if (committed == null) return null;
     final updated = await readSession();
-    return updated?.revision == committed.revision ? updated : null;
+    if (updated?.revision != committed.revision) return null;
+
+    // This is the only operation allowed to create a session-successor edge.
+    // It proves that an exact compare-and-swap token refresh advanced the
+    // authentication session without a logout or a new login.
+    _refreshSuccessors[expectedRevision] = committed.revision;
+    return updated;
   }
 
   Future<bool> updateUserJson(
     String userJson, {
     required String expectedRevision,
   }) async {
-    final current = await readSession();
-    if (current == null || current.revision != expectedRevision) return false;
+    final current = await resolveActiveRefreshSuccessor(expectedRevision);
+    if (current == null) return false;
     final committed = await commit(
       accessToken: current.accessToken,
       refreshToken: current.refreshToken,
       userJson: userJson,
       isCurrent: () => true,
-      expectedRevision: expectedRevision,
+      expectedRevision: current.revision,
     );
     return committed != null;
+  }
+
+  /// Resolves [expectedRevision] only through explicit token-refresh CAS edges.
+  ///
+  /// A logout or login never creates an edge, even when the same user logs in
+  /// again. The returned session must also be the exact revision that remains
+  /// active when the authoritative tuple is read.
+  Future<StoredAuthSession?> resolveActiveRefreshSuccessor(
+    String expectedRevision,
+  ) async {
+    final active = await readSession();
+    if (active == null) return null;
+
+    var revision = expectedRevision;
+    final visited = <String>{};
+    while (revision != active.revision) {
+      if (!visited.add(revision)) return null;
+      final successor = _refreshSuccessors[revision];
+      if (successor == null) return null;
+      revision = successor;
+    }
+    return active;
   }
 
   /// Durably invalidates the session before attempting recoverable raw cleanup.

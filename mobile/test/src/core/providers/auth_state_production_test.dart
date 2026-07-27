@@ -342,6 +342,206 @@ void main() {
     });
 
     test(
+      'successful refresh replays once and keeps replacement active',
+      () async {
+        storagePlatform.values.addAll({
+          ApiConfig.tokenKey: 'token-a',
+          'refresh_token': 'refresh-token-a',
+          ApiConfig.userKey: jsonEncode(_userA.toJson()),
+        });
+        var protectedCalls = 0;
+        var refreshCalls = 0;
+        var authFailureCalls = 0;
+        final authorizations = <String?>[];
+        final adapter = _RouteAdapter((options) {
+          if (options.path == '/protected') {
+            protectedCalls++;
+            final authorization = options.headers['Authorization'] as String?;
+            authorizations.add(authorization);
+            return _jsonResponseBody(
+              authorization == 'Bearer token-a'
+                  ? {'success': false, 'message': 'expired'}
+                  : {'success': true, 'data': 'ok'},
+              statusCode: authorization == 'Bearer token-a' ? 401 : 200,
+            );
+          }
+          if (options.path == '/tokens/refresh') {
+            refreshCalls++;
+            return _tokenRefreshResponseBody(
+              accessToken: 'token-a2',
+              refreshToken: 'refresh-token-a2',
+            );
+          }
+          throw StateError('Unexpected request: ${options.path}');
+        });
+        final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        final refreshDio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        final client = DioClient(
+          secureStorage: const FlutterSecureStorage(),
+          dio: dio,
+          refreshDio: refreshDio,
+          onAuthFailure: () => authFailureCalls++,
+        );
+
+        final response = await client.get('/protected');
+
+        expect(response.data['data'], 'ok');
+        expect(protectedCalls, 2);
+        expect(refreshCalls, 1);
+        expect(authorizations, ['Bearer token-a', 'Bearer token-a2']);
+        expect(authFailureCalls, 0);
+        final session = await client.authSessionStore.readSession();
+        expect(session!.accessToken, 'token-a2');
+        expect(session.refreshToken, 'refresh-token-a2');
+      },
+    );
+
+    for (final replayFailure in [
+      (name: 'server failure', kind: 'server'),
+      (name: 'connection failure', kind: 'connection'),
+    ]) {
+      test('successful refresh preserves replacement after replay '
+          '${replayFailure.name}', () async {
+        storagePlatform.values.addAll({
+          ApiConfig.tokenKey: 'token-a',
+          'refresh_token': 'refresh-token-a',
+          ApiConfig.userKey: jsonEncode(_userA.toJson()),
+        });
+        var protectedCalls = 0;
+        var refreshCalls = 0;
+        var authFailureCalls = 0;
+        final adapter = _RouteAdapter((options) {
+          if (options.path == '/protected') {
+            protectedCalls++;
+            final authorization = options.headers['Authorization'] as String?;
+            if (authorization == 'Bearer token-a') {
+              return _jsonResponseBody({
+                'success': false,
+                'message': 'expired',
+              }, statusCode: 401);
+            }
+            if (replayFailure.kind == 'connection') {
+              throw DioException(
+                requestOptions: options,
+                type: DioExceptionType.connectionError,
+                message: 'offline',
+              );
+            }
+            return _jsonResponseBody({
+              'success': false,
+              'message': 'server unavailable',
+            }, statusCode: 500);
+          }
+          if (options.path == '/tokens/refresh') {
+            refreshCalls++;
+            return _tokenRefreshResponseBody(
+              accessToken: 'token-a2',
+              refreshToken: 'refresh-token-a2',
+            );
+          }
+          throw StateError('Unexpected request: ${options.path}');
+        });
+        final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        final refreshDio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        final client = DioClient(
+          secureStorage: const FlutterSecureStorage(),
+          dio: dio,
+          refreshDio: refreshDio,
+          onAuthFailure: () => authFailureCalls++,
+        );
+
+        await expectLater(
+          client.post('/protected'),
+          throwsA(
+            replayFailure.kind == 'connection'
+                ? isA<NetworkFailure>()
+                : isA<ServerFailure>(),
+          ),
+        );
+
+        expect(protectedCalls, 2);
+        expect(refreshCalls, 1);
+        expect(authFailureCalls, 0);
+        final session = await client.authSessionStore.readSession();
+        expect(session!.accessToken, 'token-a2');
+        expect(session.refreshToken, 'refresh-token-a2');
+      });
+    }
+
+    test(
+      'two concurrent A1 401s share A2 and each replay exactly once',
+      () async {
+        storagePlatform.values.addAll({
+          ApiConfig.tokenKey: 'token-a',
+          'refresh_token': 'refresh-token-a',
+          ApiConfig.userKey: jsonEncode(_userA.toJson()),
+        });
+        final bothInitialRequestsEntered = Completer<void>();
+        var initialRequests = 0;
+        var replayRequests = 0;
+        var refreshCalls = 0;
+        var authFailureCalls = 0;
+        final adapter = _RouteAdapter((options) async {
+          if (options.path.startsWith('/protected/')) {
+            final authorization = options.headers['Authorization'] as String?;
+            if (authorization == 'Bearer token-a') {
+              initialRequests++;
+              if (initialRequests == 2) {
+                bothInitialRequestsEntered.complete();
+              }
+              await bothInitialRequestsEntered.future;
+              return _jsonResponseBody({
+                'success': false,
+                'message': 'expired',
+              }, statusCode: 401);
+            }
+            expect(authorization, 'Bearer token-a2');
+            replayRequests++;
+            return _jsonResponseBody({'success': true, 'data': options.path});
+          }
+          if (options.path == '/tokens/refresh') {
+            refreshCalls++;
+            return _tokenRefreshResponseBody(
+              accessToken: 'token-a2',
+              refreshToken: 'refresh-token-a2',
+            );
+          }
+          throw StateError('Unexpected request: ${options.path}');
+        });
+        final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        final refreshDio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        final client = DioClient(
+          secureStorage: const FlutterSecureStorage(),
+          dio: dio,
+          refreshDio: refreshDio,
+          onAuthFailure: () => authFailureCalls++,
+        );
+
+        final responses = await Future.wait([
+          client.get('/protected/one'),
+          client.get('/protected/two'),
+        ]);
+
+        expect(responses.map((response) => response.data['data']).toSet(), {
+          '/protected/one',
+          '/protected/two',
+        });
+        expect(initialRequests, 2);
+        expect(replayRequests, 2);
+        expect(refreshCalls, 1);
+        expect(authFailureCalls, 0);
+        final session = await client.authSessionStore.readSession();
+        expect(session!.accessToken, 'token-a2');
+      },
+    );
+
+    test(
       'superseded final active write cannot restore A when B login fails',
       () async {
         String? probeAuthorization;
@@ -447,6 +647,230 @@ void main() {
       expect(session!.accessToken, 'token-b');
       expect(jsonDecode(session.userJson)['id'], _userB.id);
     });
+
+    test('profile response refreshed from A1 persists against A2', () async {
+      storagePlatform.values.addAll({
+        ApiConfig.tokenKey: 'token-a',
+        'refresh_token': 'refresh-token-a',
+        ApiConfig.userKey: jsonEncode(_userA.toJson()),
+      });
+      var profileCalls = 0;
+      var refreshCalls = 0;
+      final adapter = _RouteAdapter((options) {
+        if (options.path == '${ApiConfig.auth}/me' && options.method == 'PUT') {
+          profileCalls++;
+          final authorization = options.headers['Authorization'] as String?;
+          return _jsonResponseBody(
+            authorization == 'Bearer token-a'
+                ? {'success': false, 'message': 'expired'}
+                : {
+                    'success': true,
+                    'data': {..._userA.toJson(), 'firstName': 'Changed'},
+                  },
+            statusCode: authorization == 'Bearer token-a' ? 401 : 200,
+          );
+        }
+        if (options.path == '/tokens/refresh') {
+          refreshCalls++;
+          return _tokenRefreshResponseBody(
+            accessToken: 'token-a2',
+            refreshToken: 'refresh-token-a2',
+          );
+        }
+        throw StateError('Unexpected request: ${options.path}');
+      });
+      final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+        ..httpClientAdapter = adapter;
+      final refreshDio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+        ..httpClientAdapter = adapter;
+      const storage = FlutterSecureStorage();
+      final client = DioClient(
+        secureStorage: storage,
+        dio: dio,
+        refreshDio: refreshDio,
+      );
+      final repository = AuthRepository(
+        dioClient: client,
+        secureStorage: storage,
+      );
+
+      final result = await repository.updateProfile({'firstName': 'Changed'});
+
+      expect(result.isRight(), isTrue);
+      expect(profileCalls, 2);
+      expect(refreshCalls, 1);
+      final session = await client.authSessionStore.readSession();
+      expect(session!.accessToken, 'token-a2');
+      expect(jsonDecode(session.userJson)['firstName'], 'Changed');
+    });
+
+    test(
+      'profile response cannot cross from refreshed A2 into committed B',
+      () async {
+        storagePlatform.values.addAll({
+          ApiConfig.tokenKey: 'token-a',
+          'refresh_token': 'refresh-token-a',
+          ApiConfig.userKey: jsonEncode(_userA.toJson()),
+        });
+        final replayEntered = Completer<void>();
+        final replayResponse = Completer<ResponseBody>();
+        final adapter = _RouteAdapter((options) {
+          if (options.path == '${ApiConfig.auth}/me' &&
+              options.method == 'PUT') {
+            final authorization = options.headers['Authorization'] as String?;
+            if (authorization == 'Bearer token-a') {
+              return _jsonResponseBody({
+                'success': false,
+                'message': 'expired',
+              }, statusCode: 401);
+            }
+            replayEntered.complete();
+            return replayResponse.future;
+          }
+          if (options.path == '/tokens/refresh') {
+            return _tokenRefreshResponseBody(
+              accessToken: 'token-a2',
+              refreshToken: 'refresh-token-a2',
+            );
+          }
+          throw StateError('Unexpected request: ${options.path}');
+        });
+        final store = _PausingRevisionStore(const FlutterSecureStorage());
+        final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        final refreshDio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        const storage = FlutterSecureStorage();
+        final client = DioClient(
+          secureStorage: storage,
+          dio: dio,
+          refreshDio: refreshDio,
+          authSessionStore: store,
+        );
+        final repository = AuthRepository(
+          dioClient: client,
+          secureStorage: storage,
+          authSessionStore: store,
+        );
+
+        final update = repository.updateProfile({'firstName': 'Changed'});
+        await replayEntered.future;
+        final successorCheck = store.pauseNextSuccessorResolution();
+        replayResponse.complete(
+          _jsonResponseBody({
+            'success': true,
+            'data': {..._userA.toJson(), 'firstName': 'Changed'},
+          }),
+        );
+        await successorCheck.entered.future;
+        await store.commit(
+          accessToken: 'token-b',
+          refreshToken: 'refresh-token-b',
+          userJson: jsonEncode(_userB.toJson()),
+          isCurrent: () => true,
+        );
+        successorCheck.release.complete();
+
+        expect((await update).isLeft(), isTrue);
+        final session = await store.readSession();
+        expect(session!.accessToken, 'token-b');
+        expect(jsonDecode(session.userJson)['id'], _userB.id);
+      },
+    );
+
+    test(
+      'authenticated GET does not retry as B after backoff begins',
+      () async {
+        storagePlatform.values.addAll({
+          ApiConfig.tokenKey: 'token-a',
+          'refresh_token': 'refresh-token-a',
+          ApiConfig.userKey: jsonEncode(_userA.toJson()),
+        });
+        final firstRequest = _StorageDelay();
+        final authorizations = <String?>[];
+        final adapter = _RouteAdapter((options) async {
+          if (options.path != '/retry') {
+            throw StateError('Unexpected request: ${options.path}');
+          }
+          authorizations.add(options.headers['Authorization'] as String?);
+          firstRequest.entered.complete();
+          await firstRequest.release.future;
+          throw DioException(
+            requestOptions: options,
+            type: DioExceptionType.connectionError,
+            message: 'offline',
+          );
+        });
+        final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        final client = DioClient(
+          secureStorage: const FlutterSecureStorage(),
+          dio: dio,
+        );
+
+        final request = client.get('/retry');
+        await firstRequest.entered.future;
+        await client.authSessionStore.commit(
+          accessToken: 'token-b',
+          refreshToken: 'refresh-token-b',
+          userJson: jsonEncode(_userB.toJson()),
+          isCurrent: () => true,
+        );
+        firstRequest.release.complete();
+
+        await expectLater(request, throwsA(isA<NetworkFailure>()));
+        expect(authorizations, ['Bearer token-a']);
+        final session = await client.authSessionStore.readSession();
+        expect(session!.accessToken, 'token-b');
+      },
+    );
+
+    test(
+      'unauthenticated GET retry stays unauthenticated after A login',
+      () async {
+        final firstRequest = _StorageDelay();
+        final authorizations = <String?>[];
+        var calls = 0;
+        final adapter = _RouteAdapter((options) async {
+          if (options.path != '/retry') {
+            throw StateError('Unexpected request: ${options.path}');
+          }
+          calls++;
+          authorizations.add(options.headers['Authorization'] as String?);
+          if (calls == 1) {
+            firstRequest.entered.complete();
+            await firstRequest.release.future;
+            throw DioException(
+              requestOptions: options,
+              type: DioExceptionType.connectionError,
+              message: 'offline',
+            );
+          }
+          return _jsonResponseBody({'success': true, 'data': 'ok'});
+        });
+        final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        final client = DioClient(
+          secureStorage: const FlutterSecureStorage(),
+          dio: dio,
+        );
+
+        final request = client.get('/retry');
+        await firstRequest.entered.future;
+        await client.authSessionStore.commit(
+          accessToken: 'token-a',
+          refreshToken: 'refresh-token-a',
+          userJson: jsonEncode(_userA.toJson()),
+          isCurrent: () => true,
+        );
+        firstRequest.release.complete();
+
+        expect((await request).data['data'], 'ok');
+        expect(authorizations, [null, null]);
+        final session = await client.authSessionStore.readSession();
+        expect(session!.accessToken, 'token-a');
+      },
+    );
 
     test(
       'caller-side supersession invalidates the exact committed A revision',
@@ -1394,10 +1818,17 @@ class _PausingRevisionStore extends AuthSessionStore {
   _PausingRevisionStore(FlutterSecureStorage storage) : super(storage);
 
   _StorageDelay? _nextRevisionCheck;
+  _StorageDelay? _nextSuccessorResolution;
 
   _StorageDelay pauseNextRevisionCheck() {
     final delay = _StorageDelay();
     _nextRevisionCheck = delay;
+    return delay;
+  }
+
+  _StorageDelay pauseNextSuccessorResolution() {
+    final delay = _StorageDelay();
+    _nextSuccessorResolution = delay;
     return delay;
   }
 
@@ -1410,6 +1841,19 @@ class _PausingRevisionStore extends AuthSessionStore {
       await delay.release.future;
     }
     return super.isActiveRevision(expectedRevision);
+  }
+
+  @override
+  Future<StoredAuthSession?> resolveActiveRefreshSuccessor(
+    String expectedRevision,
+  ) async {
+    final delay = _nextSuccessorResolution;
+    if (delay != null) {
+      _nextSuccessorResolution = null;
+      delay.entered.complete();
+      await delay.release.future;
+    }
+    return super.resolveActiveRefreshSuccessor(expectedRevision);
   }
 }
 
@@ -1593,6 +2037,16 @@ ResponseBody _authResponseBody(User user, {required String token}) {
       'token': token,
       'refreshToken': 'refresh-$token',
     },
+  });
+}
+
+ResponseBody _tokenRefreshResponseBody({
+  required String accessToken,
+  required String refreshToken,
+}) {
+  return _jsonResponseBody({
+    'success': true,
+    'data': {'accessToken': accessToken, 'refreshToken': refreshToken},
   });
 }
 
