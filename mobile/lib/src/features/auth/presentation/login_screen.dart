@@ -6,13 +6,21 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/error/failures.dart';
+import '../../../core/session/authenticated_session.dart';
 import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/utils/haptic_feedback.dart';
 import '../data/social_auth_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({
+    super.key,
+    this.socialAuthService,
+    this.supportsAppleSignIn,
+  });
+
+  final SocialAuthService? socialAuthService;
+  final bool? supportsAppleSignIn;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -33,6 +41,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _initSocialAuth() {
+    final injectedService = widget.socialAuthService;
+    if (injectedService != null) {
+      _socialAuthService = injectedService;
+      return;
+    }
+
     final dioClient = ref.read(dioClientProvider);
     final secureStorage = ref.read(secureStorageProvider);
     _socialAuthService = SocialAuthService(
@@ -139,8 +153,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
 
       if (result != null) {
-        // Refresh user state after social auth
-        await ref.read(authStateProvider.notifier).refreshUser();
+        await ref
+            .read(authStateProvider.notifier)
+            .completeSocialSignIn(
+              result.user,
+              provider: SocialAuthenticationProvider.google,
+            );
         await HapticFeedbackUtil.successVibration();
         if (!mounted) return;
         // SEC-060: Use generic success message — do not display user
@@ -184,8 +202,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
 
       if (result != null) {
-        // Refresh user state after social auth
-        await ref.read(authStateProvider.notifier).refreshUser();
+        await ref
+            .read(authStateProvider.notifier)
+            .completeSocialSignIn(
+              result.user,
+              provider: SocialAuthenticationProvider.apple,
+            );
         await HapticFeedbackUtil.successVibration();
         if (!mounted) return;
         // SEC-060: Use generic success message — do not display user
@@ -372,7 +394,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             // Apple Sign-In only available on iOS/macOS
-                            if (Platform.isIOS || Platform.isMacOS) ...[
+                            if (widget.supportsAppleSignIn ??
+                                (Platform.isIOS || Platform.isMacOS)) ...[
                               _SocialLoginButton(
                                 icon: Icons.apple,
                                 onTap: _isLoading ? null : _handleAppleSignIn,

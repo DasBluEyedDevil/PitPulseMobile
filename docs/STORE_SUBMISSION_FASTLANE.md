@@ -66,7 +66,7 @@ RevenueCat public SDK keys should come from a SoundCheck RevenueCat project unde
 RevenueCat beta-readiness checklist:
 
 - Use a SoundCheck RevenueCat project, not another app's project.
-- Add real app configurations for Android package `com.soundcheck.app` and iOS bundle ID `com.soundcheck.app`.
+- Add real app configurations for Android package `com.soundcheck.app` and iOS bundle ID `com.9thlevelsoftware.soundcheck`.
 - Copy the app-specific public SDK keys into `RC_GOOGLE_KEY` and `RC_APPLE_KEY`.
 - Keep or create the `soundcheck_unlimited` entitlement; `SubscriptionService` only keeps `pro` as a legacy fallback.
 - Connect matching Play Store and App Store products before testing real store purchases in beta.
@@ -80,6 +80,12 @@ Current local credential state, configured May 19, 2026:
 - Google Play Android Developer API, Google Play Developer Reporting API, and Pub/Sub API are enabled for the SoundCheck Google Cloud project.
 
 RevenueCat still may show "Credentials need attention" until Apple/Google propagation completes. RevenueCat's Google Play credential guide says Google credentials can take up to 36 hours to validate after service-account and permission changes.
+
+The tracked release identity is `com.soundcheck.app` on Android and
+`com.9thlevelsoftware.soundcheck` on iOS. A successful local configuration
+check does not prove that RevenueCat, App Store Connect, or Google Play has the
+matching app or valid credentials; confirm those external records and a sandbox
+purchase before promotion.
 
 ## Metadata And Screenshots
 

@@ -47,7 +47,7 @@ This guide walks through setting up Firebase for SoundCheck. Firebase is used fo
 ## Step 3: Add iOS App
 
 1. In Firebase Console, click **Add app** > **iOS**
-2. Enter iOS bundle ID: `com.soundcheck.app`
+2. Enter iOS bundle ID: `com.9thlevelsoftware.soundcheck`
    - Find this in Xcode: Runner > Signing & Capabilities > Bundle Identifier
 3. Enter app nickname: `SoundCheck iOS`
 4. Click **Register app**

@@ -54,7 +54,7 @@ final hasUnlimited = customerInfo != null &&
 
 ## Product And Offering Setup
 
-Current SoundCheck RevenueCat setup, verified May 19, 2026:
+Versioned SoundCheck RevenueCat release contract:
 
 - Test Store API key is stored only in ignored local `mobile/.env.revenuecat`.
 - Products exist: `lifetime`, `yearly`, and `monthly`.
@@ -62,9 +62,13 @@ Current SoundCheck RevenueCat setup, verified May 19, 2026:
 - Offering exists: `default`, with three packages.
 - Hosted Paywall exists and is published for the `default` offering.
 - Customer Center is available in the RevenueCat dashboard with the default configuration.
-- App Store app configuration exists for bundle ID `com.soundcheck.app`.
+- App Store app configuration must use bundle ID `com.9thlevelsoftware.soundcheck`.
 - Play Store app configuration exists for package name `com.soundcheck.app`.
 - App-specific public SDK keys are stored only in ignored local/CI configuration as `RC_APPLE_KEY` and `RC_GOOGLE_KEY`.
+
+The RevenueCat dashboard and live store credentials are external state. Confirm
+the App Store bundle ID above in RevenueCat before a release build; this
+versioned configuration does not prove dashboard credentials or a purchase.
 
 For App Store and Play Store builds, connect real store products to the RevenueCat packages:
 
@@ -82,9 +86,9 @@ Then create or update the current offering:
 4. Attach all three products to the `soundcheck_unlimited` entitlement.
 5. Create a RevenueCat Paywall for the current offering.
 
-Real app credential state:
+Required real app credential state:
 
-- App Store: the RevenueCat app is configured with bundle ID `com.soundcheck.app` and the App Store Connect in-app purchase `.p8` key.
+- App Store: the RevenueCat app uses bundle ID `com.9thlevelsoftware.soundcheck` and the matching App Store Connect in-app purchase `.p8` key.
 - Play Store: the RevenueCat app is configured with package name `com.soundcheck.app` and the Google Play service account credentials JSON.
 - Google Play: the SoundCheck service account is active in Play Console and has app permissions for viewing app info, viewing financial data, managing orders/subscriptions, testing tracks, and store presence.
 - Google Cloud: the Android Publisher API, Play Developer Reporting API, and Pub/Sub API are enabled for the SoundCheck project.

@@ -97,8 +97,8 @@ class PushNotificationService {
       final token = await FirebaseMessaging.instance.getToken();
       if (generation != _sessionGeneration) return;
       if (token != null) {
-        _currentToken = token;
         await _sendTokenToBackend(token);
+        _currentToken = token;
         LogService.i('FCM token obtained: ${token.substring(0, 20)}...');
       }
 
@@ -107,9 +107,17 @@ class PushNotificationService {
       if (generation != _sessionGeneration) return;
       _tokenRefreshSubscription = FirebaseMessaging.instance.onTokenRefresh
           .listen((newToken) async {
-            _currentToken = newToken;
-            await _sendTokenToBackend(newToken);
-            LogService.i('FCM token refreshed');
+            try {
+              await _sendTokenToBackend(newToken);
+              _currentToken = newToken;
+              LogService.i('FCM token refreshed');
+            } catch (e, stack) {
+              LogService.e(
+                'Failed to refresh push notification registration',
+                e,
+                stack,
+              );
+            }
           });
 
       // Handle foreground messages -- show local notification
@@ -347,13 +355,12 @@ class PushNotificationService {
 
   /// Send FCM token to backend for push notification targeting
   Future<void> _sendTokenToBackend(String token) async {
-    try {
-      final platform = Platform.isIOS ? 'ios' : 'android';
-      await _feedRepository?.registerDeviceToken(token, platform);
-    } catch (e) {
-      LogService.e('Failed to send FCM token to backend', e);
-      // Non-fatal: token registration failure shouldn't block app usage
-    }
+    final repository = _feedRepository;
+    if (repository == null) return;
+
+    final platform = Platform.isIOS ? 'ios' : 'android';
+    final result = await repository.registerDeviceToken(token, platform);
+    result.fold((failure) => throw Exception(failure.message), (_) {});
   }
 
   /// Cancel session-scoped Firebase subscriptions while preserving tap stream

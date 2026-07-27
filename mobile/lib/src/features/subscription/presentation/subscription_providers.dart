@@ -39,7 +39,7 @@ Future<SubscriptionStatus> serverSubscriptionStatus(Ref ref) async {
 }
 
 /// Notifier for client-side premium state
-@riverpod
+@Riverpod(keepAlive: true)
 class IsPremium extends _$IsPremium {
   @override
   bool build() => false;

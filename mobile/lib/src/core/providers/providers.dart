@@ -7,6 +7,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/dio_client.dart';
+import '../session/authenticated_session.dart';
 import '../services/analytics_service.dart';
 import '../services/log_service.dart';
 import '../services/push_notification_service.dart';
@@ -127,16 +128,223 @@ DiscoveryRepository discoveryRepository(Ref ref) {
 }
 
 @Riverpod(keepAlive: true)
+AuthenticatedSessionIntegrations authenticatedSessionIntegrations(Ref ref) {
+  return _DefaultAuthenticatedSessionIntegrations(ref);
+}
+
+@Riverpod(keepAlive: true)
+class AuthenticatedSessionBootstrapStatus
+    extends _$AuthenticatedSessionBootstrapStatus {
+  @override
+  AuthenticatedSessionBootstrapState build() {
+    return const AuthenticatedSessionBootstrapState.idle();
+  }
+
+  void start(String userId) {
+    final attempt = state.userId == userId ? state.attempt + 1 : 1;
+    state = AuthenticatedSessionBootstrapState.running(
+      userId: userId,
+      attempt: attempt,
+    );
+  }
+
+  void complete(
+    String userId,
+    Set<AuthenticatedSessionBootstrapStep> failedSteps,
+  ) {
+    state = AuthenticatedSessionBootstrapState.completed(
+      userId: userId,
+      attempt: state.attempt,
+      failedSteps: failedSteps,
+    );
+  }
+
+  void reset() {
+    state = const AuthenticatedSessionBootstrapState.idle();
+  }
+}
+
+class _DefaultAuthenticatedSessionIntegrations
+    implements AuthenticatedSessionIntegrations {
+  _DefaultAuthenticatedSessionIntegrations(this._ref);
+
+  final Ref _ref;
+
+  @override
+  Future<void> invalidateSessionProviders(User user) async {
+    _invalidateSessionProviders();
+  }
+
+  void _invalidateSessionProviders() {
+    _ref.invalidate(globalFeedProvider);
+    _ref.invalidate(friendsFeedProvider);
+    _ref.invalidate(happeningNowProvider);
+    _ref.invalidate(unseenCountsProvider);
+    _ref.invalidate(newCheckinCountProvider);
+    _ref.invalidate(activeEventIdsProvider);
+    _ref.invalidate(notificationFeedProvider);
+    _ref.invalidate(unreadNotificationCountProvider);
+    _ref.invalidate(nearbyEventsProvider);
+  }
+
+  @override
+  Future<void> connectWebSocket(User user) async {
+    final token = await _ref
+        .read(secureStorageProvider)
+        .read(key: 'auth_token');
+    if (token == null || token.isEmpty) {
+      throw StateError('Authenticated WebSocket token is unavailable');
+    }
+
+    final service = _ref.read(webSocketServiceProvider);
+    service.disconnect(clearCredentials: true);
+    await service.connect(authToken: token, userId: user.id);
+    if (!service.isConnected) {
+      throw StateError('Authenticated WebSocket connection is unavailable');
+    }
+  }
+
+  @override
+  Future<bool?> synchronizeRevenueCat(User user) async {
+    SubscriptionService.setCustomerInfoUpdateListener((customerInfo) {
+      final isPremium = SubscriptionService.hasUnlimitedEntitlement(
+        customerInfo,
+      );
+      _ref.read(isPremiumProvider.notifier).set(isPremium);
+      _ref.invalidate(revenueCatCustomerInfoProvider);
+      _ref.invalidate(serverSubscriptionStatusProvider);
+    });
+
+    final identified = await SubscriptionService.login(user.id);
+    if (!identified) return null;
+
+    final customerInfo = await SubscriptionService.getCustomerInfo();
+    if (customerInfo == null) return null;
+    return SubscriptionService.hasUnlimitedEntitlement(customerInfo);
+  }
+
+  @override
+  Future<bool> refreshServerEntitlement(User user) async {
+    _ref.invalidate(serverSubscriptionStatusProvider);
+    final status = await _ref.read(serverSubscriptionStatusProvider.future);
+    return status.isPremium;
+  }
+
+  @override
+  Future<void> synchronizeSavedGenres(User user) async {
+    await _ref
+        .read(genrePersistenceProvider.notifier)
+        .syncGenresToBackendIfNeeded();
+  }
+
+  @override
+  Future<void> registerPushNotifications(User user) async {
+    final service = _ref.read(pushNotificationServiceProvider);
+    await service.initialize();
+    if (!service.isInitialized) {
+      throw StateError('Push notification registration is unavailable');
+    }
+  }
+
+  @override
+  Future<void> resetForAccountTransition(User previousUser) async {
+    _ref.read(isPremiumProvider.notifier).set(false);
+    _ref.invalidate(revenueCatCustomerInfoProvider);
+    _ref.invalidate(serverSubscriptionStatusProvider);
+    _ref.read(webSocketServiceProvider).disconnect(clearCredentials: true);
+    await _ref.read(pushNotificationServiceProvider).resetForLogout();
+    try {
+      await SubscriptionService.logout();
+    } finally {
+      SubscriptionService.setCustomerInfoUpdateListener(null);
+    }
+  }
+
+  @override
+  Future<void> cleanupForLogout() async {
+    final pushService = _ref.read(pushNotificationServiceProvider);
+    final currentPushToken = pushService.currentToken;
+
+    _ref.read(webSocketServiceProvider).disconnect(clearCredentials: true);
+
+    if (currentPushToken != null) {
+      try {
+        final result = await _ref
+            .read(feedRepositoryProvider)
+            .unregisterDeviceToken(currentPushToken);
+        result.fold(
+          (failure) => LogService.w(
+            'Failed to unregister push token during logout: '
+            '${failure.message}',
+          ),
+          (_) {},
+        );
+      } catch (error, stackTrace) {
+        LogService.e(
+          'Failed to unregister push token during logout',
+          error,
+          stackTrace,
+        );
+      }
+    }
+
+    await pushService.resetForLogout();
+
+    try {
+      await SubscriptionService.logout();
+    } catch (error, stackTrace) {
+      LogService.e(
+        'Failed to clear RevenueCat identity during logout',
+        error,
+        stackTrace,
+      );
+    }
+    SubscriptionService.setCustomerInfoUpdateListener(null);
+    _ref.read(isPremiumProvider.notifier).set(false);
+    _ref.invalidate(revenueCatCustomerInfoProvider);
+    _ref.invalidate(serverSubscriptionStatusProvider);
+
+    _invalidateSessionProviders();
+
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final keys = preferences.getKeys();
+      const userScopedPrefixes = [
+        'user_',
+        'feed_',
+        'onboarding_',
+        'notification_',
+      ];
+      for (final key in keys) {
+        if (userScopedPrefixes.any(key.startsWith)) {
+          await preferences.remove(key);
+        }
+      }
+    } catch (error, stackTrace) {
+      LogService.e(
+        'Failed to clear session preferences during logout',
+        error,
+        stackTrace,
+      );
+    }
+
+    Sentry.configureScope((scope) => scope.setUser(null));
+    await AnalyticsService.clearUserId();
+  }
+}
+
+@Riverpod(keepAlive: true)
 class AuthState extends _$AuthState {
+  User? _activeSessionUser;
+  Future<void>? _bootstrapInFlight;
+
   @override
   Future<User?> build() async {
     final authRepository = ref.watch(authRepositoryProvider);
     final user = await authRepository.getCurrentUser();
 
-    // Connect WebSocket if user is logged in
     if (user != null) {
-      _connectWebSocket(user.id);
-      await _syncSubscriptionState(user.id);
+      await _bootstrapAuthenticatedSession(user);
     }
 
     return user;
@@ -144,30 +352,21 @@ class AuthState extends _$AuthState {
 
   Future<void> login(String email, String password) async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       final authRepository = ref.read(authRepositoryProvider);
       final result = await authRepository.login(
         LoginRequest(email: email, password: password),
       );
 
-      return await result.fold<Future<User>>(
-        (failure) async => throw Exception(failure.message),
-        (authResponse) async {
-          // Connect WebSocket after successful login
-          _connectWebSocket(authResponse.user.id);
-
-          // Sync RevenueCat identity and premium state
-          await _syncSubscriptionState(authResponse.user.id);
-
-          // Sync onboarding genre preferences to backend if saved locally
-          ref
-              .read(genrePersistenceProvider.notifier)
-              .syncGenresToBackendIfNeeded();
-
-          return authResponse.user;
-        },
+      final authResponse = result.fold<AuthResponse>(
+        (failure) => throw Exception(failure.message),
+        (response) => response,
       );
-    });
+      state = AsyncValue.data(authResponse.user);
+      await _bootstrapAuthenticatedSession(authResponse.user);
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+    }
   }
 
   Future<void> register({
@@ -178,7 +377,7 @@ class AuthState extends _$AuthState {
     String? lastName,
   }) async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       final authRepository = ref.read(authRepositoryProvider);
       final result = await authRepository.register(
         RegisterRequest(
@@ -190,113 +389,50 @@ class AuthState extends _$AuthState {
         ),
       );
 
-      return await result.fold<Future<User>>(
-        (failure) async => throw Exception(failure.message),
-        (authResponse) async {
-          // Connect WebSocket after successful registration
-          _connectWebSocket(authResponse.user.id);
-
-          // Sync RevenueCat identity and premium state
-          await _syncSubscriptionState(authResponse.user.id);
-
-          // Sync onboarding genre preferences to backend if saved locally
-          ref
-              .read(genrePersistenceProvider.notifier)
-              .syncGenresToBackendIfNeeded();
-
-          return authResponse.user;
-        },
+      final authResponse = result.fold<AuthResponse>(
+        (failure) => throw Exception(failure.message),
+        (response) => response,
       );
-    });
+      state = AsyncValue.data(authResponse.user);
+      await _bootstrapAuthenticatedSession(authResponse.user);
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+    }
+  }
+
+  Future<void> completeSocialSignIn(
+    User user, {
+    required SocialAuthenticationProvider provider,
+  }) async {
+    state = AsyncValue.data(user);
+    await _bootstrapAuthenticatedSession(user);
   }
 
   Future<void> logout() async {
     final authRepository = ref.read(authRepositoryProvider);
-    final pushNotificationService = ref.read(pushNotificationServiceProvider);
-    final currentPushToken = pushNotificationService.currentToken;
-
-    // Disconnect WebSocket before logout
-    final wsService = ref.read(webSocketServiceProvider);
-    wsService.disconnect(clearCredentials: true);
-
-    if (currentPushToken != null) {
-      try {
-        final result = await ref
-            .read(feedRepositoryProvider)
-            .unregisterDeviceToken(currentPushToken);
-        result.fold(
-          (failure) => LogService.w(
-            'Failed to unregister push token during logout: ${failure.message}',
-          ),
-          (_) {},
-        );
-      } catch (e, stack) {
-        LogService.e('Failed to unregister push token during logout', e, stack);
-      }
+    try {
+      await ref
+          .read(authenticatedSessionIntegrationsProvider)
+          .cleanupForLogout();
+    } catch (error, stackTrace) {
+      LogService.e(
+        'Authenticated session cleanup failed during logout',
+        error,
+        stackTrace,
+      );
     }
 
-    await pushNotificationService.resetForLogout();
-
-    // Clear RevenueCat identity and premium state
-    try {
-      await SubscriptionService.logout();
-      SubscriptionService.setCustomerInfoUpdateListener(null);
-      ref.read(isPremiumProvider.notifier).set(false);
-      ref.invalidate(revenueCatCustomerInfoProvider);
-      ref.invalidate(serverSubscriptionStatusProvider);
-    } catch (_) {}
-
-    // Clear all user-scoped data providers to prevent stale data leaking
-    // between accounts on shared devices
-    _clearUserData();
-
-    // Clear user-scoped SharedPreferences keys (MOB-013)
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final keys = prefs.getKeys();
-      final userScopedPrefixes = [
-        'user_',
-        'feed_',
-        'onboarding_',
-        'notification_',
-      ];
-      for (final key in keys) {
-        if (userScopedPrefixes.any(key.startsWith)) {
-          await prefs.remove(key);
-        }
-      }
-    } catch (_) {
-      // SharedPreferences cleanup should not block logout
-    }
-
-    await authRepository.logout();
-
-    // Clear Sentry user context so no PII leaks across sessions
-    Sentry.configureScope((scope) => scope.setUser(null));
-
-    // Clear analytics identity
-    AnalyticsService.clearUserId();
-
+    final result = await authRepository.logout();
+    result.fold(
+      (failure) => LogService.e(
+        'Failed to clear stored authentication during logout',
+        failure,
+      ),
+      (_) {},
+    );
+    _activeSessionUser = null;
+    ref.read(authenticatedSessionBootstrapStatusProvider.notifier).reset();
     state = const AsyncValue.data(null);
-  }
-
-  /// Invalidate all user-scoped providers so no stale data from the
-  /// previous session leaks into the next login.
-  void _clearUserData() {
-    // Feed providers
-    ref.invalidate(globalFeedProvider);
-    ref.invalidate(friendsFeedProvider);
-    ref.invalidate(happeningNowProvider);
-    ref.invalidate(unseenCountsProvider);
-    ref.invalidate(newCheckinCountProvider);
-    ref.invalidate(activeEventIdsProvider);
-
-    // Notifications
-    ref.invalidate(notificationFeedProvider);
-    ref.invalidate(unreadNotificationCountProvider);
-
-    // Check-in providers
-    ref.invalidate(nearbyEventsProvider);
   }
 
   Future<void> refreshUser() async {
@@ -311,49 +447,139 @@ class AuthState extends _$AuthState {
     });
   }
 
-  /// Sync RevenueCat identity and refresh premium state
-  Future<void> _syncSubscriptionState(String userId) async {
-    try {
-      SubscriptionService.setCustomerInfoUpdateListener((customerInfo) {
-        final isPremium = SubscriptionService.hasUnlimitedEntitlement(
-          customerInfo,
-        );
-        ref.read(isPremiumProvider.notifier).set(isPremium);
-        ref.invalidate(revenueCatCustomerInfoProvider);
-        ref.invalidate(serverSubscriptionStatusProvider);
-      });
-      await SubscriptionService.login(userId);
-      final isPremium = await SubscriptionService.isPremium();
-      ref.read(isPremiumProvider.notifier).set(isPremium);
-      AnalyticsService.setUserProperty(
-        name: 'plan',
-        value: isPremium ? 'premium' : 'free',
-      );
-    } catch (_) {
-      // Subscription sync failure should not prevent login
-    } finally {
-      ref.invalidate(serverSubscriptionStatusProvider);
-      try {
-        await ref.read(serverSubscriptionStatusProvider.future);
-      } catch (_) {
-        // Server subscription status refresh failure should not prevent login
+  Future<void> retryAuthenticatedSessionBootstrap() async {
+    final user = state.value;
+    if (user == null) return;
+    await _bootstrapAuthenticatedSession(user);
+  }
+
+  Future<void> _bootstrapAuthenticatedSession(User user) {
+    final inFlight = _bootstrapInFlight;
+    if (inFlight != null) return inFlight;
+
+    final bootstrap = _performAuthenticatedSessionBootstrap(user);
+    _bootstrapInFlight = bootstrap;
+    return bootstrap.whenComplete(() {
+      if (identical(_bootstrapInFlight, bootstrap)) {
+        _bootstrapInFlight = null;
       }
+    });
+  }
+
+  Future<void> _performAuthenticatedSessionBootstrap(User user) async {
+    final integrations = ref.read(authenticatedSessionIntegrationsProvider);
+    final failures = <AuthenticatedSessionBootstrapStep>{};
+    final previousUser = _activeSessionUser;
+
+    if (previousUser != null && previousUser.id != user.id) {
+      try {
+        await integrations.resetForAccountTransition(previousUser);
+      } catch (error, stackTrace) {
+        failures.add(AuthenticatedSessionBootstrapStep.sessionProviders);
+        LogService.e('Account transition cleanup failed', error, stackTrace);
+      }
+    }
+
+    final statusNotifier = ref.read(
+      authenticatedSessionBootstrapStatusProvider.notifier,
+    );
+    statusNotifier.start(user.id);
+
+    await _runBootstrapStep(
+      AuthenticatedSessionBootstrapStep.sessionProviders,
+      failures,
+      () => integrations.invalidateSessionProviders(user),
+    );
+    await _runBootstrapStep(
+      AuthenticatedSessionBootstrapStep.webSocket,
+      failures,
+      () => integrations.connectWebSocket(user),
+    );
+
+    final revenueCatPremium = await _runEntitlementStep(
+      AuthenticatedSessionBootstrapStep.revenueCat,
+      failures,
+      () => integrations.synchronizeRevenueCat(user),
+      unknownIsFailure: true,
+    );
+    final serverPremium = await _runEntitlementStep(
+      AuthenticatedSessionBootstrapStep.serverEntitlement,
+      failures,
+      () async => integrations.refreshServerEntitlement(user),
+    );
+
+    await _runBootstrapStep(
+      AuthenticatedSessionBootstrapStep.savedGenres,
+      failures,
+      () => integrations.synchronizeSavedGenres(user),
+    );
+    await _runBootstrapStep(
+      AuthenticatedSessionBootstrapStep.pushRegistration,
+      failures,
+      () => integrations.registerPushNotifications(user),
+    );
+
+    if (revenueCatPremium == true || serverPremium == true) {
+      ref.read(isPremiumProvider.notifier).set(true);
+    } else if (revenueCatPremium == false && serverPremium == false) {
+      ref.read(isPremiumProvider.notifier).set(false);
+    }
+
+    final premium = ref.read(isPremiumProvider);
+    try {
+      await AnalyticsService.setUserProperty(
+        name: 'plan',
+        value: premium ? 'premium' : 'free',
+      );
+    } catch (error, stackTrace) {
+      LogService.e(
+        'Failed to update subscription analytics after session bootstrap',
+        error,
+        stackTrace,
+      );
+    }
+
+    _activeSessionUser = user;
+    statusNotifier.complete(user.id, failures);
+  }
+
+  Future<void> _runBootstrapStep(
+    AuthenticatedSessionBootstrapStep step,
+    Set<AuthenticatedSessionBootstrapStep> failures,
+    Future<void> Function() operation,
+  ) async {
+    try {
+      await operation();
+    } catch (error, stackTrace) {
+      failures.add(step);
+      LogService.e(
+        'Authenticated session ${step.name} bootstrap failed',
+        error,
+        stackTrace,
+      );
     }
   }
 
-  /// Connect to WebSocket with authentication
-  Future<void> _connectWebSocket(String userId) async {
+  Future<bool?> _runEntitlementStep(
+    AuthenticatedSessionBootstrapStep step,
+    Set<AuthenticatedSessionBootstrapStep> failures,
+    Future<bool?> Function() operation, {
+    bool unknownIsFailure = false,
+  }) async {
     try {
-      final secureStorage = ref.read(secureStorageProvider);
-      final token = await secureStorage.read(key: 'auth_token');
-
-      if (token != null) {
-        final wsService = ref.read(webSocketServiceProvider);
-        await wsService.connect(authToken: token, userId: userId);
+      final result = await operation();
+      if (result == null && unknownIsFailure) {
+        failures.add(step);
       }
-    } catch (e) {
-      // WebSocket connection failure shouldn't prevent login
-      // Log error but continue
+      return result;
+    } catch (error, stackTrace) {
+      failures.add(step);
+      LogService.e(
+        'Authenticated session ${step.name} bootstrap failed',
+        error,
+        stackTrace,
+      );
+      return null;
     }
   }
 }

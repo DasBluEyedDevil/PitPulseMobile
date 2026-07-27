@@ -2,7 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:soundcheck_flutter/src/core/api/dio_client.dart';
+import 'package:soundcheck_flutter/src/core/providers/providers.dart';
+import 'package:soundcheck_flutter/src/core/session/authenticated_session.dart';
 import 'package:soundcheck_flutter/src/core/theme/app_theme.dart';
+import 'package:soundcheck_flutter/src/features/auth/data/auth_repository.dart';
+import 'package:soundcheck_flutter/src/features/auth/data/social_auth_service.dart';
+import 'package:soundcheck_flutter/src/features/auth/domain/user.dart';
 import 'package:soundcheck_flutter/src/features/auth/presentation/login_screen.dart';
 
 void main() {
@@ -241,5 +248,153 @@ void main() {
       final loginButton = find.text('Login');
       expect(loginButton, findsOneWidget);
     });
+
+    for (final provider in SocialAuthenticationProvider.values) {
+      testWidgets(
+        '${provider.name} success completes one unified session bootstrap',
+        (WidgetTester tester) async {
+          final integrations = _RecordingSocialSessionIntegrations();
+          final socialAuthService = _FakeSocialAuthService(provider);
+
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                authRepositoryProvider.overrideWithValue(
+                  _UnauthenticatedRepository(),
+                ),
+                authenticatedSessionIntegrationsProvider.overrideWithValue(
+                  integrations,
+                ),
+              ],
+              child: MaterialApp(
+                home: LoginScreen(
+                  socialAuthService: socialAuthService,
+                  supportsAppleSignIn: true,
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          final socialButton = find.bySemanticsLabel(
+            provider == SocialAuthenticationProvider.apple
+                ? 'Sign in with Apple'
+                : 'Sign in with Google',
+          );
+          await tester.ensureVisible(socialButton);
+          await tester.pumpAndSettle();
+          await tester.tap(socialButton);
+          await tester.pumpAndSettle();
+
+          expect(integrations.steps, AuthenticatedSessionBootstrapStep.values);
+          expect(integrations.users, everyElement(_socialUser.id));
+        },
+      );
+    }
   });
 }
+
+class _FakeSocialAuthService extends SocialAuthService {
+  _FakeSocialAuthService(this.provider)
+    : super(
+        dioClient: DioClient(secureStorage: const FlutterSecureStorage()),
+        secureStorage: const FlutterSecureStorage(),
+      );
+
+  final SocialAuthenticationProvider provider;
+
+  SocialAuthResult get _result {
+    return SocialAuthResult(
+      user: _socialUser,
+      token: 'social-token',
+      refreshToken: 'social-refresh-token',
+      isNewUser: false,
+    );
+  }
+
+  @override
+  Future<SocialAuthResult?> signInWithGoogle() async {
+    if (provider != SocialAuthenticationProvider.google) {
+      throw StateError('Unexpected Google sign-in');
+    }
+    return _result;
+  }
+
+  @override
+  Future<SocialAuthResult?> signInWithApple() async {
+    if (provider != SocialAuthenticationProvider.apple) {
+      throw StateError('Unexpected Apple sign-in');
+    }
+    return _result;
+  }
+}
+
+class _UnauthenticatedRepository extends AuthRepository {
+  _UnauthenticatedRepository()
+    : super(
+        dioClient: DioClient(secureStorage: const FlutterSecureStorage()),
+        secureStorage: const FlutterSecureStorage(),
+      );
+
+  @override
+  Future<User?> getCurrentUser() async => null;
+}
+
+class _RecordingSocialSessionIntegrations
+    implements AuthenticatedSessionIntegrations {
+  final steps = <AuthenticatedSessionBootstrapStep>[];
+  final users = <String>[];
+
+  void _record(AuthenticatedSessionBootstrapStep step, User user) {
+    steps.add(step);
+    users.add(user.id);
+  }
+
+  @override
+  Future<void> invalidateSessionProviders(User user) async {
+    _record(AuthenticatedSessionBootstrapStep.sessionProviders, user);
+  }
+
+  @override
+  Future<void> connectWebSocket(User user) async {
+    _record(AuthenticatedSessionBootstrapStep.webSocket, user);
+  }
+
+  @override
+  Future<bool?> synchronizeRevenueCat(User user) async {
+    _record(AuthenticatedSessionBootstrapStep.revenueCat, user);
+    return false;
+  }
+
+  @override
+  Future<bool> refreshServerEntitlement(User user) async {
+    _record(AuthenticatedSessionBootstrapStep.serverEntitlement, user);
+    return false;
+  }
+
+  @override
+  Future<void> synchronizeSavedGenres(User user) async {
+    _record(AuthenticatedSessionBootstrapStep.savedGenres, user);
+  }
+
+  @override
+  Future<void> registerPushNotifications(User user) async {
+    _record(AuthenticatedSessionBootstrapStep.pushRegistration, user);
+  }
+
+  @override
+  Future<void> resetForAccountTransition(User previousUser) async {}
+
+  @override
+  Future<void> cleanupForLogout() async {}
+}
+
+const _socialUser = User(
+  id: 'social-user',
+  email: 'social@example.com',
+  username: 'social-user',
+  isVerified: true,
+  isActive: true,
+  createdAt: '2026-07-26T00:00:00.000Z',
+  updatedAt: '2026-07-26T00:00:00.000Z',
+);

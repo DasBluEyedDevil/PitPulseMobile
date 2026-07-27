@@ -107,12 +107,14 @@ class SubscriptionService {
     }
   }
 
-  static Future<void> login(String userId) async {
+  static Future<bool> login(String userId) async {
     try {
-      if (!await initialize()) return;
+      if (!await initialize()) return false;
       await Purchases.logIn(userId);
+      return true;
     } on PlatformException catch (e) {
       LogService.e('SubscriptionService.login error: $e');
+      return false;
     }
   }
 

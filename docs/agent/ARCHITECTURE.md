@@ -41,6 +41,14 @@ App-wide concerns live under `mobile/lib/src/core/`; reusable UI/utilities live 
 
 Generated Dart files are implementation artifacts. Update the source annotations and rerun build_runner rather than editing generated output.
 
+Every successful password, registration, Google, Apple, stored-session, or
+account-transition authentication result flows through the auth notifier's one
+authenticated-session bootstrap. It refreshes realtime credentials,
+RevenueCat/server entitlement state, saved genres, push registration, and
+session-scoped providers. Integration degradation is exposed through
+`authenticatedSessionBootstrapStatusProvider` and retried without clearing the
+authenticated user; logout runs cleanup and never bootstraps.
+
 ## Web Boundaries
 
 The web app is a static frontend surface. It should not own backend business logic, secrets, or support-ticket processing. Legal content remains sourced from the root markdown files and is copied by `web/scripts/sync-legal.mjs` before Astro runs.

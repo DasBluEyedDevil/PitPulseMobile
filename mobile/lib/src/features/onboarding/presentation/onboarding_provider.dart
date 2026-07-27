@@ -82,17 +82,19 @@ class GenrePersistence extends _$GenrePersistence {
     final genres = List<String>.from(jsonDecode(pending) as List);
     if (genres.isEmpty) return;
 
-    try {
-      final repo = ref.read(onboardingRepositoryProvider);
-      await repo.saveGenrePreferences(genres);
-      // Also mark onboarding complete on backend
-      await repo.completeOnboarding();
-      // Clear local pending genres after successful sync
-      await prefs.remove(_prefsKey);
-    } catch (_) {
-      // Sync failed -- genres remain in SharedPreferences for next attempt.
-      // Non-blocking: user can still use the app without genre sync.
-    }
+    final repo = ref.read(onboardingRepositoryProvider);
+    final saveResult = await repo.saveGenrePreferences(genres);
+    saveResult.fold((failure) => throw Exception(failure.message), (_) {});
+
+    final completionResult = await repo.completeOnboarding();
+    completionResult.fold(
+      (failure) => throw Exception(failure.message),
+      (_) {},
+    );
+
+    // Clear local pending genres only after both server writes succeed. The
+    // session bootstrap records failures and can retry while this value stays.
+    await prefs.remove(_prefsKey);
   }
 
   /// Check if there are pending genres waiting to be synced.
