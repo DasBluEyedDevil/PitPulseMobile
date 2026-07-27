@@ -50,7 +50,7 @@ void main() {
       );
       addTearDown(subscription.close);
       final notifier = container.read(isPremiumProvider.notifier);
-      notifier.set(true);
+      notifier.mergeEvidence(server: true);
 
       notifier.mergeEvidence(revenueCat: false);
       expect(container.read(isPremiumProvider), isTrue);
@@ -69,7 +69,7 @@ void main() {
       );
       addTearDown(subscription.close);
       final notifier = container.read(isPremiumProvider.notifier);
-      notifier.set(true);
+      notifier.mergeEvidence(server: true);
 
       notifier.mergeEvidence();
 
@@ -139,7 +139,8 @@ void main() {
         fireImmediately: true,
       );
       addTearDown(subscription.close);
-      final notifier = container.read(isPremiumProvider.notifier)..set(true);
+      final notifier = container.read(isPremiumProvider.notifier)
+        ..mergeEvidence(server: true);
 
       await notifier.reconcileCustomerInfo(
         _inactiveCustomerInfo(),

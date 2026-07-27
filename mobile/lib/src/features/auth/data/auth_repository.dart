@@ -14,8 +14,8 @@ class AuthRepository {
   AuthRepository({
     required DioClient dioClient,
     required FlutterSecureStorage secureStorage,
-  })  : _dioClient = dioClient,
-        _secureStorage = secureStorage;
+  }) : _dioClient = dioClient,
+       _secureStorage = secureStorage;
 
   /// Helper method to map errors to Failures
   Failure _mapErrorToFailure(Object e) {
@@ -36,26 +36,7 @@ class AuthRepository {
 
       // Extract data from API wrapper: {success, data, message}
       final data = response.data['data'] as Map<String, dynamic>;
-      final authResponse = AuthResponse.fromJson(data);
-
-      // Save token and user data
-      await _secureStorage.write(
-        key: ApiConfig.tokenKey,
-        value: authResponse.token,
-      );
-      if (authResponse.refreshToken != null &&
-          authResponse.refreshToken!.isNotEmpty) {
-        await _secureStorage.write(
-          key: 'refresh_token',
-          value: authResponse.refreshToken,
-        );
-      }
-      await _secureStorage.write(
-        key: ApiConfig.userKey,
-        value: jsonEncode(authResponse.user.toJson()),
-      );
-
-      return Right(authResponse);
+      return Right(AuthResponse.fromJson(data));
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
@@ -71,37 +52,72 @@ class AuthRepository {
 
       // Extract data from API wrapper: {success, data, message}
       final data = response.data['data'] as Map<String, dynamic>;
-      final authResponse = AuthResponse.fromJson(data);
-
-      // Save token and user data
-      await _secureStorage.write(
-        key: ApiConfig.tokenKey,
-        value: authResponse.token,
-      );
-      if (authResponse.refreshToken != null &&
-          authResponse.refreshToken!.isNotEmpty) {
-        await _secureStorage.write(
-          key: 'refresh_token',
-          value: authResponse.refreshToken,
-        );
-      }
-      await _secureStorage.write(
-        key: ApiConfig.userKey,
-        value: jsonEncode(authResponse.user.toJson()),
-      );
-
-      return Right(authResponse);
+      return Right(AuthResponse.fromJson(data));
     } catch (e) {
       return Left(_mapErrorToFailure(e));
     }
   }
 
+  /// Persists credentials only while the notifier-owned authentication
+  /// operation remains current.
+  ///
+  /// Callers must serialize this method with logout and newer credential
+  /// commits. If the guard changes while a platform write is in flight, the
+  /// partial credential set is removed before the serialized section ends.
+  Future<bool> persistAuthentication(
+    AuthResponse response, {
+    required bool Function() isCurrent,
+  }) async {
+    var wroteCredentials = false;
+    try {
+      if (!isCurrent()) return false;
+      await _secureStorage.write(
+        key: ApiConfig.tokenKey,
+        value: response.token,
+      );
+      wroteCredentials = true;
+      if (!isCurrent()) {
+        await _clearStoredAuthentication();
+        return false;
+      }
+
+      final refreshToken = response.refreshToken;
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await _secureStorage.write(key: 'refresh_token', value: refreshToken);
+        if (!isCurrent()) {
+          await _clearStoredAuthentication();
+          return false;
+        }
+      }
+
+      await _secureStorage.write(
+        key: ApiConfig.userKey,
+        value: jsonEncode(response.user.toJson()),
+      );
+      if (!isCurrent()) {
+        await _clearStoredAuthentication();
+        return false;
+      }
+      return true;
+    } catch (error) {
+      if (wroteCredentials && !isCurrent()) {
+        await _clearStoredAuthentication();
+        return false;
+      }
+      throw _mapErrorToFailure(error);
+    }
+  }
+
+  Future<void> _clearStoredAuthentication() async {
+    await _secureStorage.delete(key: ApiConfig.tokenKey);
+    await _secureStorage.delete(key: ApiConfig.userKey);
+    await _secureStorage.delete(key: 'refresh_token');
+  }
+
   /// Logout user
   Future<Either<Failure, void>> logout() async {
     try {
-      await _secureStorage.delete(key: ApiConfig.tokenKey);
-      await _secureStorage.delete(key: ApiConfig.userKey);
-      await _secureStorage.delete(key: 'refresh_token');
+      await _clearStoredAuthentication();
       return const Right(null);
     } catch (e) {
       return Left(_mapErrorToFailure(e));

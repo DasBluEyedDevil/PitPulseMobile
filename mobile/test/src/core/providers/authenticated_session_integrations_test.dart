@@ -135,7 +135,7 @@ void main() {
           fireImmediately: true,
         );
         addTearDown(premiumSubscription.close);
-        container.read(isPremiumProvider.notifier).set(true);
+        container.read(isPremiumProvider.notifier).mergeEvidence(server: true);
 
         final result = await container
             .read(authenticatedSessionIntegrationsProvider)
@@ -337,6 +337,9 @@ class _CleanupSubscriptionClient implements SubscriptionSessionClient {
   int logoutCalls = 0;
   int listenerClears = 0;
   CustomerInfoUpdateListener? listener;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 
   @override
   Future<CustomerInfo?> getCustomerInfo() async {

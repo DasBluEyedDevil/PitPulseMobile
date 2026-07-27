@@ -296,10 +296,7 @@ void main() {
 
 class _FakeSocialAuthService extends SocialAuthService {
   _FakeSocialAuthService(this.provider)
-    : super(
-        dioClient: DioClient(secureStorage: const FlutterSecureStorage()),
-        secureStorage: const FlutterSecureStorage(),
-      );
+    : super(dioClient: DioClient(secureStorage: const FlutterSecureStorage()));
 
   final SocialAuthenticationProvider provider;
 
@@ -338,6 +335,12 @@ class _UnauthenticatedRepository extends AuthRepository {
 
   @override
   Future<User?> getCurrentUser() async => null;
+
+  @override
+  Future<bool> persistAuthentication(
+    AuthResponse response, {
+    required bool Function() isCurrent,
+  }) async => isCurrent();
 }
 
 class _RecordingSocialSessionIntegrations

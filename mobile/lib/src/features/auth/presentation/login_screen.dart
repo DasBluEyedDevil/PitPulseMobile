@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/providers.dart';
 import '../../../core/error/failures.dart';
-import '../../../core/session/authenticated_session.dart';
 import '../../../shared/widgets/brand_widgets.dart';
 import '../../../shared/utils/validators.dart';
 import '../../../shared/utils/haptic_feedback.dart';
@@ -48,11 +47,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     final dioClient = ref.read(dioClientProvider);
-    final secureStorage = ref.read(secureStorageProvider);
-    _socialAuthService = SocialAuthService(
-      dioClient: dioClient,
-      secureStorage: secureStorage,
-    );
+    _socialAuthService = SocialAuthService(dioClient: dioClient);
   }
 
   @override
@@ -149,16 +144,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await _socialAuthService?.signInWithGoogle();
+      final service = _socialAuthService;
+      final user = service == null
+          ? null
+          : await ref
+                .read(authStateProvider.notifier)
+                .signInWithGoogle(service);
       if (!mounted) return;
 
-      if (result != null) {
-        await ref
-            .read(authStateProvider.notifier)
-            .completeSocialSignIn(
-              result.user,
-              provider: SocialAuthenticationProvider.google,
-            );
+      if (user != null) {
         await HapticFeedbackUtil.successVibration();
         if (!mounted) return;
         // SEC-060: Use generic success message — do not display user
@@ -198,16 +192,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await _socialAuthService?.signInWithApple();
+      final service = _socialAuthService;
+      final user = service == null
+          ? null
+          : await ref.read(authStateProvider.notifier).signInWithApple(service);
       if (!mounted) return;
 
-      if (result != null) {
-        await ref
-            .read(authStateProvider.notifier)
-            .completeSocialSignIn(
-              result.user,
-              provider: SocialAuthenticationProvider.apple,
-            );
+      if (user != null) {
         await HapticFeedbackUtil.successVibration();
         if (!mounted) return;
         // SEC-060: Use generic success message — do not display user

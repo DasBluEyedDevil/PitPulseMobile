@@ -65,17 +65,79 @@ abstract interface class SubscriptionSessionClient {
 
   Future<CustomerInfo?> getCustomerInfo();
 
+  Future<List<Package>> getPackages();
+
+  Future<CustomerInfo?> purchase(Package package);
+
+  Future<CustomerInfo?> restorePurchases();
+
+  Future<PaywallResult> presentUnlimitedPaywallIfNeeded();
+
+  Future<void> presentCustomerCenter({
+    void Function(CustomerInfo customerInfo)? onRestoreCompleted,
+    void Function(PurchasesError error)? onRestoreFailed,
+    void Function(
+      CustomerInfo customerInfo,
+      StoreTransaction transaction,
+      String offerIdentifier,
+    )?
+    onPromotionalOfferSucceeded,
+  });
+
   Future<void> logout();
 
   void setCustomerInfoUpdateListener(CustomerInfoUpdateListener? listener);
 }
 
-class DefaultSubscriptionSessionClient implements SubscriptionSessionClient {
-  const DefaultSubscriptionSessionClient();
+/// Injectable boundary around the RevenueCat SDK.
+///
+/// Default method bodies deliberately fail fast so focused tests can override
+/// only the SDK calls exercised by their production path.
+abstract class RevenueCatSdkAdapter {
+  const RevenueCatSdkAdapter();
+
+  Future<bool> login(String userId) => throw UnimplementedError();
+
+  Future<CustomerInfo?> getCustomerInfo() => throw UnimplementedError();
+
+  Future<List<Package>> getPackages() => throw UnimplementedError();
+
+  Future<CustomerInfo?> purchase(Package package) => throw UnimplementedError();
+
+  Future<CustomerInfo?> restorePurchases() => throw UnimplementedError();
+
+  Future<PaywallResult> presentUnlimitedPaywallIfNeeded() =>
+      throw UnimplementedError();
+
+  Future<void> presentCustomerCenter({
+    void Function(CustomerInfo customerInfo)? onRestoreCompleted,
+    void Function(PurchasesError error)? onRestoreFailed,
+    void Function(
+      CustomerInfo customerInfo,
+      StoreTransaction transaction,
+      String offerIdentifier,
+    )?
+    onPromotionalOfferSucceeded,
+  }) => throw UnimplementedError();
+
+  Future<void> logout() => throw UnimplementedError();
+
+  void setCustomerInfoUpdateListener(CustomerInfoUpdateListener? listener) {
+    throw UnimplementedError();
+  }
+}
+
+class DefaultRevenueCatSdkAdapter extends RevenueCatSdkAdapter {
+  const DefaultRevenueCatSdkAdapter();
 
   @override
   Future<CustomerInfo?> getCustomerInfo() {
     return SubscriptionService.getCustomerInfo();
+  }
+
+  @override
+  Future<List<Package>> getPackages() {
+    return SubscriptionService.getPackages();
   }
 
   @override
@@ -89,8 +151,107 @@ class DefaultSubscriptionSessionClient implements SubscriptionSessionClient {
   }
 
   @override
+  Future<PaywallResult> presentUnlimitedPaywallIfNeeded() {
+    return SubscriptionService.presentUnlimitedPaywallIfNeeded();
+  }
+
+  @override
+  Future<CustomerInfo?> purchase(Package package) {
+    return SubscriptionService.purchase(package);
+  }
+
+  @override
+  Future<CustomerInfo?> restorePurchases() {
+    return SubscriptionService.restorePurchases();
+  }
+
+  @override
+  Future<void> presentCustomerCenter({
+    void Function(CustomerInfo customerInfo)? onRestoreCompleted,
+    void Function(PurchasesError error)? onRestoreFailed,
+    void Function(
+      CustomerInfo customerInfo,
+      StoreTransaction transaction,
+      String offerIdentifier,
+    )?
+    onPromotionalOfferSucceeded,
+  }) {
+    return SubscriptionService.presentCustomerCenter(
+      onRestoreCompleted: onRestoreCompleted,
+      onRestoreFailed: onRestoreFailed,
+      onPromotionalOfferSucceeded: onPromotionalOfferSucceeded,
+    );
+  }
+
+  @override
   void setCustomerInfoUpdateListener(CustomerInfoUpdateListener? listener) {
     SubscriptionService.setCustomerInfoUpdateListener(listener);
+  }
+}
+
+class DefaultSubscriptionSessionClient implements SubscriptionSessionClient {
+  const DefaultSubscriptionSessionClient({
+    RevenueCatSdkAdapter sdk = const DefaultRevenueCatSdkAdapter(),
+  }) : _sdk = sdk;
+
+  final RevenueCatSdkAdapter _sdk;
+
+  @override
+  Future<CustomerInfo?> getCustomerInfo() {
+    return _sdk.getCustomerInfo();
+  }
+
+  @override
+  Future<List<Package>> getPackages() {
+    return _sdk.getPackages();
+  }
+
+  @override
+  Future<bool> login(String userId) {
+    return _sdk.login(userId);
+  }
+
+  @override
+  Future<void> logout() {
+    return _sdk.logout();
+  }
+
+  @override
+  Future<PaywallResult> presentUnlimitedPaywallIfNeeded() {
+    return _sdk.presentUnlimitedPaywallIfNeeded();
+  }
+
+  @override
+  Future<CustomerInfo?> purchase(Package package) {
+    return _sdk.purchase(package);
+  }
+
+  @override
+  Future<CustomerInfo?> restorePurchases() {
+    return _sdk.restorePurchases();
+  }
+
+  @override
+  Future<void> presentCustomerCenter({
+    void Function(CustomerInfo customerInfo)? onRestoreCompleted,
+    void Function(PurchasesError error)? onRestoreFailed,
+    void Function(
+      CustomerInfo customerInfo,
+      StoreTransaction transaction,
+      String offerIdentifier,
+    )?
+    onPromotionalOfferSucceeded,
+  }) {
+    return _sdk.presentCustomerCenter(
+      onRestoreCompleted: onRestoreCompleted,
+      onRestoreFailed: onRestoreFailed,
+      onPromotionalOfferSucceeded: onPromotionalOfferSucceeded,
+    );
+  }
+
+  @override
+  void setCustomerInfoUpdateListener(CustomerInfoUpdateListener? listener) {
+    _sdk.setCustomerInfoUpdateListener(listener);
   }
 }
 

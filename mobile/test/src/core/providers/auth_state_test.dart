@@ -10,6 +10,7 @@ import 'package:soundcheck_flutter/src/core/error/failures.dart';
 import 'package:soundcheck_flutter/src/core/providers/providers.dart';
 import 'package:soundcheck_flutter/src/core/session/authenticated_session.dart';
 import 'package:soundcheck_flutter/src/features/auth/data/auth_repository.dart';
+import 'package:soundcheck_flutter/src/features/auth/data/social_auth_service.dart';
 import 'package:soundcheck_flutter/src/features/auth/domain/user.dart';
 import 'package:soundcheck_flutter/src/features/subscription/presentation/subscription_providers.dart';
 
@@ -47,11 +48,13 @@ void main() {
         () async {
           final harness = await _AuthHarness.create();
           addTearDown(harness.dispose);
+          final service = _FakeSocialAuthService(provider);
 
-          await harness.notifier.completeSocialSignIn(
-            _userA,
-            provider: provider,
-          );
+          if (provider == SocialAuthenticationProvider.google) {
+            await harness.notifier.signInWithGoogle(service);
+          } else {
+            await harness.notifier.signInWithApple(service);
+          }
 
           expect(harness.container.read(authStateProvider).value, _userA);
           harness.expectSingleBootstrapFor(_userA);
@@ -284,6 +287,48 @@ void main() {
       },
     );
 
+    test('C cleans pending A and active B before publishing C', () async {
+      final previousDebugPrint = debugPrint;
+      debugPrint = (message, {wrapWidth}) {};
+      addTearDown(() => debugPrint = previousDebugPrint);
+      final harness = await _AuthHarness.create();
+      addTearDown(harness.dispose);
+      harness.repository.loginResponses.addAll([
+        _authResponse(_userA),
+        _authResponse(_userB),
+        _authResponse(_userC),
+      ]);
+      harness.integrations.transitionCleanupResults.addAll([
+        const AuthenticatedSessionCleanupResult(
+          failedSteps: {AuthenticatedSessionCleanupStep.pushReset},
+          pushToken: 'token-a',
+        ),
+        const AuthenticatedSessionCleanupResult(),
+        const AuthenticatedSessionCleanupResult(),
+      ]);
+
+      await harness.notifier.login('a@example.com', 'Password1!');
+      await harness.notifier.login('b@example.com', 'Password1!');
+      await harness.notifier.login('c@example.com', 'Password1!');
+
+      expect(harness.integrations.accountTransitionResetUsers, [
+        _userA.id,
+        _userA.id,
+        _userB.id,
+      ]);
+      expect(harness.integrations.transitionRetrySteps, [
+        null,
+        {AuthenticatedSessionCleanupStep.pushReset},
+        null,
+      ]);
+      expect(harness.integrations.transitionRetryTokens, [
+        null,
+        'token-a',
+        null,
+      ]);
+      expect(harness.container.read(authStateProvider).value, _userC);
+    });
+
     test(
       'logout retries only failed cleanup steps before clearing auth storage',
       () async {
@@ -366,6 +411,53 @@ void main() {
       },
     );
 
+    test(
+      'logout retries pending account cleanup and still clears local auth',
+      () async {
+        final harness = await _AuthHarness.create();
+        addTearDown(harness.dispose);
+        harness.repository.loginResponses.addAll([
+          _authResponse(_userA),
+          _authResponse(_userB),
+        ]);
+        harness.integrations.transitionCleanupResults.addAll([
+          const AuthenticatedSessionCleanupResult(
+            failedSteps: {AuthenticatedSessionCleanupStep.pushTokenUnregister},
+            pushToken: 'token-a',
+          ),
+          const AuthenticatedSessionCleanupResult(
+            failedSteps: {AuthenticatedSessionCleanupStep.pushTokenUnregister},
+            pushToken: 'token-a',
+          ),
+        ]);
+
+        await harness.notifier.login('a@example.com', 'Password1!');
+        await harness.notifier.login('b@example.com', 'Password1!');
+        await harness.notifier.logout();
+
+        expect(harness.integrations.accountTransitionResetUsers, [
+          _userA.id,
+          _userA.id,
+        ]);
+        expect(harness.integrations.transitionRetrySteps, [
+          null,
+          {AuthenticatedSessionCleanupStep.pushTokenUnregister},
+        ]);
+        expect(harness.repository.logoutCalls, 1);
+        expect(harness.container.read(authStateProvider).value, isNull);
+        expect(
+          harness.container.read(authenticatedSessionBootstrapStatusProvider),
+          isA<AuthenticatedSessionBootstrapState>()
+              .having(
+                (status) => status.failedCleanupSteps,
+                'failedCleanupSteps',
+                {AuthenticatedSessionCleanupStep.pushTokenUnregister},
+              )
+              .having((status) => status.cleanupAttempts, 'cleanupAttempts', 2),
+        );
+      },
+    );
+
     test('ordinary profile refresh does not bootstrap again', () async {
       final harness = await _AuthHarness.create();
       addTearDown(harness.dispose);
@@ -392,7 +484,9 @@ void main() {
         final harness = await _AuthHarness.create();
         addTearDown(harness.dispose);
         harness.repository.loginResponses.add(_authResponse(_userA));
-        harness.container.read(isPremiumProvider.notifier).set(true);
+        harness.container
+            .read(isPremiumProvider.notifier)
+            .mergeEvidence(server: true);
         harness.integrations
           ..revenueCatPremium = null
           ..failedSteps.addAll({
@@ -442,6 +536,38 @@ void main() {
       },
     );
   });
+}
+
+class _FakeSocialAuthService extends SocialAuthService {
+  _FakeSocialAuthService(this.provider)
+    : super(dioClient: DioClient(secureStorage: const FlutterSecureStorage()));
+
+  final SocialAuthenticationProvider provider;
+
+  SocialAuthResult get _result {
+    return SocialAuthResult(
+      user: _userA,
+      token: 'social-token',
+      refreshToken: 'social-refresh-token',
+      isNewUser: false,
+    );
+  }
+
+  @override
+  Future<SocialAuthResult?> signInWithGoogle() async {
+    if (provider != SocialAuthenticationProvider.google) {
+      throw StateError('Unexpected Google sign-in');
+    }
+    return _result;
+  }
+
+  @override
+  Future<SocialAuthResult?> signInWithApple() async {
+    if (provider != SocialAuthenticationProvider.apple) {
+      throw StateError('Unexpected Apple sign-in');
+    }
+    return _result;
+  }
 }
 
 class _AuthHarness {
@@ -529,6 +655,14 @@ class _FakeAuthRepository extends AuthRepository {
     RegisterRequest request,
   ) async {
     return Right(registerResponses.removeAt(0));
+  }
+
+  @override
+  Future<bool> persistAuthentication(
+    AuthResponse response, {
+    required bool Function() isCurrent,
+  }) async {
+    return isCurrent();
   }
 
   @override
@@ -680,6 +814,16 @@ const _userB = User(
   id: 'user-b',
   email: 'b@example.com',
   username: 'user-b',
+  isVerified: true,
+  isActive: true,
+  createdAt: '2026-07-26T00:00:00.000Z',
+  updatedAt: '2026-07-26T00:00:00.000Z',
+);
+
+const _userC = User(
+  id: 'user-c',
+  email: 'c@example.com',
+  username: 'user-c',
   isVerified: true,
   isActive: true,
   createdAt: '2026-07-26T00:00:00.000Z',

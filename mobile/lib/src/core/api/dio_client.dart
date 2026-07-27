@@ -18,20 +18,23 @@ class DioClient {
   DioClient({
     required FlutterSecureStorage secureStorage,
     VoidCallback? onAuthFailure,
+    Dio? dio,
   }) : _secureStorage = secureStorage,
        _onAuthFailure = onAuthFailure,
-       _dio = Dio(
-         BaseOptions(
-           baseUrl: ApiConfig.baseUrl,
-           connectTimeout: ApiConfig.connectTimeout,
-           receiveTimeout: ApiConfig.receiveTimeout,
-           sendTimeout: ApiConfig.sendTimeout,
-           headers: {
-             'Content-Type': 'application/json',
-             'Accept': 'application/json',
-           },
-         ),
-       ) {
+       _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               baseUrl: ApiConfig.baseUrl,
+               connectTimeout: ApiConfig.connectTimeout,
+               receiveTimeout: ApiConfig.receiveTimeout,
+               sendTimeout: ApiConfig.sendTimeout,
+               headers: {
+                 'Content-Type': 'application/json',
+                 'Accept': 'application/json',
+               },
+             ),
+           ) {
     _initializeInterceptors();
   }
 

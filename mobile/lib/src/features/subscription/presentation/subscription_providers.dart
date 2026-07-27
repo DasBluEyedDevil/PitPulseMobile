@@ -20,13 +20,13 @@ SubscriptionRepository subscriptionRepository(Ref ref) {
 /// Provider for packages available for purchase
 @riverpod
 Future<List<Package>> packages(Ref ref) async {
-  return SubscriptionService.getPackages();
+  return ref.watch(subscriptionSessionClientProvider).getPackages();
 }
 
 /// Provider for the latest RevenueCat customer info.
 @riverpod
 Future<CustomerInfo?> revenueCatCustomerInfo(Ref ref) async {
-  return SubscriptionService.getCustomerInfo();
+  return ref.watch(subscriptionSessionClientProvider).getCustomerInfo();
 }
 
 /// Provider for server-side subscription status
@@ -50,8 +50,6 @@ class IsPremium extends _$IsPremium {
   @override
   bool build() => false;
 
-  void set(bool value) => state = value;
-
   int get sessionGeneration => _sessionGeneration;
 
   void beginSession() {
@@ -61,7 +59,8 @@ class IsPremium extends _$IsPremium {
     state = false;
   }
 
-  void mergeEvidence({bool? revenueCat, bool? server}) {
+  void mergeEvidence({bool? revenueCat, bool? server, int? generation}) {
+    if (generation != null && generation != _sessionGeneration) return;
     if (revenueCat != null) {
       _revenueCatEvidence = revenueCat;
     }
@@ -83,6 +82,7 @@ class IsPremium extends _$IsPremium {
     if (generation != _sessionGeneration) return;
     mergeEvidence(
       revenueCat: SubscriptionService.hasUnlimitedEntitlement(customerInfo),
+      generation: generation,
     );
     ref.invalidate(revenueCatCustomerInfoProvider);
     ref.invalidate(serverSubscriptionStatusProvider);
@@ -92,7 +92,7 @@ class IsPremium extends _$IsPremium {
         serverSubscriptionStatusProvider.future,
       );
       if (generation != _sessionGeneration) return;
-      mergeEvidence(server: serverStatus.isPremium);
+      mergeEvidence(server: serverStatus.isPremium, generation: generation);
     } catch (error, stackTrace) {
       LogService.e('Failed to reconcile server entitlement', error, stackTrace);
     }

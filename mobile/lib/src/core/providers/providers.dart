@@ -14,6 +14,7 @@ import '../services/push_notification_service.dart';
 import '../services/websocket_service.dart';
 import '../../shared/services/location_service.dart';
 import '../../features/auth/data/auth_repository.dart';
+import '../../features/auth/data/social_auth_service.dart';
 import '../../features/auth/domain/user.dart';
 import '../../features/badges/presentation/badge_providers.dart';
 import '../../features/bands/presentation/providers/band_providers.dart';
@@ -146,8 +147,15 @@ AuthenticatedSessionIntegrations authenticatedSessionIntegrations(Ref ref) {
 }
 
 @Riverpod(keepAlive: true)
+RevenueCatSdkAdapter revenueCatSdkAdapter(Ref ref) {
+  return const DefaultRevenueCatSdkAdapter();
+}
+
+@Riverpod(keepAlive: true)
 SubscriptionSessionClient subscriptionSessionClient(Ref ref) {
-  return const DefaultSubscriptionSessionClient();
+  return DefaultSubscriptionSessionClient(
+    sdk: ref.watch(revenueCatSdkAdapterProvider),
+  );
 }
 
 @Riverpod(keepAlive: true)
@@ -582,22 +590,24 @@ class _PendingTransitionCleanup {
 @Riverpod(keepAlive: true)
 class AuthState extends _$AuthState {
   User? _activeSessionUser;
-  _PendingTransitionCleanup? _pendingTransitionCleanup;
+  final Map<String, _PendingTransitionCleanup> _pendingTransitionCleanups = {};
   int _sessionGeneration = 0;
   Future<void>? _sessionOperationTail;
 
   @override
   Future<User?> build() async {
+    final generation = ++_sessionGeneration;
     final authRepository = ref.watch(authRepositoryProvider);
     final user = await authRepository.getCurrentUser();
+    if (!_isCurrentSession(generation)) return null;
 
     if (user != null) {
-      final generation = ++_sessionGeneration;
       await _scheduleAuthenticatedSessionBootstrap(
         user,
         generation: generation,
         publishUser: false,
       );
+      if (!_isCurrentSession(generation)) return null;
     }
 
     return user;
@@ -617,10 +627,9 @@ class AuthState extends _$AuthState {
         (response) => response,
       );
       if (!_isCurrentSession(generation)) return;
-      await _scheduleAuthenticatedSessionBootstrap(
-        authResponse.user,
+      await _scheduleAuthenticatedSessionCommit(
+        authResponse,
         generation: generation,
-        publishUser: true,
       );
     } catch (error, stackTrace) {
       if (_isCurrentSession(generation)) {
@@ -655,10 +664,9 @@ class AuthState extends _$AuthState {
         (response) => response,
       );
       if (!_isCurrentSession(generation)) return;
-      await _scheduleAuthenticatedSessionBootstrap(
-        authResponse.user,
+      await _scheduleAuthenticatedSessionCommit(
+        authResponse,
         generation: generation,
-        publishUser: true,
       );
     } catch (error, stackTrace) {
       if (_isCurrentSession(generation)) {
@@ -667,17 +675,44 @@ class AuthState extends _$AuthState {
     }
   }
 
-  Future<void> completeSocialSignIn(
-    User user, {
-    required SocialAuthenticationProvider provider,
-  }) async {
+  Future<User?> signInWithGoogle(SocialAuthService service) {
+    return _signInWithSocial(service.signInWithGoogle);
+  }
+
+  Future<User?> signInWithApple(SocialAuthService service) {
+    return _signInWithSocial(service.signInWithApple);
+  }
+
+  Future<User?> _signInWithSocial(
+    Future<SocialAuthResult?> Function() authenticate,
+  ) async {
     final generation = ++_sessionGeneration;
+    final previousUser = state.value;
     state = const AsyncValue.loading();
-    await _scheduleAuthenticatedSessionBootstrap(
-      user,
-      generation: generation,
-      publishUser: true,
-    );
+    try {
+      final result = await authenticate();
+      if (!_isCurrentSession(generation)) return null;
+      if (result == null) {
+        state = AsyncValue.data(previousUser);
+        return null;
+      }
+
+      await _scheduleAuthenticatedSessionCommit(
+        AuthResponse(
+          user: result.user,
+          token: result.token,
+          refreshToken: result.refreshToken,
+        ),
+        generation: generation,
+      );
+      return _isCurrentSession(generation) ? result.user : null;
+    } catch (error, stackTrace) {
+      if (_isCurrentSession(generation)) {
+        state = AsyncValue.error(error, stackTrace);
+        rethrow;
+      }
+      return null;
+    }
   }
 
   Future<void> logout() async {
@@ -686,7 +721,40 @@ class AuthState extends _$AuthState {
     final authRepository = ref.read(authRepositoryProvider);
     await _scheduleSessionOperation(generation, () async {
       final integrations = ref.read(authenticatedSessionIntegrationsProvider);
-      var cleanupAttempts = 1;
+      var cleanupAttempts = 0;
+      final cleanupFailures = <AuthenticatedSessionCleanupStep>{};
+      for (final pending in [..._pendingTransitionCleanups.values]) {
+        cleanupAttempts++;
+        try {
+          final result = await integrations
+              .resetForAccountTransition(
+                pending.previousUser,
+                retrySteps: pending.result.failedSteps,
+                pushToken: pending.result.pushToken,
+              )
+              .timeout(_authenticatedSessionIntegrationTimeout);
+          if (result.succeeded) {
+            _pendingTransitionCleanups.remove(pending.previousUser.id);
+          } else {
+            cleanupFailures.addAll(result.failedSteps);
+            _pendingTransitionCleanups[pending.previousUser.id] =
+                _PendingTransitionCleanup(
+                  previousUser: pending.previousUser,
+                  result: result,
+                );
+          }
+        } catch (error, stackTrace) {
+          cleanupFailures.addAll(pending.result.failedSteps);
+          LogService.e(
+            'Pending account cleanup failed during logout',
+            error,
+            stackTrace,
+          );
+        }
+        if (!_isCurrentSession(generation)) return;
+      }
+
+      cleanupAttempts++;
       var cleanupResult = await _runLogoutCleanup(integrations);
       if (cleanupResult.failedSteps.isNotEmpty) {
         cleanupAttempts++;
@@ -696,6 +764,7 @@ class AuthState extends _$AuthState {
           pushToken: cleanupResult.pushToken,
         );
       }
+      cleanupFailures.addAll(cleanupResult.failedSteps);
       if (!_isCurrentSession(generation)) return;
 
       final result = await authRepository.logout();
@@ -708,13 +777,10 @@ class AuthState extends _$AuthState {
         (_) {},
       );
       _activeSessionUser = null;
-      _pendingTransitionCleanup = null;
+      _pendingTransitionCleanups.clear();
       ref
           .read(authenticatedSessionBootstrapStatusProvider.notifier)
-          .completeLogout(
-            cleanupResult.failedSteps,
-            cleanupAttempts: cleanupAttempts,
-          );
+          .completeLogout(cleanupFailures, cleanupAttempts: cleanupAttempts);
       state = const AsyncValue.data(null);
     });
   }
@@ -725,10 +791,9 @@ class AuthState extends _$AuthState {
     String? pushToken,
   }) async {
     try {
-      return await integrations.cleanupForLogout(
-        retrySteps: retrySteps,
-        pushToken: pushToken,
-      );
+      return await integrations
+          .cleanupForLogout(retrySteps: retrySteps, pushToken: pushToken)
+          .timeout(_authenticatedSessionIntegrationTimeout);
     } catch (error, stackTrace) {
       LogService.e(
         'Authenticated session cleanup failed during logout',
@@ -785,6 +850,26 @@ class AuthState extends _$AuthState {
     );
   }
 
+  Future<void> _scheduleAuthenticatedSessionCommit(
+    AuthResponse response, {
+    required int generation,
+  }) {
+    return _scheduleSessionOperation(generation, () async {
+      final committed = await ref
+          .read(authRepositoryProvider)
+          .persistAuthentication(
+            response,
+            isCurrent: () => _isCurrentSession(generation),
+          );
+      if (!committed || !_isCurrentSession(generation)) return;
+      await _performAuthenticatedSessionBootstrap(
+        response.user,
+        generation: generation,
+        publishUser: true,
+      );
+    });
+  }
+
   Future<void> _scheduleSessionOperation(
     int generation,
     Future<void> Function() operation,
@@ -825,51 +910,56 @@ class AuthState extends _$AuthState {
     final failures = <AuthenticatedSessionBootstrapStep>{};
     final previousUser = _activeSessionUser;
     var cleanupAttempts = 0;
-    var cleanupFailures = <AuthenticatedSessionCleanupStep>{};
-    final pendingCleanup = _pendingTransitionCleanup;
+    final cleanupFailures = <AuthenticatedSessionCleanupStep>{};
+    final cleanups = <_PendingTransitionCleanup>[
+      ..._pendingTransitionCleanups.values,
+    ];
+    if (previousUser != null &&
+        previousUser.id != user.id &&
+        !cleanups.any(
+          (cleanup) => cleanup.previousUser.id == previousUser.id,
+        )) {
+      cleanups.add(
+        _PendingTransitionCleanup(
+          previousUser: previousUser,
+          result: const AuthenticatedSessionCleanupResult(),
+        ),
+      );
+    }
 
-    if (pendingCleanup != null) {
+    for (final cleanup in cleanups) {
       cleanupAttempts++;
+      final isRetry = cleanup.result.failedSteps.isNotEmpty;
       try {
         final result = await integrations.resetForAccountTransition(
-          pendingCleanup.previousUser,
-          retrySteps: pendingCleanup.result.failedSteps,
-          pushToken: pendingCleanup.result.pushToken,
+          cleanup.previousUser,
+          retrySteps: isRetry ? cleanup.result.failedSteps : null,
+          pushToken: isRetry ? cleanup.result.pushToken : null,
         );
-        cleanupFailures = result.failedSteps;
-        _pendingTransitionCleanup = result.succeeded
-            ? null
-            : _PendingTransitionCleanup(
-                previousUser: pendingCleanup.previousUser,
+        if (result.succeeded) {
+          _pendingTransitionCleanups.remove(cleanup.previousUser.id);
+        } else {
+          cleanupFailures.addAll(result.failedSteps);
+          _pendingTransitionCleanups[cleanup.previousUser.id] =
+              _PendingTransitionCleanup(
+                previousUser: cleanup.previousUser,
                 result: result,
               );
-      } catch (error, stackTrace) {
-        cleanupFailures = Set.of(pendingCleanup.result.failedSteps);
-        LogService.e('Account transition cleanup failed', error, stackTrace);
-      }
-      if (!_isCurrentSession(generation)) return;
-    } else if (previousUser != null && previousUser.id != user.id) {
-      cleanupAttempts++;
-      try {
-        final result = await integrations.resetForAccountTransition(
-          previousUser,
-        );
-        cleanupFailures = result.failedSteps;
-        if (!result.succeeded) {
-          _pendingTransitionCleanup = _PendingTransitionCleanup(
-            previousUser: previousUser,
-            result: result,
-          );
         }
       } catch (error, stackTrace) {
+        final failedSteps = isRetry
+            ? cleanup.result.failedSteps
+            : Set.of(AuthenticatedSessionCleanupStep.values);
         final result = AuthenticatedSessionCleanupResult(
-          failedSteps: Set.of(AuthenticatedSessionCleanupStep.values),
+          failedSteps: failedSteps,
+          pushToken: cleanup.result.pushToken,
         );
-        cleanupFailures = result.failedSteps;
-        _pendingTransitionCleanup = _PendingTransitionCleanup(
-          previousUser: previousUser,
-          result: result,
-        );
+        cleanupFailures.addAll(failedSteps);
+        _pendingTransitionCleanups[cleanup.previousUser.id] =
+            _PendingTransitionCleanup(
+              previousUser: cleanup.previousUser,
+              result: result,
+            );
         LogService.e('Account transition cleanup failed', error, stackTrace);
       }
       if (!_isCurrentSession(generation)) return;
@@ -899,6 +989,8 @@ class AuthState extends _$AuthState {
     );
     if (!_isCurrentSession(generation)) return;
 
+    final premiumNotifier = ref.read(isPremiumProvider.notifier);
+    final entitlementGeneration = premiumNotifier.sessionGeneration;
     final revenueCatPremium = await _runEntitlementStep(
       AuthenticatedSessionBootstrapStep.revenueCat,
       failures,
@@ -926,9 +1018,11 @@ class AuthState extends _$AuthState {
     );
     if (!_isCurrentSession(generation)) return;
 
-    ref
-        .read(isPremiumProvider.notifier)
-        .mergeEvidence(revenueCat: revenueCatPremium, server: serverPremium);
+    premiumNotifier.mergeEvidence(
+      revenueCat: revenueCatPremium,
+      server: serverPremium,
+      generation: entitlementGeneration,
+    );
 
     final premium = ref.read(isPremiumProvider);
     try {
