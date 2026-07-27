@@ -337,10 +337,10 @@ class _UnauthenticatedRepository extends AuthRepository {
   Future<User?> getCurrentUser() async => null;
 
   @override
-  Future<bool> persistAuthentication(
+  Future<AuthPersistenceResult> persistAuthenticationWithRevision(
     AuthResponse response, {
     required bool Function() isCurrent,
-  }) async => isCurrent();
+  }) async => AuthPersistenceResult(committed: isCurrent(), revision: null);
 }
 
 class _RecordingSocialSessionIntegrations

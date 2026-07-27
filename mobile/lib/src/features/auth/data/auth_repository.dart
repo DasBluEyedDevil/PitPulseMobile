@@ -8,6 +8,16 @@ import '../../../core/api/auth_session_store.dart';
 import '../../../core/error/failures.dart';
 import '../domain/user.dart';
 
+class AuthPersistenceResult {
+  const AuthPersistenceResult({
+    required this.committed,
+    required this.revision,
+  });
+
+  final bool committed;
+  final String? revision;
+}
+
 class AuthRepository {
   final DioClient _dioClient;
   final AuthSessionStore _authSessionStore;
@@ -70,16 +80,44 @@ class AuthRepository {
     AuthResponse response, {
     required bool Function() isCurrent,
   }) async {
+    return (await persistAuthenticationWithRevision(
+      response,
+      isCurrent: isCurrent,
+    )).committed;
+  }
+
+  Future<AuthPersistenceResult> persistAuthenticationWithRevision(
+    AuthResponse response, {
+    required bool Function() isCurrent,
+  }) async {
     try {
-      return await _authSessionStore.commit(
+      final committed = await _authSessionStore.commit(
         accessToken: response.token,
         refreshToken: response.refreshToken,
         userJson: jsonEncode(response.user.toJson()),
         isCurrent: isCurrent,
       );
+      if (committed == null) {
+        return const AuthPersistenceResult(committed: false, revision: null);
+      }
+      if (!isCurrent()) {
+        await _authSessionStore.invalidateIfActiveRevision(committed.revision);
+        return AuthPersistenceResult(
+          committed: false,
+          revision: committed.revision,
+        );
+      }
+      return AuthPersistenceResult(
+        committed: true,
+        revision: committed.revision,
+      );
     } catch (error) {
       throw _mapErrorToFailure(error);
     }
+  }
+
+  Future<void> invalidateAuthenticationRevision(String revision) async {
+    await _authSessionStore.invalidateIfActiveRevision(revision);
   }
 
   /// Logout user
@@ -135,9 +173,14 @@ class AuthRepository {
     Map<String, dynamic> updates,
   ) async {
     try {
+      final initiatingSession = await _authSessionStore.readSession();
+      if (initiatingSession == null) {
+        throw StateError('Cannot update an inactive authentication session');
+      }
       final response = await _dioClient.put(
         '${ApiConfig.auth}/me',
         data: updates,
+        options: _dioClient.optionsForAuthSession(initiatingSession),
       );
 
       // Extract data from API wrapper: {success, data, message}
@@ -146,6 +189,7 @@ class AuthRepository {
 
       final updated = await _authSessionStore.updateUserJson(
         jsonEncode(user.toJson()),
+        expectedRevision: initiatingSession.revision,
       );
       if (!updated) {
         throw StateError('Cannot update an inactive authentication session');

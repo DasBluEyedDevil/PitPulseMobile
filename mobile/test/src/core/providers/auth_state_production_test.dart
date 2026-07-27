@@ -341,6 +341,318 @@ void main() {
       expect(jsonDecode(session.userJson)['id'], _userB.id);
     });
 
+    test(
+      'superseded final active write cannot restore A when B login fails',
+      () async {
+        String? probeAuthorization;
+        final bRequested = Completer<void>();
+        final adapter = _RouteAdapter((options) {
+          if (options.path == '${ApiConfig.auth}/login') {
+            final email = (options.data as Map<String, dynamic>)['email'];
+            if (email == _userA.email) {
+              return _authResponseBody(_userA, token: 'token-a');
+            }
+            bRequested.complete();
+            return _jsonResponseBody({
+              'success': false,
+              'message': 'login failed',
+            }, statusCode: 500);
+          }
+          if (options.path == '/probe') {
+            probeAuthorization = options.headers['Authorization'] as String?;
+            return _jsonResponseBody({'success': true, 'data': null});
+          }
+          return _defaultIntegrationResponse(options);
+        });
+        final harness = await _ProductionAuthHarness.create(adapter: adapter);
+        addTearDown(harness.dispose);
+        final delayedActive = storagePlatform.delayNextWriteValue(
+          AuthSessionStore.visibilityKey,
+          'active:',
+        );
+
+        final loginA = harness.notifier.login(_userA.email, 'Password1!');
+        await delayedActive.entered.future;
+        final loginB = harness.notifier.login(_userB.email, 'Password1!');
+        await bRequested.future;
+        await loginB;
+        delayedActive.release.complete();
+        await loginA;
+
+        expect(await harness.dioClient.authSessionStore.readSession(), isNull);
+        expect(
+          await AuthSessionStore(const FlutterSecureStorage()).readSession(),
+          isNull,
+        );
+        await harness.dioClient.get('/probe');
+        expect(probeAuthorization, isNull);
+      },
+    );
+
+    test('delayed A profile response cannot rewrite committed B', () async {
+      final requestGate = _StorageDelay();
+      String? profileAuthorization;
+      final profileResponse = Completer<ResponseBody>();
+      final adapter = _RouteAdapter((options) {
+        if (options.path == '${ApiConfig.auth}/me' && options.method == 'PUT') {
+          profileAuthorization = options.headers['Authorization'] as String?;
+          return profileResponse.future;
+        }
+        throw StateError('Unexpected request: ${options.path}');
+      });
+      final harness = await _ProductionAuthHarness.create(
+        adapter: adapter,
+        preInterceptors: [
+          InterceptorsWrapper(
+            onRequest: (options, handler) async {
+              if (options.path == '${ApiConfig.auth}/me' &&
+                  options.method == 'PUT') {
+                requestGate.entered.complete();
+                await requestGate.release.future;
+              }
+              handler.next(options);
+            },
+          ),
+        ],
+      );
+      addTearDown(harness.dispose);
+      await harness.dioClient.authSessionStore.commit(
+        accessToken: 'token-a',
+        refreshToken: 'refresh-token-a',
+        userJson: jsonEncode(_userA.toJson()),
+        isCurrent: () => true,
+      );
+
+      final update = harness.container
+          .read(authRepositoryProvider)
+          .updateProfile({'firstName': 'Changed'});
+      await requestGate.entered.future;
+      await harness.dioClient.authSessionStore.commit(
+        accessToken: 'token-b',
+        refreshToken: 'refresh-token-b',
+        userJson: jsonEncode(_userB.toJson()),
+        isCurrent: () => true,
+      );
+      requestGate.release.complete();
+      profileResponse.complete(
+        _jsonResponseBody({
+          'success': true,
+          'data': {..._userA.toJson(), 'firstName': 'Changed'},
+        }),
+      );
+
+      expect((await update).isLeft(), isTrue);
+      expect(profileAuthorization, 'Bearer token-a');
+      final session = await harness.dioClient.authSessionStore.readSession();
+      expect(session!.accessToken, 'token-b');
+      expect(jsonDecode(session.userJson)['id'], _userB.id);
+    });
+
+    test(
+      'caller-side supersession invalidates the exact committed A revision',
+      () async {
+        final bRequested = Completer<void>();
+        final adapter = _RouteAdapter((options) {
+          if (options.path == '${ApiConfig.auth}/login') {
+            final email = (options.data as Map<String, dynamic>)['email'];
+            if (email == _userA.email) {
+              return _authResponseBody(_userA, token: 'token-a');
+            }
+            bRequested.complete();
+            return _jsonResponseBody({
+              'success': false,
+              'message': 'login failed',
+            }, statusCode: 500);
+          }
+          return _defaultIntegrationResponse(options);
+        });
+        late _PausingPersistenceRepository repository;
+        final harness = await _ProductionAuthHarness.create(
+          adapter: adapter,
+          repositoryBuilder: (dioClient, storage) {
+            repository = _PausingPersistenceRepository(
+              dioClient: dioClient,
+              secureStorage: storage,
+            );
+            return repository;
+          },
+        );
+        addTearDown(harness.dispose);
+
+        final loginA = harness.notifier.login(_userA.email, 'Password1!');
+        await repository.persistenceCompleted.future;
+        final loginB = harness.notifier.login(_userB.email, 'Password1!');
+        await bRequested.future;
+        await loginB;
+        repository.releasePersistence.complete();
+        await loginA;
+
+        expect(await harness.dioClient.authSessionStore.readSession(), isNull);
+        expect(harness.container.read(authStateProvider).value, isNull);
+      },
+    );
+
+    test('failed A refresh cannot tombstone committed B', () async {
+      storagePlatform.values.addAll({
+        ApiConfig.tokenKey: 'token-a',
+        'refresh_token': 'refresh-token-a',
+        ApiConfig.userKey: jsonEncode(_userA.toJson()),
+      });
+      final refreshEntered = Completer<void>();
+      final refreshResponse = Completer<ResponseBody>();
+      var authFailureCalled = false;
+      final adapter = _RouteAdapter((options) {
+        if (options.path == '/protected') {
+          return _jsonResponseBody({
+            'success': false,
+            'message': 'expired',
+          }, statusCode: 401);
+        }
+        if (options.path == '/tokens/refresh') {
+          refreshEntered.complete();
+          return refreshResponse.future;
+        }
+        throw StateError('Unexpected request: ${options.path}');
+      });
+      final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+        ..httpClientAdapter = adapter;
+      final refreshDio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+        ..httpClientAdapter = adapter;
+      final client = DioClient(
+        secureStorage: const FlutterSecureStorage(),
+        dio: dio,
+        refreshDio: refreshDio,
+        onAuthFailure: () => authFailureCalled = true,
+      );
+
+      final request = client.get('/protected');
+      await refreshEntered.future;
+      await client.authSessionStore.commit(
+        accessToken: 'token-b',
+        refreshToken: 'refresh-token-b',
+        userJson: jsonEncode(_userB.toJson()),
+        isCurrent: () => true,
+      );
+      refreshResponse.complete(
+        _jsonResponseBody({
+          'success': false,
+          'message': 'refresh failed',
+        }, statusCode: 500),
+      );
+
+      await expectLater(request, throwsA(isA<AuthFailure>()));
+      final session = await client.authSessionStore.readSession();
+      expect(session!.accessToken, 'token-b');
+      expect(jsonDecode(session.userJson)['id'], _userB.id);
+      expect(authFailureCalled, isFalse);
+    });
+
+    test(
+      'successful A refresh is not retried with B after revision changes',
+      () async {
+        storagePlatform.values.addAll({
+          ApiConfig.tokenKey: 'token-a',
+          'refresh_token': 'refresh-token-a',
+          ApiConfig.userKey: jsonEncode(_userA.toJson()),
+        });
+        final refreshEntered = Completer<void>();
+        final refreshResponse = Completer<ResponseBody>();
+        var mutationRequests = 0;
+        final adapter = _RouteAdapter((options) {
+          if (options.path == '/mutate') {
+            mutationRequests++;
+            return _jsonResponseBody({
+              'success': false,
+              'message': 'expired',
+            }, statusCode: 401);
+          }
+          if (options.path == '/tokens/refresh') {
+            refreshEntered.complete();
+            return refreshResponse.future;
+          }
+          throw StateError('Unexpected request: ${options.path}');
+        });
+        final store = _PausingRevisionStore(const FlutterSecureStorage());
+        final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        final refreshDio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
+          ..httpClientAdapter = adapter;
+        final client = DioClient(
+          secureStorage: const FlutterSecureStorage(),
+          dio: dio,
+          refreshDio: refreshDio,
+          authSessionStore: store,
+        );
+
+        final request = client.post('/mutate', data: {'sideEffect': true});
+        await refreshEntered.future;
+        final revisionCheck = store.pauseNextRevisionCheck();
+        refreshResponse.complete(
+          _jsonResponseBody({
+            'success': true,
+            'data': {
+              'accessToken': 'refreshed-token-a',
+              'refreshToken': 'refreshed-refresh-token-a',
+            },
+          }),
+        );
+        await revisionCheck.entered.future;
+        await store.commit(
+          accessToken: 'token-b',
+          refreshToken: 'refresh-token-b',
+          userJson: jsonEncode(_userB.toJson()),
+          isCurrent: () => true,
+        );
+        revisionCheck.release.complete();
+
+        await expectLater(request, throwsA(isA<AuthFailure>()));
+        expect(mutationRequests, 1);
+        final session = await store.readSession();
+        expect(session!.accessToken, 'token-b');
+        expect(jsonDecode(session.userJson)['id'], _userB.id);
+      },
+    );
+
+    for (final corruptSession in [
+      (name: 'malformed legacy JSON', marker: null, userJson: '{not-json'),
+      (
+        name: 'active JSON without user id',
+        marker: 'active:corrupt-revision',
+        userJson: jsonEncode({'email': 'a@example.com'}),
+      ),
+    ]) {
+      test(
+        '${corruptSession.name} is rejected by restoration and Dio',
+        () async {
+          storagePlatform.values.addAll({
+            if (corruptSession.marker != null)
+              AuthSessionStore.visibilityKey: corruptSession.marker!,
+            ApiConfig.tokenKey: 'token-a',
+            'refresh_token': 'refresh-token-a',
+            ApiConfig.userKey: corruptSession.userJson,
+          });
+          String? probeAuthorization;
+          final adapter = _RouteAdapter((options) {
+            if (options.path == '/probe') {
+              probeAuthorization = options.headers['Authorization'] as String?;
+              return _jsonResponseBody({'success': true, 'data': null});
+            }
+            throw StateError('Unexpected request: ${options.path}');
+          });
+          final harness = await _ProductionAuthHarness.create(adapter: adapter);
+          addTearDown(harness.dispose);
+
+          expect(harness.container.read(authStateProvider).value, isNull);
+          await harness.dioClient.get('/probe');
+          expect(probeAuthorization, isNull);
+          expect(
+            storagePlatform.values[AuthSessionStore.visibilityKey],
+            isNot(startsWith('active:')),
+          );
+        },
+      );
+    }
+
     test('legacy activation cannot race past a logout tombstone', () async {
       storagePlatform.values.addAll({
         ApiConfig.tokenKey: 'token-a',
@@ -858,10 +1170,14 @@ class _ProductionAuthHarness {
   static Future<_ProductionAuthHarness> create({
     required HttpClientAdapter adapter,
     List<String?> pushTokens = const [],
+    List<Interceptor> preInterceptors = const [],
+    AuthRepository Function(DioClient, FlutterSecureStorage)? repositoryBuilder,
   }) async {
     final harness = createUninitialized(
       adapter: adapter,
       pushTokens: pushTokens,
+      preInterceptors: preInterceptors,
+      repositoryBuilder: repositoryBuilder,
     );
     await harness.container.read(authStateProvider.future);
     return harness;
@@ -870,15 +1186,17 @@ class _ProductionAuthHarness {
   static _ProductionAuthHarness createUninitialized({
     required HttpClientAdapter adapter,
     List<String?> pushTokens = const [],
+    List<Interceptor> preInterceptors = const [],
+    AuthRepository Function(DioClient, FlutterSecureStorage)? repositoryBuilder,
   }) {
     const storage = FlutterSecureStorage();
     final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl))
       ..httpClientAdapter = adapter;
+    dio.interceptors.addAll(preInterceptors);
     final dioClient = DioClient(secureStorage: storage, dio: dio);
-    final repository = AuthRepository(
-      dioClient: dioClient,
-      secureStorage: storage,
-    );
+    final repository =
+        repositoryBuilder?.call(dioClient, storage) ??
+        AuthRepository(dioClient: dioClient, secureStorage: storage);
     final webSocket = WebSocketService(
       channelFactory: (_, {authToken}) => _FakeWebSocketChannel(),
     );
@@ -1070,6 +1388,55 @@ class _RouteAdapter implements HttpClientAdapter {
   }
 }
 
+class _PausingRevisionStore extends AuthSessionStore {
+  // The superclass positional parameter is private to its library.
+  // ignore: use_super_parameters
+  _PausingRevisionStore(FlutterSecureStorage storage) : super(storage);
+
+  _StorageDelay? _nextRevisionCheck;
+
+  _StorageDelay pauseNextRevisionCheck() {
+    final delay = _StorageDelay();
+    _nextRevisionCheck = delay;
+    return delay;
+  }
+
+  @override
+  Future<bool> isActiveRevision(String expectedRevision) async {
+    final delay = _nextRevisionCheck;
+    if (delay != null) {
+      _nextRevisionCheck = null;
+      delay.entered.complete();
+      await delay.release.future;
+    }
+    return super.isActiveRevision(expectedRevision);
+  }
+}
+
+class _PausingPersistenceRepository extends AuthRepository {
+  _PausingPersistenceRepository({
+    required super.dioClient,
+    required super.secureStorage,
+  });
+
+  final persistenceCompleted = Completer<void>();
+  final releasePersistence = Completer<void>();
+
+  @override
+  Future<AuthPersistenceResult> persistAuthenticationWithRevision(
+    AuthResponse response, {
+    required bool Function() isCurrent,
+  }) async {
+    final result = await super.persistAuthenticationWithRevision(
+      response,
+      isCurrent: isCurrent,
+    );
+    persistenceCompleted.complete();
+    await releasePersistence.future;
+    return result;
+  }
+}
+
 class _SecureStoragePlatformFake {
   static const channel = MethodChannel(
     'plugins.it_nomads.com/flutter_secure_storage',
@@ -1082,6 +1449,9 @@ class _SecureStoragePlatformFake {
   final _failedReads = <String, int>{};
   final _failedWrites = <String, int>{};
   final _failedDeletes = <String, int>{};
+  String? _delayedWriteValueKey;
+  String? _delayedWriteValuePrefix;
+  _StorageDelay? _delayedWriteValue;
 
   _StorageDelay delayNextRead(String key) {
     final delay = _StorageDelay();
@@ -1092,6 +1462,14 @@ class _SecureStoragePlatformFake {
   _StorageDelay delayNextWrite(String key) {
     final delay = _StorageDelay();
     _delayedWrites[key] = delay;
+    return delay;
+  }
+
+  _StorageDelay delayNextWriteValue(String key, String valuePrefix) {
+    final delay = _StorageDelay();
+    _delayedWriteValueKey = key;
+    _delayedWriteValuePrefix = valuePrefix;
+    _delayedWriteValue = delay;
     return delay;
   }
 
@@ -1131,7 +1509,15 @@ class _SecureStoragePlatformFake {
           _failedWrites[key!] = remainingFailures - 1;
           throw PlatformException(code: 'write_failed', message: key);
         }
-        final delay = _delayedWrites.remove(key);
+        _StorageDelay? delay;
+        if (key == _delayedWriteValueKey &&
+            value.startsWith(_delayedWriteValuePrefix!)) {
+          delay = _delayedWriteValue;
+          _delayedWriteValueKey = null;
+          _delayedWriteValuePrefix = null;
+          _delayedWriteValue = null;
+        }
+        delay ??= _delayedWrites.remove(key);
         if (delay != null) {
           delay.entered.complete();
           await delay.release.future;

@@ -906,13 +906,19 @@ class AuthState extends _$AuthState {
     required int generation,
   }) {
     return _scheduleSessionOperation(generation, () async {
-      final committed = await ref
-          .read(authRepositoryProvider)
-          .persistAuthentication(
-            response,
-            isCurrent: () => _isCurrentSession(generation),
-          );
-      if (!committed || !_isCurrentSession(generation)) return;
+      final repository = ref.read(authRepositoryProvider);
+      final persistence = await repository.persistAuthenticationWithRevision(
+        response,
+        isCurrent: () => _isCurrentSession(generation),
+      );
+      if (!persistence.committed) return;
+      if (!_isCurrentSession(generation)) {
+        final revision = persistence.revision;
+        if (revision != null) {
+          await repository.invalidateAuthenticationRevision(revision);
+        }
+        return;
+      }
       await _performAuthenticatedSessionBootstrap(
         response.user,
         generation: generation,

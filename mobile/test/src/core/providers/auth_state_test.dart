@@ -692,11 +692,11 @@ class _FakeAuthRepository extends AuthRepository {
   }
 
   @override
-  Future<bool> persistAuthentication(
+  Future<AuthPersistenceResult> persistAuthenticationWithRevision(
     AuthResponse response, {
     required bool Function() isCurrent,
   }) async {
-    return isCurrent();
+    return AuthPersistenceResult(committed: isCurrent(), revision: null);
   }
 
   @override

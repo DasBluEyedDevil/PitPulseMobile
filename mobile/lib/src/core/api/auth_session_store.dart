@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -30,6 +31,12 @@ class AuthSessionInvalidationResult {
   final Set<String> failedKeys;
 
   bool get hasResidualCredentials => failedKeys.isNotEmpty;
+}
+
+class AuthSessionCommitResult {
+  const AuthSessionCommitResult(this.revision);
+
+  final String revision;
 }
 
 /// Provides atomic visibility for the secure-storage authentication tuple.
@@ -65,12 +72,17 @@ class AuthSessionStore {
       final markerAfter = await _storage.read(key: visibilityKey);
       if (markerAfter != markerBefore) return null;
 
-      return _completeSession(
-        revision: markerBefore.substring('active:'.length),
+      final revision = markerBefore.substring('active:'.length);
+      final session = _completeSession(
+        revision: revision,
         accessToken: accessToken,
         refreshToken: refreshToken,
         userJson: userJson,
       );
+      if (session == null) {
+        await _hideCorruptActiveRevision(revision);
+      }
+      return session;
     } catch (_) {
       return null;
     }
@@ -88,7 +100,7 @@ class AuthSessionStore {
     return (await readSession())?.userJson;
   }
 
-  Future<bool> commit({
+  Future<AuthSessionCommitResult?> commit({
     required String accessToken,
     required String? refreshToken,
     required String userJson,
@@ -96,69 +108,80 @@ class AuthSessionStore {
     String? expectedRevision,
   }) {
     return _serializeWrite(() async {
-      if (!isCurrent()) return false;
+      if (!isCurrent()) return null;
       if (expectedRevision != null) {
         final activeMarker = await _storage.read(key: visibilityKey);
-        if (activeMarker != 'active:$expectedRevision') return false;
+        if (activeMarker != 'active:$expectedRevision') return null;
       }
       final revision = _nextRevision();
       await _storage.write(key: visibilityKey, value: 'committing:$revision');
       if (!isCurrent()) {
-        await _clearStaleRawTuple();
-        return false;
+        await _hideSupersededRevision(revision);
+        return null;
       }
 
       await _storage.write(key: ApiConfig.tokenKey, value: accessToken);
       if (!isCurrent()) {
-        await _clearStaleRawTuple();
-        return false;
+        await _hideSupersededRevision(revision);
+        return null;
       }
 
       // An empty value is the canonical representation of a missing optional
       // refresh token, preventing an older token from surviving a new commit.
       await _storage.write(key: refreshTokenKey, value: refreshToken ?? '');
       if (!isCurrent()) {
-        await _clearStaleRawTuple();
-        return false;
+        await _hideSupersededRevision(revision);
+        return null;
       }
 
       await _storage.write(key: ApiConfig.userKey, value: userJson);
       if (!isCurrent()) {
-        await _clearStaleRawTuple();
-        return false;
+        await _hideSupersededRevision(revision);
+        return null;
       }
 
       await _storage.write(key: visibilityKey, value: 'active:$revision');
-      return isCurrent();
+      if (!isCurrent()) {
+        await _hideSupersededRevision(revision);
+        return null;
+      }
+      return AuthSessionCommitResult(revision);
     });
   }
 
-  Future<bool> updateTokens({
+  Future<StoredAuthSession?> updateTokens({
     required String accessToken,
     required String? refreshToken,
     required String expectedRevision,
   }) async {
     final current = await readSession();
-    if (current == null || current.revision != expectedRevision) return false;
-    return commit(
+    if (current == null || current.revision != expectedRevision) return null;
+    final committed = await commit(
       accessToken: accessToken,
       refreshToken: refreshToken,
       userJson: current.userJson,
       isCurrent: () => true,
       expectedRevision: expectedRevision,
     );
+    if (committed == null) return null;
+    final updated = await readSession();
+    return updated?.revision == committed.revision ? updated : null;
   }
 
-  Future<bool> updateUserJson(String userJson) async {
+  Future<bool> updateUserJson(
+    String userJson, {
+    required String expectedRevision,
+  }) async {
     final current = await readSession();
-    if (current == null) return false;
-    return commit(
+    if (current == null || current.revision != expectedRevision) return false;
+    final committed = await commit(
       accessToken: current.accessToken,
       refreshToken: current.refreshToken,
       userJson: userJson,
       isCurrent: () => true,
-      expectedRevision: current.revision,
+      expectedRevision: expectedRevision,
     );
+    return committed != null;
   }
 
   /// Durably invalidates the session before attempting recoverable raw cleanup.
@@ -173,6 +196,29 @@ class AuthSessionStore {
       );
       return AuthSessionInvalidationResult(await _deleteRawTuple());
     });
+  }
+
+  Future<AuthSessionInvalidationResult?> invalidateIfActiveRevision(
+    String expectedRevision,
+  ) {
+    return _serializeWrite(() async {
+      final marker = await _storage.read(key: visibilityKey);
+      if (marker != 'active:$expectedRevision') return null;
+      await _storage.write(
+        key: visibilityKey,
+        value: 'loggedOut:${_nextRevision()}',
+      );
+      return AuthSessionInvalidationResult(await _deleteRawTuple());
+    });
+  }
+
+  Future<bool> isActiveRevision(String expectedRevision) async {
+    try {
+      return await _storage.read(key: visibilityKey) ==
+          'active:$expectedRevision';
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<AuthSessionInvalidationResult> retryResidualCleanup() {
@@ -218,8 +264,7 @@ class AuthSessionStore {
   }) {
     if (accessToken == null ||
         accessToken.isEmpty ||
-        userJson == null ||
-        userJson.isEmpty) {
+        !_isValidUserJson(userJson)) {
       return null;
     }
     return StoredAuthSession(
@@ -228,15 +273,54 @@ class AuthSessionStore {
       refreshToken: refreshToken == null || refreshToken.isEmpty
           ? null
           : refreshToken,
-      userJson: userJson,
+      userJson: userJson!,
     );
   }
 
   bool _isComplete({required String? accessToken, required String? userJson}) {
     return accessToken != null &&
         accessToken.isNotEmpty &&
-        userJson != null &&
-        userJson.isNotEmpty;
+        _isValidUserJson(userJson);
+  }
+
+  bool _isValidUserJson(String? userJson) {
+    if (userJson == null || userJson.isEmpty) return false;
+    try {
+      final decoded = jsonDecode(userJson);
+      if (decoded is! Map<String, dynamic>) return false;
+      for (final key in ['id', 'email', 'username', 'createdAt', 'updatedAt']) {
+        final value = decoded[key];
+        if (value is! String || value.trim().isEmpty) return false;
+      }
+      if (decoded['isVerified'] is! bool || decoded['isActive'] is! bool) {
+        return false;
+      }
+      for (final key in [
+        'firstName',
+        'lastName',
+        'bio',
+        'profileImageUrl',
+        'location',
+        'dateOfBirth',
+      ]) {
+        final value = decoded[key];
+        if (value != null && value is! String) return false;
+      }
+      for (final key in [
+        'totalCheckins',
+        'uniqueBands',
+        'uniqueVenues',
+        'followersCount',
+        'followingCount',
+        'badgesCount',
+      ]) {
+        final value = decoded[key];
+        if (value != null && value is! num) return false;
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   bool _isActive(String marker) {
@@ -265,8 +349,21 @@ class AuthSessionStore {
     return failures;
   }
 
-  Future<void> _clearStaleRawTuple() async {
-    await _deleteRawTuple();
+  Future<void> _hideSupersededRevision(String revision) async {
+    final marker = await _storage.read(key: visibilityKey);
+    if (marker == 'committing:$revision' || marker == 'active:$revision') {
+      await _storage.write(key: visibilityKey, value: 'superseded:$revision');
+      await _deleteRawTuple();
+    }
+  }
+
+  Future<void> _hideCorruptActiveRevision(String revision) {
+    return _serializeWrite(() async {
+      final marker = await _storage.read(key: visibilityKey);
+      if (marker != 'active:$revision') return;
+      await _storage.write(key: visibilityKey, value: 'corrupt:$revision');
+      await _deleteRawTuple();
+    });
   }
 
   Future<T> _serializeWrite<T>(Future<T> Function() operation) async {
