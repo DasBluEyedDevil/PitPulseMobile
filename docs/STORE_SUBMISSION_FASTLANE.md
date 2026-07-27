@@ -105,6 +105,17 @@ Run the metadata/screenshot sanity check:
 npm run fastlane:check
 ```
 
+The screenshot gate stays closed until `inventory.json` records hashes and
+device metadata for five Android and five corresponding iOS captures from the
+same signed candidate. For a ready inventory, provide independently collected
+values through `SOUNDCHECK_RELEASE_CANDIDATE_SHA`,
+`SOUNDCHECK_ANDROID_RELEASE_ARTIFACT_SHA256`,
+`SOUNDCHECK_ANDROID_VERIFIED_APP_SIGNING_SHA256`,
+`SOUNDCHECK_IOS_RELEASE_ARTIFACT_SHA256`, and
+`SOUNDCHECK_IOS_SIGNING_CERTIFICATE_SHA256`. The check binds the inventory,
+each PNG, both signed artifacts, and both signing identities to those external
+values; inventory booleans alone are not accepted as evidence.
+
 The Android `screenshots` lane copies curated screenshots into the Play metadata folder before upload. The Android `capture_store_screenshots` lane builds the debug and AndroidTest APKs, then runs screengrab against the baseline screenshot test.
 
 The iOS `screenshots` lane copies curated screenshots into `mobile/ios/fastlane/screenshots/en-US/`. The iOS `capture_store_screenshots` lane runs Fastlane snapshot on macOS; it is ready for a native XCUITest screenshot target when one is added.

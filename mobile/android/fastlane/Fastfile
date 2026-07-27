@@ -85,6 +85,10 @@ def from_mobile_root(command)
   end
 end
 
+def verify_store_assets!
+  from_mobile_root("node ../scripts/check-fastlane-store-assets.mjs")
+end
+
 def play_credentials_options
   options = {}
   options[:json_key] = ENV["SUPPLY_JSON_KEY_FILE"] if ENV["SUPPLY_JSON_KEY_FILE"].to_s.strip.length > 0
@@ -128,6 +132,7 @@ platform :android do
 
   desc "Copy curated Android screenshots into Fastlane Play metadata"
   lane :screenshots do
+    verify_store_assets!
     copy_curated_android_screenshots
   end
 
