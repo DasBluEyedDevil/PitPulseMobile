@@ -195,6 +195,7 @@ describe('EventService', () => {
         expect.stringContaining('event_date >= CURRENT_DATE'),
         ['venue-123', 50]
       );
+      expect(mockDb.query.mock.calls[0][0]).toContain('is_cancelled = FALSE');
     });
 
     it('should include past events when upcoming is false', async () => {
@@ -204,6 +205,7 @@ describe('EventService', () => {
 
       const [query] = mockDb.query.mock.calls[0];
       expect(query).not.toContain('event_date >= CURRENT_DATE');
+      expect(query).toContain('is_cancelled = FALSE');
     });
 
     it('should use default options', async () => {
@@ -254,6 +256,7 @@ describe('EventService', () => {
       const [query] = mockDb.query.mock.calls[0];
       expect(query).toContain('el.band_id = $1');
       expect(query).toContain('JOIN event_lineup el');
+      expect(query).toContain('is_cancelled = FALSE');
     });
   });
 
@@ -305,7 +308,7 @@ describe('EventService', () => {
       expect(mockClient.release).toHaveBeenCalled();
     });
 
-    it('should return existing event if venue+band+date combination exists', async () => {
+    it('should return existing live event if venue+band+date combination exists', async () => {
       const eventData = {
         venueId: 'venue-123',
         bandId: 'band-1',
@@ -326,6 +329,40 @@ describe('EventService', () => {
 
       expect(result.id).toBe('event-existing');
       expect(mockDb.getClient).not.toHaveBeenCalled(); // No transaction needed
+      expect(mockDb.query.mock.calls[0][0]).toContain("status IS DISTINCT FROM 'cancelled'");
+    });
+
+    it('does not treat a cancelled event as an existing venue+band+date match', async () => {
+      const eventData = {
+        venueId: 'venue-123',
+        bandId: 'band-1',
+        eventDate: new Date('2024-08-01'),
+      };
+
+      const mockCreatedEvent = {
+        id: 'event-new',
+        venue_id: 'venue-123',
+        event_date: '2024-08-01',
+      };
+
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [mockCreatedEvent] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ checkin_count: '0' }] });
+
+      mockDb.getClient.mockResolvedValueOnce(mockClient);
+      mockClient.query
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({ rows: [mockCreatedEvent] })
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({});
+
+      const result = await eventService.createEvent(eventData);
+
+      expect(result.id).toBe('event-new');
+      expect(mockDb.getClient).toHaveBeenCalled();
+      expect(mockDb.query.mock.calls[0][0]).toContain("status IS DISTINCT FROM 'cancelled'");
     });
 
     it('should handle transaction rollback on error', async () => {
@@ -383,6 +420,7 @@ describe('EventService', () => {
       );
 
       expect(result).toBe('event-existing');
+      expect(mockDb.query.mock.calls[0][0]).toContain("status IS DISTINCT FROM 'cancelled'");
     });
 
     it('should add band to existing event at venue+date', async () => {
@@ -469,22 +507,163 @@ describe('EventService', () => {
 
       const [query] = mockDb.query.mock.calls[0];
       expect(query).toContain('is_hidden IS NOT TRUE');
+      expect(query).toContain('is_cancelled = FALSE');
     });
   });
 
   describe('deleteEvent', () => {
-    it('should delete event successfully', async () => {
-      mockDb.query.mockResolvedValueOnce({ rowCount: 1 });
+    const actor = { id: 'user-a', isAdmin: false };
 
-      await eventService.deleteEvent('event-123');
+    const setupClient = (impl: (sql: string, params?: unknown[]) => Promise<unknown> | unknown) => {
+      mockDb.getClient.mockResolvedValue(mockClient);
+      mockClient.query.mockImplementation(async (sql: string, params?: unknown[]) =>
+        impl(sql, params)
+      );
+    };
 
-      expect(mockDb.query).toHaveBeenCalledWith('DELETE FROM events WHERE id = $1', ['event-123']);
+    it('hard-deletes an unattended event for the creator', async () => {
+      setupClient(async (sql: string) => {
+        if (
+          sql === 'BEGIN' ||
+          sql === 'COMMIT' ||
+          sql === 'ROLLBACK' ||
+          sql.includes('SAVEPOINT')
+        ) {
+          return {};
+        }
+        if (sql.includes('FOR UPDATE')) {
+          return { rows: [{ id: 'event-123', created_by_user_id: 'user-a', status: 'active' }] };
+        }
+        if (sql.includes('FROM checkins')) {
+          return { rows: [] };
+        }
+        if (sql.includes('DELETE FROM events')) {
+          return { rowCount: 1 };
+        }
+        throw new Error(`Unexpected query: ${sql}`);
+      });
+
+      const result = await eventService.deleteEvent('event-123', actor);
+
+      expect(result).toEqual({ deleted: true, cancelled: false });
+      expect(mockClient.query).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM events'), [
+        'event-123',
+        'user-a',
+        false,
+      ]);
+      expect(mockClient.query).toHaveBeenCalledWith(expect.stringContaining('FOR UPDATE'), [
+        'event-123',
+      ]);
+    });
+
+    it('cancels when user B has checked in and does not delete the event', async () => {
+      const sqls: string[] = [];
+      setupClient(async (sql: string) => {
+        sqls.push(sql);
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return {};
+        }
+        if (sql.includes('FOR UPDATE')) {
+          return { rows: [{ id: 'event-123', created_by_user_id: 'user-a', status: 'active' }] };
+        }
+        if (sql.includes('FROM checkins')) {
+          return { rows: [{ '?column?': 1 }] };
+        }
+        if (sql.includes("status = 'cancelled'")) {
+          return { rowCount: 1 };
+        }
+        throw new Error(`Unexpected query: ${sql}`);
+      });
+
+      const result = await eventService.deleteEvent('event-123', actor);
+
+      expect(result).toEqual({ deleted: false, cancelled: true });
+      expect(sqls.some((sql) => sql.includes('DELETE FROM events'))).toBe(false);
+      expect(sqls.some((sql) => sql.includes("status = 'cancelled'"))).toBe(true);
+      expect(sqls.some((sql) => sql.includes('#cancelled#'))).toBe(true);
+    });
+
+    it('cancels in the same request when RESTRICT races a check-in insert', async () => {
+      setupClient(async (sql: string) => {
+        if (
+          sql === 'BEGIN' ||
+          sql === 'COMMIT' ||
+          sql === 'ROLLBACK' ||
+          sql.includes('SAVEPOINT')
+        ) {
+          return {};
+        }
+        if (sql.includes('FOR UPDATE')) {
+          return { rows: [{ id: 'event-123', created_by_user_id: 'user-a', status: 'active' }] };
+        }
+        if (sql.includes('FROM checkins')) {
+          return { rows: [] };
+        }
+        if (sql.includes('DELETE FROM events')) {
+          const err = Object.assign(new Error('fk restrict'), { code: '23503' });
+          throw err;
+        }
+        if (sql.includes("status = 'cancelled'")) {
+          return { rowCount: 1 };
+        }
+        throw new Error(`Unexpected query: ${sql}`);
+      });
+
+      const result = await eventService.deleteEvent('event-123', actor);
+
+      expect(result).toEqual({ deleted: false, cancelled: true });
+      expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK TO SAVEPOINT event_delete');
+    });
+
+    it('returns 409 when RESTRICT fires and cancel also fails', async () => {
+      setupClient(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql.includes('SAVEPOINT')) {
+          return {};
+        }
+        if (sql.includes('FOR UPDATE')) {
+          return { rows: [{ id: 'event-123', created_by_user_id: 'user-a', status: 'active' }] };
+        }
+        if (sql.includes('FROM checkins')) {
+          return { rows: [] };
+        }
+        if (sql.includes('DELETE FROM events')) {
+          throw Object.assign(new Error('fk restrict'), { code: '23503' });
+        }
+        if (sql.includes("status = 'cancelled'")) {
+          throw new Error('cancel failed');
+        }
+        throw new Error(`Unexpected query: ${sql}`);
+      });
+
+      await expect(eventService.deleteEvent('event-123', actor)).rejects.toMatchObject({
+        message: 'Event could not be deleted or cancelled',
+        statusCode: 409,
+      });
+    });
+
+    it('forbids delete by a non-creator non-admin', async () => {
+      setupClient(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK') {
+          return {};
+        }
+        if (sql.includes('FOR UPDATE')) {
+          return { rows: [{ id: 'event-123', created_by_user_id: 'user-b', status: 'active' }] };
+        }
+        throw new Error(`Unexpected query: ${sql}`);
+      });
+
+      await expect(eventService.deleteEvent('event-123', actor)).rejects.toMatchObject({
+        statusCode: 403,
+      });
+      expect(mockClient.query.mock.calls.some(([sql]) => sql.includes('DELETE FROM events'))).toBe(
+        false
+      );
     });
 
     it('should handle database errors', async () => {
-      mockDb.query.mockRejectedValueOnce(new Error('Delete failed'));
+      mockDb.getClient.mockRejectedValueOnce(new Error('Delete failed'));
 
-      await expect(eventService.deleteEvent('event-123')).rejects.toThrow('Delete failed');
+      await expect(eventService.deleteEvent('event-123', actor)).rejects.toThrow('Delete failed');
     });
   });
 
@@ -495,6 +674,8 @@ describe('EventService', () => {
       const result = await eventService.findUserCreatedEventAtVenueDate('venue-123', '2024-08-01');
 
       expect(result).toBe('event-user');
+      expect(mockDb.query.mock.calls[0][0]).toContain("status IS DISTINCT FROM 'cancelled'");
+      expect(mockDb.query.mock.calls[0][0]).toContain('ORDER BY created_at DESC');
     });
 
     it('should return null when no user-created event exists', async () => {
@@ -532,7 +713,7 @@ describe('EventService', () => {
     it('should merge Ticketmaster data into user event', async () => {
       mockDb.query.mockResolvedValueOnce({ rowCount: 1 });
 
-      await eventService.mergeTicketmasterIntoUserEvent('event-123', {
+      const merged = await eventService.mergeTicketmasterIntoUserEvent('event-123', {
         externalId: 'tm-456',
         eventName: 'TM Event Name',
         ticketUrl: 'https://ticketmaster.com',
@@ -541,6 +722,7 @@ describe('EventService', () => {
         status: 'on_sale',
       });
 
+      expect(merged).toBe(true);
       expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE events'), [
         'event-123',
         'tm-456',
@@ -550,6 +732,17 @@ describe('EventService', () => {
         80,
         'on_sale',
       ]);
+      expect(mockDb.query.mock.calls[0][0]).toContain("status IS DISTINCT FROM 'cancelled'");
+    });
+
+    it('does not merge into a cancelled event', async () => {
+      mockDb.query.mockResolvedValueOnce({ rowCount: 0 });
+
+      const merged = await eventService.mergeTicketmasterIntoUserEvent('event-cancelled', {
+        externalId: 'tm-456',
+      });
+
+      expect(merged).toBe(false);
     });
   });
 

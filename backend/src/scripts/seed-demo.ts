@@ -150,14 +150,12 @@ async function seedAccount(
     eventDate.setDate(eventDate.getDate() - ev.daysAgo);
     const dateStr = eventDate.toISOString().split('T')[0];
 
-    // DI-015: ON CONFLICT now works correctly with the idx_events_user_dedup
-    // partial unique index added in migration 047. The index covers
-    // (venue_id, event_date, event_name, created_by_user_id) WHERE source = 'user_created'.
+    // DI-015: ON CONFLICT matches idx_events_user_dedup (047, predicate extended in 063).
     const result = await db.query(
       `INSERT INTO events (venue_id, event_date, event_name, source, is_verified, created_by_user_id)
        VALUES ($1, $2, $3, 'user_created', true, $4)
        ON CONFLICT (venue_id, event_date, event_name, created_by_user_id)
-         WHERE source = 'user_created'
+         WHERE source = 'user_created' AND status IS DISTINCT FROM 'cancelled'
        DO NOTHING
        RETURNING id`,
       [venues[venueIdx].id, dateStr, ev.name, userId]

@@ -388,19 +388,38 @@ describe('EventController mobile contract', () => {
   });
 
   it.each([
-    [{ id: 'user-1' }, 'user-1'],
-    [{ id: 'admin-1', isAdmin: true }, 'user-2'],
-  ])('allows event deletion by the creator or an administrator', async (user, creatorId) => {
+    [{ id: 'user-1' }, 'user-1', { id: 'user-1', isAdmin: false }],
+    [{ id: 'admin-1', isAdmin: true }, 'user-2', { id: 'admin-1', isAdmin: true }],
+  ])('allows event deletion by the creator or an administrator', async (user, creatorId, actor) => {
     eventService.getEventById.mockResolvedValue({ ...event, createdByUserId: creatorId });
-    eventService.deleteEvent.mockResolvedValue(undefined);
+    eventService.deleteEvent.mockResolvedValue({ deleted: true, cancelled: false });
 
     const response = await request(createApp(user)).delete('/events/event-1');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       success: true,
+      data: { deleted: true, cancelled: false },
       message: 'Event deleted successfully',
     });
-    expect(eventService.deleteEvent).toHaveBeenCalledWith('event-1');
+    expect(eventService.deleteEvent).toHaveBeenCalledWith('event-1', actor);
+  });
+
+  it('returns cancelled:true when attendee check-ins are preserved', async () => {
+    eventService.getEventById.mockResolvedValue({ ...event, createdByUserId: 'user-1' });
+    eventService.deleteEvent.mockResolvedValue({ deleted: false, cancelled: true });
+
+    const response = await request(createApp({ id: 'user-1' })).delete('/events/event-1');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      success: true,
+      data: { deleted: false, cancelled: true },
+      message: 'Event cancelled',
+    });
+    expect(eventService.deleteEvent).toHaveBeenCalledWith('event-1', {
+      id: 'user-1',
+      isAdmin: false,
+    });
   });
 });
