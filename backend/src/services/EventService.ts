@@ -1,7 +1,20 @@
+import { PoolClient } from 'pg';
+
 import Database from '../config/database';
 import { Event, EventLineupEntry } from '../types';
 import { cache, CacheKeys, CacheTTL } from '../utils/cache';
+import { AppError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors';
 import logger from '../utils/logger';
+
+interface DeleteEventActor {
+  id: string;
+  isAdmin: boolean;
+}
+
+interface DeleteEventResult {
+  deleted: boolean;
+  cancelled: boolean;
+}
 
 interface CreateEventRequest {
   venueId: string;
@@ -68,7 +81,10 @@ export class EventService {
         const existingEvent = await this.db.query(
           `SELECT e.id FROM events e
            JOIN event_lineup el ON e.id = el.event_id
-           WHERE e.venue_id = $1 AND el.band_id = $2 AND e.event_date = $3`,
+           WHERE e.venue_id = $1 AND el.band_id = $2 AND e.event_date = $3
+             AND e.status IS DISTINCT FROM 'cancelled'
+           ORDER BY e.created_at DESC
+           LIMIT 1`,
           [venueId, bandId, eventDate]
         );
 
@@ -212,7 +228,7 @@ export class EventService {
     try {
       const { upcoming = true, limit = 50 } = options;
 
-      let whereClause = 'WHERE e.venue_id = $1';
+      let whereClause = 'WHERE e.venue_id = $1 AND e.is_cancelled = FALSE';
       if (upcoming) {
         whereClause += ' AND e.event_date >= CURRENT_DATE';
       }
@@ -252,7 +268,7 @@ export class EventService {
     try {
       const { upcoming = true, limit = 50 } = options;
 
-      let whereClause = 'WHERE el.band_id = $1';
+      let whereClause = 'WHERE el.band_id = $1 AND e.is_cancelled = FALSE';
       if (upcoming) {
         whereClause += ' AND e.event_date >= CURRENT_DATE';
       }
@@ -327,6 +343,7 @@ export class EventService {
         FROM events e
         LEFT JOIN venues v ON e.venue_id = v.id
         WHERE e.event_date >= CURRENT_DATE - INTERVAL '30 days'
+          AND e.is_cancelled = FALSE
         ORDER BY checkin_count DESC, e.event_date DESC
         LIMIT $1
       `;
@@ -344,17 +361,102 @@ export class EventService {
   }
 
   /**
-   * Delete an event (CASCADE handles lineup entries)
+   * Delete an unattended event, or cancel it when check-ins exist.
+   * Actor is enforced in SQL; RESTRICT on checkins.event_id is the backstop.
    */
-  async deleteEvent(eventId: string): Promise<void> {
+  async deleteEvent(eventId: string, actor: DeleteEventActor): Promise<DeleteEventResult> {
     try {
-      await this.db.query('DELETE FROM events WHERE id = $1', [eventId]);
+      const client = await this.db.getClient();
+      try {
+        await client.query('BEGIN');
+
+        const eventResult = await client.query(
+          `SELECT id, created_by_user_id, status
+             FROM events WHERE id = $1 FOR UPDATE`,
+          [eventId]
+        );
+
+        if (eventResult.rows.length === 0) {
+          throw new NotFoundError('Event not found');
+        }
+
+        const event = eventResult.rows[0];
+        if (!actor.isAdmin && event.created_by_user_id !== actor.id) {
+          throw new ForbiddenError('Only admins or event creators can delete this event');
+        }
+
+        const checkinExists = await client.query(
+          `SELECT 1 FROM checkins WHERE event_id = $1 LIMIT 1`,
+          [eventId]
+        );
+
+        if (checkinExists.rows.length > 0) {
+          await this.cancelEventPreservingCheckins(client, eventId, actor);
+          await client.query('COMMIT');
+          return { deleted: false, cancelled: true };
+        }
+
+        await client.query('SAVEPOINT event_delete');
+        try {
+          await client.query(
+            `DELETE FROM events
+              WHERE id = $1 AND (created_by_user_id = $2 OR $3::boolean)`,
+            [eventId, actor.id, actor.isAdmin]
+          );
+        } catch (deleteErr: unknown) {
+          if (isPgErrorCode(deleteErr, '23503')) {
+            await client.query('ROLLBACK TO SAVEPOINT event_delete');
+            try {
+              await this.cancelEventPreservingCheckins(client, eventId, actor);
+            } catch {
+              throw new ConflictError('Event could not be deleted or cancelled');
+            }
+            await client.query('COMMIT');
+            return { deleted: false, cancelled: true };
+          }
+          throw deleteErr;
+        }
+
+        await client.query('COMMIT');
+        return { deleted: true, cancelled: false };
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
       logger.error('Delete event error', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });
       throw error;
+    }
+  }
+
+  private async cancelEventPreservingCheckins(
+    client: PoolClient,
+    eventId: string,
+    actor: DeleteEventActor
+  ): Promise<void> {
+    const result = await client.query(
+      `UPDATE events SET
+        status = 'cancelled',
+        updated_at = CURRENT_TIMESTAMP,
+        external_id = CASE
+          WHEN external_id IS NOT NULL
+           AND position('#cancelled#' in external_id) = 0
+          THEN external_id || '#cancelled#' || id::text
+          ELSE external_id
+        END
+       WHERE id = $1 AND (created_by_user_id = $2 OR $3::boolean)`,
+      [eventId, actor.id, actor.isAdmin]
+    );
+    if ((result.rowCount ?? 0) === 0) {
+      throw new ConflictError('Event could not be cancelled');
     }
   }
 
@@ -371,7 +473,10 @@ export class EventService {
       const existing = await this.db.query(
         `SELECT e.id FROM events e
          JOIN event_lineup el ON e.id = el.event_id
-         WHERE e.venue_id = $1 AND el.band_id = $2 AND e.event_date = $3`,
+         WHERE e.venue_id = $1 AND el.band_id = $2 AND e.event_date = $3
+           AND e.status IS DISTINCT FROM 'cancelled'
+         ORDER BY e.created_at DESC
+         LIMIT 1`,
         [venueId, bandId, eventDate]
       );
 
@@ -384,6 +489,8 @@ export class EventService {
       const eventAtVenueDate = await this.db.query(
         `SELECT id FROM events
          WHERE venue_id = $1 AND event_date = $2
+           AND status IS DISTINCT FROM 'cancelled'
+         ORDER BY created_at DESC
          LIMIT 1`,
         [venueId, eventDate]
       );
@@ -459,6 +566,8 @@ export class EventService {
            AND event_date::date = $2::date
            AND source = 'user_created'
            AND external_id IS NULL
+           AND status IS DISTINCT FROM 'cancelled'
+         ORDER BY created_at DESC
          LIMIT 1`,
         [venueId, eventDate]
       );
@@ -524,9 +633,9 @@ export class EventService {
       priceMax?: number | null;
       status?: string;
     }
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
-      await this.db.query(
+      const result = await this.db.query(
         `UPDATE events SET
           external_id = $2,
           source = 'ticketmaster',
@@ -534,10 +643,15 @@ export class EventService {
           ticket_url = COALESCE($4, ticket_url),
           ticket_price_min = COALESCE($5, ticket_price_min),
           ticket_price_max = COALESCE($6, ticket_price_max),
-          status = COALESCE($7, status),
+          status = CASE
+            WHEN events.status = 'cancelled'
+             AND EXISTS (SELECT 1 FROM checkins c WHERE c.event_id = events.id)
+            THEN events.status
+            ELSE COALESCE($7, status)
+          END,
           is_verified = true,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1`,
+        WHERE id = $1 AND status IS DISTINCT FROM 'cancelled'`,
         [
           userEventId,
           tmData.externalId,
@@ -548,6 +662,7 @@ export class EventService {
           tmData.status || null,
         ]
       );
+      return (result.rowCount ?? 0) > 0;
     } catch (error) {
       logger.error('Merge Ticketmaster into user event error', {
         error: error instanceof Error ? error.message : String(error),
@@ -959,4 +1074,13 @@ export class EventService {
       showDate: row.event_date,
     };
   }
+}
+
+function isPgErrorCode(error: unknown, code: string): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === code
+  );
 }

@@ -219,6 +219,7 @@ describe('EventSyncOrchestrator provider and idempotency behavior', () => {
     const normalizedEvent = makeEvent();
     regionSync.ingestSingleEvent.mockResolvedValue(normalizedEvent);
     eventService.findUserCreatedEventAtVenueDate.mockResolvedValue('user-event-1');
+    eventService.mergeTicketmasterIntoUserEvent.mockResolvedValue(true);
     mockQuery.mockResolvedValue({ rows: [], rowCount: 1 });
 
     const eventId = await orchestrator.ingestSingleEvent({ id: 'raw-tm-event' });
@@ -239,6 +240,67 @@ describe('EventSyncOrchestrator provider and idempotency behavior', () => {
       true,
     ]);
     expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO events'))).toBe(false);
+  });
+
+  it('falls through to upsert when merge hits a cancelled target', async () => {
+    const { orchestrator, regionSync, eventService } = createDependencies();
+    regionSync.ingestSingleEvent.mockResolvedValue(makeEvent());
+    eventService.findUserCreatedEventAtVenueDate.mockResolvedValue('user-event-cancelled');
+    eventService.mergeTicketmasterIntoUserEvent.mockResolvedValue(false);
+    mockQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes('SELECT id, status FROM events')) return { rows: [] };
+      if (sql.includes('INSERT INTO events')) {
+        return { rows: [{ id: 'event-live', is_new: true }] };
+      }
+      if (sql.includes('INSERT INTO event_lineup')) return { rows: [], rowCount: 1 };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    await expect(orchestrator.ingestSingleEvent({ id: 'raw' })).resolves.toBe('event-live');
+    expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO events'))).toBe(true);
+  });
+
+  it('falls through to upsert when merge unique-violates', async () => {
+    const { orchestrator, regionSync, eventService } = createDependencies();
+    regionSync.ingestSingleEvent.mockResolvedValue(makeEvent());
+    eventService.findUserCreatedEventAtVenueDate.mockResolvedValue('user-event-1');
+    eventService.mergeTicketmasterIntoUserEvent.mockRejectedValue(
+      Object.assign(new Error('unique_violation'), { code: '23505' })
+    );
+    mockQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes('SELECT id, status FROM events')) return { rows: [] };
+      if (sql.includes('INSERT INTO events')) {
+        return { rows: [{ id: 'event-live', is_new: true }] };
+      }
+      if (sql.includes('INSERT INTO event_lineup')) return { rows: [], rowCount: 1 };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    await expect(orchestrator.ingestSingleEvent({ id: 'raw' })).resolves.toBe('event-live');
+  });
+
+  it('does not apply provider status onto a cancelled attended event', async () => {
+    const { orchestrator, regionSync } = createDependencies();
+    regionSync.ingestSingleEvent.mockResolvedValue(makeEvent({ status: 'active' }));
+    mockQuery.mockImplementation(async (sql: string) => {
+      if (sql.includes('SELECT id, status FROM events')) {
+        return { rows: [{ id: 'event-1', status: 'cancelled' }] };
+      }
+      if (sql.includes('INSERT INTO events')) {
+        return { rows: [{ id: 'event-1', is_new: false }] };
+      }
+      if (sql.includes('INSERT INTO event_lineup')) return { rows: [], rowCount: 1 };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    await expect(orchestrator.ingestSingleEvent({ id: 'raw' })).resolves.toBe('event-1');
+
+    const upsertSql = mockQuery.mock.calls.find(([sql]) =>
+      sql.includes('INSERT INTO events')
+    )?.[0] as string;
+    expect(upsertSql).toContain("WHEN events.status = 'cancelled'");
+    expect(upsertSql).toContain('EXISTS (SELECT 1 FROM checkins');
+    expect(upsertSql).toContain('ELSE EXCLUDED.status');
   });
 
   it('returns null when a single provider event cannot be normalized', async () => {

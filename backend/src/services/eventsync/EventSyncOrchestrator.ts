@@ -218,36 +218,54 @@ export class EventSyncOrchestrator {
       event.date
     );
     if (existingUserEvent) {
-      await this.eventService.mergeTicketmasterIntoUserEvent(existingUserEvent, {
-        externalId: event.externalId,
-        eventName: event.name,
-        ticketUrl: event.ticketUrl,
-        priceMin: event.priceMin,
-        priceMax: event.priceMax,
-        status: event.status,
-      });
+      let merged = false;
+      try {
+        merged = await this.eventService.mergeTicketmasterIntoUserEvent(existingUserEvent, {
+          externalId: event.externalId,
+          eventName: event.name,
+          ticketUrl: event.ticketUrl,
+          priceMin: event.priceMin,
+          priceMax: event.priceMax,
+          status: event.status,
+        });
+      } catch (mergeErr: unknown) {
+        if (isPgErrorCode(mergeErr, '23505')) {
+          logger.warn('[EventSyncOrchestrator] Merge unique violation; falling through to upsert', {
+            userEventId: existingUserEvent,
+            externalId: event.externalId,
+            error: mergeErr instanceof Error ? mergeErr.message : String(mergeErr),
+          });
+        } else {
+          throw mergeErr;
+        }
+      }
 
-      // Upsert lineup entries for the merged event
-      for (let i = 0; i < bandIds.length; i++) {
-        await this.db.query(
-          `INSERT INTO event_lineup (event_id, band_id, set_order, is_headliner)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (event_id, band_id) DO NOTHING`,
-          [existingUserEvent, bandIds[i].bandId, i, i === 0]
+      if (merged) {
+        // Upsert lineup entries for the merged event
+        for (let i = 0; i < bandIds.length; i++) {
+          await this.db.query(
+            `INSERT INTO event_lineup (event_id, band_id, set_order, is_headliner)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (event_id, band_id) DO NOTHING`,
+            [existingUserEvent, bandIds[i].bandId, i, i === 0]
+          );
+        }
+
+        if (counters) {
+          counters.events_updated++;
+        }
+
+        logger.info(
+          '[EventSyncOrchestrator] Auto-merged Ticketmaster data into user-created event',
+          {
+            userEventId: existingUserEvent,
+            externalId: event.externalId,
+            eventName: event.name,
+          }
         );
+
+        return existingUserEvent;
       }
-
-      if (counters) {
-        counters.events_updated++;
-      }
-
-      logger.info('[EventSyncOrchestrator] Auto-merged Ticketmaster data into user-created event', {
-        userEventId: existingUserEvent,
-        externalId: event.externalId,
-        eventName: event.name,
-      });
-
-      return existingUserEvent;
     }
 
     // Step 4: Check existing event status before upsert (for status change detection)
@@ -270,7 +288,12 @@ export class EventSyncOrchestrator {
         ticket_url = EXCLUDED.ticket_url,
         ticket_price_min = EXCLUDED.ticket_price_min,
         ticket_price_max = EXCLUDED.ticket_price_max,
-        status = EXCLUDED.status,
+        status = CASE
+          WHEN events.status = 'cancelled'
+           AND EXISTS (SELECT 1 FROM checkins c WHERE c.event_id = events.id)
+          THEN events.status
+          ELSE EXCLUDED.status
+        END,
         updated_at = CURRENT_TIMESTAMP
       RETURNING id, (xmax = 0) AS is_new`,
       [
@@ -389,4 +412,13 @@ export class EventSyncOrchestrator {
     if (!normalized) return null;
     return this.processEvent(normalized);
   }
+}
+
+function isPgErrorCode(error: unknown, code: string): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === code
+  );
 }
