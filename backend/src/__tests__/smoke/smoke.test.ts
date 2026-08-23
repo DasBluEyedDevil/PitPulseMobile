@@ -43,17 +43,23 @@ jest.mock('../../utils/cache', () => ({
 }));
 
 // Mock redis
-jest.mock('../../utils/redisRateLimiter', () => ({
-  initRedis: jest.fn(),
-  closeRedis: jest.fn(),
-  getRedis: jest.fn().mockReturnValue(null),
-  checkRateLimit: jest
-    .fn()
-    .mockResolvedValue({ allowed: true, remaining: 100, resetAt: Date.now() + 60000 }),
-  RedisRateLimiter: jest.fn().mockImplementation(() => ({
-    middleware: jest.fn().mockReturnValue((req: any, res: any, next: any) => next()),
-  })),
-}));
+jest.mock('../../utils/redisRateLimiter', () => {
+  const actual = jest.requireActual(
+    '../../utils/redisRateLimiter'
+  ) as typeof import('../../utils/redisRateLimiter');
+  return {
+    ...actual,
+    initRedis: jest.fn(),
+    closeRedis: jest.fn(),
+    getRedis: jest.fn().mockReturnValue(null),
+    checkRateLimit: jest
+      .fn()
+      .mockResolvedValue({ allowed: true, remaining: 100, resetAt: Date.now() + 60000 }),
+    RedisRateLimiter: jest.fn().mockImplementation(() => ({
+      middleware: jest.fn().mockReturnValue((req: any, res: any, next: any) => next()),
+    })),
+  };
+});
 
 // Mock Sentry
 jest.mock('../../utils/sentry', () => ({

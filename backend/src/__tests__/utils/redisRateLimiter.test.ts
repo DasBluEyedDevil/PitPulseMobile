@@ -1,11 +1,14 @@
 import Redis from 'ioredis';
 import {
+  buildIpRateLimitKey,
   checkRateLimit,
   closeRedis,
   EnumerationRateLimiter,
   getRedis,
   initRedis,
+  ipRateLimitResetPattern,
   RedisRateLimiter,
+  resolveIpRateLimitScope,
 } from '../../utils/redisRateLimiter';
 import logger from '../../utils/logger';
 
@@ -257,25 +260,19 @@ describe('sliding-window rate limiting', () => {
     });
   });
 
-  it('fails open when the Redis pipeline is empty or rejects', async () => {
+  it('throws when the Redis pipeline is empty or rejects so callers can fail-closed', async () => {
     const pipeline = createPipeline(null);
     const client = initializeClient(createClient({ pipeline: jest.fn(() => pipeline) }));
     jest.spyOn(Date, 'now').mockReturnValue(40_000);
 
-    await expect(checkRateLimit('rate:test', 5, 10_000)).resolves.toEqual({
-      allowed: true,
-      remaining: 5,
-      resetAt: 50_000,
-    });
+    await expect(checkRateLimit('rate:test', 5, 10_000)).rejects.toThrow(
+      'Redis rate limit pipeline returned no results'
+    );
 
     const failingPipeline = createPipeline();
     failingPipeline.exec.mockRejectedValue(new Error('timeout'));
     client.pipeline.mockReturnValue(failingPipeline);
-    await expect(checkRateLimit('rate:test', 5, 10_000)).resolves.toEqual({
-      allowed: true,
-      remaining: 5,
-      resetAt: 50_000,
-    });
+    await expect(checkRateLimit('rate:test', 5, 10_000)).rejects.toThrow('timeout');
   });
 
   it('sets response headers and returns the canonical 429 envelope', async () => {
@@ -300,24 +297,74 @@ describe('sliding-window rate limiting', () => {
     });
     expect(next).not.toHaveBeenCalled();
 
+    const scopedKey = buildIpRateLimitKey('general', '203.0.113.1', 10_000);
+    expect(pipeline.zremrangebyscore).toHaveBeenCalledWith(scopedKey, 0, expect.any(Number));
+
     client.zcard.mockResolvedValue(4);
     await expect(limiter.getRequestCount('203.0.113.1')).resolves.toBe(4);
     await limiter.reset('203.0.113.1');
-    expect(client.del).toHaveBeenCalledWith('rate_limit:203.0.113.1');
+    expect(client.scan).toHaveBeenCalledWith(
+      '0',
+      'MATCH',
+      ipRateLimitResetPattern('203.0.113.1'),
+      'COUNT',
+      100
+    );
+    expect(client.unlink).toHaveBeenCalledWith(scopedKey);
+    expect(client.del).not.toHaveBeenCalledWith('rate_limit:203.0.113.1');
+  });
+
+  it('reset unlinks every scoped key for an IP', async () => {
+    const client = initializeClient(
+      createClient({
+        scan: jest
+          .fn()
+          .mockResolvedValueOnce([
+            '0',
+            ['rate_limit:login:203.0.113.9:900000', 'rate_limit:bands:203.0.113.9:900000'],
+          ]),
+      })
+    );
+    const limiter = new RedisRateLimiter(900_000, 5, 'login');
+
+    await limiter.reset('203.0.113.9');
+
+    expect(client.scan).toHaveBeenCalledWith(
+      '0',
+      'MATCH',
+      'rate_limit:*:203.0.113.9:*',
+      'COUNT',
+      100
+    );
+    const deleted = (client.unlink as jest.Mock).mock.calls.flat();
+    expect(deleted).toEqual(
+      expect.arrayContaining([
+        'rate_limit:login:203.0.113.9:900000',
+        'rate_limit:bands:203.0.113.9:900000',
+      ])
+    );
+  });
+
+  it('maps login separately from /api/bands', () => {
+    expect(resolveIpRateLimitScope('/api/users/login')).toBe('login');
+    expect(resolveIpRateLimitScope('/api/bands')).toBe('bands');
+    expect(buildIpRateLimitKey('login', '203.0.113.1', 900000)).toBe(
+      'rate_limit:login:203.0.113.1:900000'
+    );
   });
 
   it('returns safe defaults when count and reset commands fail', async () => {
     const client = initializeClient(
       createClient({
         zremrangebyscore: jest.fn().mockRejectedValue(new Error('timeout')),
-        del: jest.fn().mockRejectedValue(new Error('timeout')),
+        scan: jest.fn().mockRejectedValue(new Error('timeout')),
       })
     );
     const limiter = new RedisRateLimiter();
 
     await expect(limiter.getRequestCount('203.0.113.2')).resolves.toBe(0);
     await expect(limiter.reset('203.0.113.2')).resolves.toBeUndefined();
-    expect(client.del).toHaveBeenCalled();
+    expect(client.scan).toHaveBeenCalled();
   });
 });
 
