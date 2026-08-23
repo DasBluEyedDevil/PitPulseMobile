@@ -182,7 +182,11 @@ describe('BandController catalog contract', () => {
       .send({ name: 'Updated' });
     expect(response.status).toBe(200);
     expect(response.body.message).toBe('Band updated successfully');
-    expect(bandService.updateBand).toHaveBeenCalledWith('band-1', { name: 'Updated' });
+    expect(bandService.updateBand).toHaveBeenCalledWith(
+      'band-1',
+      { name: 'Updated' },
+      { id: 'user-1', isAdmin: false }
+    );
   });
 
   it('allows an administrator to delete a band without ownership', async () => {
@@ -193,7 +197,10 @@ describe('BandController catalog contract', () => {
     );
     expect(response.status).toBe(200);
     expect(response.body.message).toBe('Band deleted successfully');
-    expect(bandService.deleteBand).toHaveBeenCalledWith('band-1');
+    expect(bandService.deleteBand).toHaveBeenCalledWith('band-1', {
+      id: 'admin-1',
+      isAdmin: true,
+    });
   });
 
   it.each([
@@ -361,7 +368,11 @@ describe('VenueController catalog contract', () => {
       .put('/venues/venue-1')
       .send({ name: 'Updated' });
     expect(response.status).toBe(200);
-    expect(venueService.updateVenue).toHaveBeenCalledWith('venue-1', { name: 'Updated' });
+    expect(venueService.updateVenue).toHaveBeenCalledWith(
+      'venue-1',
+      { name: 'Updated' },
+      { id: 'user-1', isAdmin: false }
+    );
   });
 
   it('allows an administrator to delete a venue without ownership', async () => {
@@ -370,7 +381,10 @@ describe('VenueController catalog contract', () => {
       '/venues/venue-1'
     );
     expect(response.status).toBe(200);
-    expect(venueService.deleteVenue).toHaveBeenCalledWith('venue-1');
+    expect(venueService.deleteVenue).toHaveBeenCalledWith('venue-1', {
+      id: 'admin-1',
+      isAdmin: true,
+    });
   });
 
   it('bounds popular venue limits', async () => {

@@ -118,7 +118,8 @@ export class VenueController {
     }
 
     const updateData = req.body;
-    const venue = await this.venueService.updateVenue(id, updateData);
+    const actor = { id: req.user.id, isAdmin };
+    const venue = await this.venueService.updateVenue(id, updateData, actor);
 
     const response: ApiResponse = {
       success: true,
@@ -149,7 +150,8 @@ export class VenueController {
       throw new ForbiddenError('Only admins or claimed owners can delete this venue');
     }
 
-    await this.venueService.deleteVenue(id);
+    const actor = { id: req.user.id, isAdmin };
+    await this.venueService.deleteVenue(id, actor);
 
     const response: ApiResponse = {
       success: true,

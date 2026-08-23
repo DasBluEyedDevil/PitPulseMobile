@@ -1,5 +1,11 @@
 import Database from '../config/database';
 import { Venue, CreateVenueRequest, SearchQuery } from '../types';
+import { ForbiddenError } from '../utils/errors';
+
+interface CatalogActor {
+  id: string;
+  isAdmin: boolean;
+}
 
 export class VenueService {
   private db = Database.getInstance();
@@ -187,9 +193,13 @@ export class VenueService {
   }
 
   /**
-   * Update venue
+   * Update venue. Actor is enforced in SQL (claimed owner or admin).
    */
-  async updateVenue(venueId: string, updateData: Partial<CreateVenueRequest>): Promise<Venue> {
+  async updateVenue(
+    venueId: string,
+    updateData: Partial<CreateVenueRequest>,
+    actor: CatalogActor
+  ): Promise<Venue> {
     const allowedFields = [
       'name',
       'description',
@@ -225,11 +235,13 @@ export class VenueService {
       throw new Error('No valid fields to update');
     }
 
-    values.push(venueId);
+    values.push(venueId, actor.id, actor.isAdmin);
     const query = `
       UPDATE venues 
       SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $${paramCount} AND is_active = true
+      WHERE id = $${paramCount}
+        AND is_active = true
+        AND (claimed_by_user_id = $${paramCount + 1} OR $${paramCount + 2}::boolean)
       RETURNING id, name, description, address, city, state, country, postal_code,
                 latitude, longitude, website_url, phone, email, capacity, venue_type,
                 image_url, average_rating, total_checkins, is_active, claimed_by_user_id,
@@ -246,17 +258,20 @@ export class VenueService {
   }
 
   /**
-   * Delete venue (soft delete).
+   * Delete venue (soft delete). Actor is enforced in SQL (claimed owner or admin).
    * Also invalidates pending verification claims and resolves pending reports (CFR-DI-007, CFR-DI-008).
    */
-  async deleteVenue(venueId: string): Promise<void> {
+  async deleteVenue(venueId: string, actor: CatalogActor): Promise<void> {
     const query = `
       UPDATE venues
       SET is_active = false, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
+      WHERE id = $1 AND (claimed_by_user_id = $2 OR $3::boolean)
     `;
 
-    await this.db.query(query, [venueId]);
+    const result = await this.db.query(query, [venueId, actor.id, actor.isAdmin]);
+    if ((result.rowCount ?? 0) === 0) {
+      throw new ForbiddenError('Only admins or claimed owners can delete this venue');
+    }
 
     // CFR-DI-007: Deny pending verification claims for this venue (entity deleted)
     await this.db.query(

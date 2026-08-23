@@ -117,7 +117,8 @@ export class BandController {
     }
 
     const updateData = req.body;
-    const band = await this.bandService.updateBand(id, updateData);
+    const actor = { id: req.user.id, isAdmin };
+    const band = await this.bandService.updateBand(id, updateData, actor);
 
     const response: ApiResponse = {
       success: true,
@@ -148,7 +149,8 @@ export class BandController {
       throw new ForbiddenError('Only admins or claimed owners can delete this band');
     }
 
-    await this.bandService.deleteBand(id);
+    const actor = { id: req.user.id, isAdmin };
+    await this.bandService.deleteBand(id, actor);
 
     const response: ApiResponse = {
       success: true,

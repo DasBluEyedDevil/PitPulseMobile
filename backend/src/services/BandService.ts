@@ -1,5 +1,11 @@
 import Database from '../config/database';
 import { Band, CreateBandRequest, SearchQuery } from '../types';
+import { ForbiddenError } from '../utils/errors';
+
+interface CatalogActor {
+  id: string;
+  isAdmin: boolean;
+}
 
 export class BandService {
   private db = Database.getInstance();
@@ -168,9 +174,13 @@ export class BandService {
   }
 
   /**
-   * Update band
+   * Update band. Actor is enforced in SQL (claimed owner or admin).
    */
-  async updateBand(bandId: string, updateData: Partial<CreateBandRequest>): Promise<Band> {
+  async updateBand(
+    bandId: string,
+    updateData: Partial<CreateBandRequest>,
+    actor: CatalogActor
+  ): Promise<Band> {
     const allowedFields = [
       'name',
       'description',
@@ -201,11 +211,13 @@ export class BandService {
       throw new Error('No valid fields to update');
     }
 
-    values.push(bandId);
+    values.push(bandId, actor.id, actor.isAdmin);
     const query = `
       UPDATE bands 
       SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $${paramCount} AND is_active = true
+      WHERE id = $${paramCount}
+        AND is_active = true
+        AND (claimed_by_user_id = $${paramCount + 1} OR $${paramCount + 2}::boolean)
       RETURNING id, name, description, genre, formed_year, website_url, spotify_url,
                 instagram_url, facebook_url, image_url, hometown, average_rating,
                 total_checkins, is_active, claimed_by_user_id, created_at, updated_at
@@ -221,17 +233,20 @@ export class BandService {
   }
 
   /**
-   * Delete band (soft delete).
+   * Delete band (soft delete). Actor is enforced in SQL (claimed owner or admin).
    * Also denies pending verification claims for this band (CFR-DI-007).
    */
-  async deleteBand(bandId: string): Promise<void> {
+  async deleteBand(bandId: string, actor: CatalogActor): Promise<void> {
     const query = `
       UPDATE bands
       SET is_active = false, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
+      WHERE id = $1 AND (claimed_by_user_id = $2 OR $3::boolean)
     `;
 
-    await this.db.query(query, [bandId]);
+    const result = await this.db.query(query, [bandId, actor.id, actor.isAdmin]);
+    if ((result.rowCount ?? 0) === 0) {
+      throw new ForbiddenError('Only admins or claimed owners can delete this band');
+    }
 
     // CFR-DI-007: Deny pending verification claims for this band (entity deleted)
     await this.db.query(
