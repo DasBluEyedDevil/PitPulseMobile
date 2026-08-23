@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, afterAll, jest } from '@jest/globals';
 import {
+  assertSafeCachePattern,
   cache,
+  CACHE_KEY_PREFIX,
   CacheKeys,
   CacheTTL,
   deleteCache,
@@ -8,8 +10,11 @@ import {
   getCacheKey,
   getCacheVersion,
   incrementCacheVersion,
+  redisKey,
   setCache,
 } from '../../utils/cache';
+import { BadRequestError } from '../../utils/errors';
+import { QueueContracts } from '../../jobs/queueContracts';
 import { getRedis } from '../../utils/redisRateLimiter';
 
 jest.mock('../../utils/redisRateLimiter', () => ({
@@ -148,6 +153,10 @@ describe('cache values and cache-aside behavior', () => {
       setex: jest.fn<() => Promise<string>>().mockResolvedValue('OK'),
       del: jest.fn<() => Promise<number>>().mockResolvedValue(1),
       exists: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+      scan: jest
+        .fn<() => Promise<[string, string[]]>>()
+        .mockResolvedValue(['0', ['cache:profile:user-2', 'bull:badge-eval:1']]),
+      unlink: jest.fn<() => Promise<number>>().mockResolvedValue(1),
       flushdb: jest.fn<() => Promise<string>>().mockResolvedValue('OK'),
     } as any;
     mockedGetRedis.mockReturnValue(redis);
@@ -159,31 +168,36 @@ describe('cache values and cache-aside behavior', () => {
     await deleteCache('profile:user-2');
     await cache.clear();
 
+    expect(redis.get).toHaveBeenCalledWith('cache:profile:user-2');
     expect(redis.setex).toHaveBeenCalledWith(
-      'profile:user-2',
+      'cache:profile:user-2',
       90,
       JSON.stringify({ username: 'bob' })
     );
-    expect(redis.del).toHaveBeenCalledWith('profile:user-2');
-    expect(redis.flushdb).toHaveBeenCalledTimes(1);
+    expect(redis.exists).toHaveBeenCalledWith('cache:profile:user-2');
+    expect(redis.del).toHaveBeenCalledWith('cache:profile:user-2');
+    expect(redis.scan).toHaveBeenCalledWith('0', 'MATCH', 'cache:*', 'COUNT', 100);
+    expect(redis.unlink).toHaveBeenCalledWith('cache:profile:user-2');
+    expect(redis.unlink).not.toHaveBeenCalledWith('bull:badge-eval:1');
+    expect(redis.flushdb).not.toHaveBeenCalled();
   });
 
   it('scans and unlinks Redis pattern matches across cursor pages', async () => {
     const redis = {
       scan: jest
         .fn<() => Promise<[string, string[]]>>()
-        .mockResolvedValueOnce(['9', ['feed:one']])
-        .mockResolvedValueOnce(['0', ['feed:two', 'feed:three']]),
+        .mockResolvedValueOnce(['9', ['cache:feed:one']])
+        .mockResolvedValueOnce(['0', ['cache:feed:two', 'cache:feed:three']]),
       unlink: jest.fn<() => Promise<number>>().mockResolvedValue(1),
     } as any;
     mockedGetRedis.mockReturnValue(redis);
 
     await cache.delPattern('feed:*');
 
-    expect(redis.scan).toHaveBeenNthCalledWith(1, '0', 'MATCH', 'feed:*', 'COUNT', 100);
-    expect(redis.scan).toHaveBeenNthCalledWith(2, '9', 'MATCH', 'feed:*', 'COUNT', 100);
-    expect(redis.unlink).toHaveBeenNthCalledWith(1, 'feed:one');
-    expect(redis.unlink).toHaveBeenNthCalledWith(2, 'feed:two', 'feed:three');
+    expect(redis.scan).toHaveBeenNthCalledWith(1, '0', 'MATCH', 'cache:feed:*', 'COUNT', 100);
+    expect(redis.scan).toHaveBeenNthCalledWith(2, '9', 'MATCH', 'cache:feed:*', 'COUNT', 100);
+    expect(redis.unlink).toHaveBeenNthCalledWith(1, 'cache:feed:one');
+    expect(redis.unlink).toHaveBeenNthCalledWith(2, 'cache:feed:two', 'cache:feed:three');
   });
 
   it('falls back to memory for Redis value and pattern failures', async () => {
@@ -195,6 +209,7 @@ describe('cache values and cache-aside behavior', () => {
       scan: jest
         .fn<() => Promise<[string, string[]]>>()
         .mockRejectedValue(new Error('scan failed')),
+      unlink: jest.fn<() => Promise<number>>().mockRejectedValue(new Error('unlink failed')),
       flushdb: jest.fn<() => Promise<string>>().mockRejectedValue(new Error('flush failed')),
     } as any;
     mockedGetRedis.mockReturnValue(redis);
@@ -209,6 +224,7 @@ describe('cache values and cache-aside behavior', () => {
 
     await setCache('fallback:clear', 'value', 60);
     await cache.clear();
+    expect(redis.flushdb).not.toHaveBeenCalled();
     mockedGetRedis.mockReturnValue(null);
     await expect(cache.get('fallback:clear')).resolves.toBeNull();
 
@@ -221,11 +237,119 @@ describe('cache values and cache-aside behavior', () => {
 
   it('builds stable normalized keys and exposes versioned TTLs', () => {
     expect(getCacheKey('user:1')).toMatch(/^v[^:]*:user:1$/);
+    expect(CacheKeys.user('1')).toBe('user:1');
     expect(CacheKeys.searchVenues('  Radio   City ')).toBe('search:venues:radio city');
     expect(CacheKeys.searchBands('  The   Tests ')).toBe('search:bands:the tests');
     expect(CacheKeys.nearbyEvents(40.7128, -74.006, 25)).toBe('events:nearby:40.71:-74.01:25');
     expect(CacheKeys.trendingEvents(40.7128, -74.006)).toBe('events:trending:40.71:-74.01');
     expect(CacheKeys.genreEvents('PUNK')).toBe('events:genre:punk');
     expect(CacheTTL).toEqual({ SHORT: 60, MEDIUM: 300, LONG: 3600, DAY: 86400 });
+  });
+});
+
+describe('transparent cache prefix and pattern safety', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockedGetRedis.mockReturnValue(null);
+    await cache.clear();
+  });
+
+  afterAll(async () => {
+    await cache.close();
+  });
+
+  it('prefixes caller keys iff they are missing cache:', () => {
+    expect(CACHE_KEY_PREFIX).toBe('cache:');
+    expect(redisKey('feed:x')).toBe('cache:feed:x');
+    expect(redisKey('cache:feed:x')).toBe('cache:feed:x');
+    expect(redisKey('user:1')).toBe('cache:user:1');
+  });
+
+  it('writes cache:feed:x for setCache(feed:x) and does not double-prefix', async () => {
+    const redis = {
+      setex: jest.fn<() => Promise<string>>().mockResolvedValue('OK'),
+      del: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+      exists: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+    } as any;
+    mockedGetRedis.mockReturnValue(redis);
+
+    await setCache('feed:x', { n: 1 }, 60);
+    await expect(cache.has('feed:x')).resolves.toBe(true);
+
+    expect(redis.setex).toHaveBeenCalledWith('cache:feed:x', 60, JSON.stringify({ n: 1 }));
+    expect(redis.setex).not.toHaveBeenCalledWith(
+      'cache:cache:feed:x',
+      60,
+      JSON.stringify({ n: 1 })
+    );
+    expect(redis.exists).toHaveBeenCalledWith('cache:feed:x');
+
+    await setCache('cache:feed:x', { n: 2 }, 60);
+    expect(redis.setex).toHaveBeenCalledWith('cache:feed:x', 60, JSON.stringify({ n: 2 }));
+    expect(redis.setex).not.toHaveBeenCalledWith(
+      'cache:cache:feed:x',
+      expect.any(Number),
+      expect.any(String)
+    );
+  });
+
+  it('dual-reads leftover unprefixed keys on GET miss', async () => {
+    const redis = {
+      get: jest
+        .fn<() => Promise<string | null>>()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce('{"legacy":true}'),
+    } as any;
+    mockedGetRedis.mockReturnValue(redis);
+
+    await expect(getCache('feed:x')).resolves.toEqual({ legacy: true });
+    expect(redis.get).toHaveBeenNthCalledWith(1, 'cache:feed:x');
+    expect(redis.get).toHaveBeenNthCalledWith(2, 'feed:x');
+  });
+
+  it('rejects unbounded and protected patterns before SCAN', async () => {
+    const redis = {
+      scan: jest.fn<() => Promise<[string, string[]]>>(),
+      unlink: jest.fn<() => Promise<number>>(),
+      flushdb: jest.fn<() => Promise<string>>(),
+    } as any;
+    mockedGetRedis.mockReturnValue(redis);
+
+    await expect(cache.delPattern('*')).rejects.toBeInstanceOf(BadRequestError);
+    await expect(cache.delPattern('?*')).rejects.toBeInstanceOf(BadRequestError);
+    await expect(cache.delPattern('')).rejects.toBeInstanceOf(BadRequestError);
+    await expect(cache.delPattern('rate_limit:*')).rejects.toBeInstanceOf(BadRequestError);
+    await expect(cache.delPattern('bull:*')).rejects.toBeInstanceOf(BadRequestError);
+    await expect(cache.delPattern('cache:*')).rejects.toBeInstanceOf(BadRequestError);
+
+    for (const contract of Object.values(QueueContracts)) {
+      await expect(cache.delPattern(`${contract.queueName}*`)).rejects.toBeInstanceOf(
+        BadRequestError
+      );
+    }
+
+    expect(redis.scan).not.toHaveBeenCalled();
+    expect(redis.unlink).not.toHaveBeenCalled();
+    expect(redis.flushdb).not.toHaveBeenCalled();
+    expect(() => assertSafeCachePattern('feed:*')).not.toThrow();
+  });
+
+  it('does not unlink BullMQ-shaped keys during prefix clear', async () => {
+    const redis = {
+      scan: jest
+        .fn<() => Promise<[string, string[]]>>()
+        .mockResolvedValue(['0', ['cache:feed:one', 'bull:event-sync:1', 'rate_limit:1.1.1.1']]),
+      unlink: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+      flushdb: jest.fn<() => Promise<string>>().mockResolvedValue('OK'),
+    } as any;
+    mockedGetRedis.mockReturnValue(redis);
+
+    await cache.clear();
+
+    expect(redis.scan).toHaveBeenCalledWith('0', 'MATCH', 'cache:*', 'COUNT', 100);
+    expect(redis.unlink).toHaveBeenCalledWith('cache:feed:one');
+    expect(redis.unlink).not.toHaveBeenCalledWith('bull:event-sync:1');
+    expect(redis.unlink).not.toHaveBeenCalledWith('rate_limit:1.1.1.1');
+    expect(redis.flushdb).not.toHaveBeenCalled();
   });
 });
