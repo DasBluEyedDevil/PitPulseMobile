@@ -9,29 +9,37 @@ import {
   validateAasa,
   validateAssetlinks,
 } from "./association-contracts.mjs";
-import { resolvePublicApiBaseUrl } from "./public-api-base-url.mjs";
+import {
+  PUBLIC_API_ORIGIN_PLACEHOLDER,
+  publicApiOriginFromBaseUrl,
+  resolvePublicApiBaseUrl,
+} from "./public-api-base-url.mjs";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(currentDir, "..");
 const distDir = path.join(webRoot, "dist");
 const failures = [];
 
-let apiBaseUrl = "";
+let apiBaseUrl;
 try {
   apiBaseUrl = resolvePublicApiBaseUrl({ required: true });
 } catch (error) {
   failures.push(error.message);
 }
 
+const resetPasswordMarkers = [
+  "Reset password",
+  "/auth/reset-password",
+  "URLSearchParams",
+];
+if (apiBaseUrl) {
+  resetPasswordMarkers.push(`const apiBaseUrl = ${JSON.stringify(apiBaseUrl)}`);
+}
+
 const requiredPages = new Map([
   [
     "reset-password",
-    [
-      "Reset password",
-      "/auth/reset-password",
-      "URLSearchParams",
-      apiBaseUrl,
-    ],
+    resetPasswordMarkers,
   ],
   ["delete-account", ["Delete your account", "support@soundcheck.app"]],
   ["support", ["Support", "support@soundcheck.app"]],
@@ -158,6 +166,27 @@ async function main() {
   const headersPath = requireFile("_headers");
   if (headersPath) {
     const headers = fs.readFileSync(headersPath, "utf8");
+    if (headers.includes(PUBLIC_API_ORIGIN_PLACEHOLDER)) {
+      failures.push(
+        "_headers still contains the PUBLIC_API_BASE_URL connect-src placeholder.",
+      );
+    }
+    if (apiBaseUrl) {
+      try {
+        const origin = publicApiOriginFromBaseUrl(apiBaseUrl);
+        const connectSrc = headers.match(/connect-src\s+([^;]+)/i);
+        const sources = connectSrc
+          ? connectSrc[1].trim().split(/\s+/)
+          : [];
+        if (!sources.includes(origin)) {
+          failures.push(
+            `_headers connect-src does not allow PUBLIC_API_BASE_URL origin ${JSON.stringify(origin)}.`,
+          );
+        }
+      } catch (error) {
+        failures.push(error.message);
+      }
+    }
     for (const associationPath of [
       "/.well-known/apple-app-site-association",
       "/.well-known/assetlinks.json",
