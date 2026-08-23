@@ -2,81 +2,85 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { loadEnv } from 'vite';
+
 export const PUBLIC_API_BASE_URL_ENV = 'PUBLIC_API_BASE_URL';
+export const PUBLIC_API_ORIGIN_PLACEHOLDER = '__PUBLIC_API_ORIGIN__';
 
 const webRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const missingMessage =
   'PUBLIC_API_BASE_URL is required at web build. Set it in the environment or web/.env (see web/.env.example).';
+const invalidUrlMessage =
+  'PUBLIC_API_BASE_URL must be an absolute http(s) URL. Set it in the environment or web/.env (see web/.env.example).';
 
 function stripTrailingSlashes(value) {
   return value.replace(/\/+$/, '');
 }
 
-function unquote(value) {
-  if (
-    (value.startsWith('"') && value.endsWith('"')) ||
-    (value.startsWith("'") && value.endsWith("'"))
-  ) {
-    return value.slice(1, -1);
+export function resolveAstroMode() {
+  const args = process.argv;
+  const flagIndex = args.indexOf('--mode');
+  if (flagIndex >= 0 && args[flagIndex + 1] && !args[flagIndex + 1].startsWith('-')) {
+    return args[flagIndex + 1];
   }
-  return value;
+  const inline = args.find((arg) => arg.startsWith('--mode='));
+  if (inline) {
+    return inline.slice('--mode='.length);
+  }
+  if (args.includes('dev') || args.includes('preview')) {
+    return 'development';
+  }
+  // `astro build` and postbuild default to production even if NODE_ENV is development.
+  return 'production';
 }
 
-function readEnvFileValue(filePath, name) {
-  if (!fs.existsSync(filePath)) {
-    return undefined;
+export function publicApiOriginFromBaseUrl(apiBaseUrl) {
+  let url;
+  try {
+    url = new URL(apiBaseUrl);
+  } catch {
+    throw new Error(invalidUrlMessage);
   }
-
-  const text = fs.readFileSync(filePath, 'utf8');
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('#')) {
-      continue;
-    }
-    const assignment = line.startsWith('export ')
-      ? line.slice('export '.length).trim()
-      : line;
-    const separator = assignment.indexOf('=');
-    if (separator <= 0) {
-      continue;
-    }
-    const key = assignment.slice(0, separator).trim();
-    if (key !== name) {
-      continue;
-    }
-    return unquote(assignment.slice(separator + 1).trim());
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new Error(invalidUrlMessage);
   }
-
-  return undefined;
+  return url.origin;
 }
 
-function readFromDotEnvFiles() {
-  // Vite precedence: later files override, process.env wins (checked by caller).
-  const mode = process.env.NODE_ENV === 'development' ? 'development' : 'production';
-  const files = [
-    `.env.${mode}.local`,
-    '.env.local',
-    `.env.${mode}`,
-    '.env',
-  ];
-
-  for (const file of files) {
-    const value = readEnvFileValue(path.join(webRoot, file), PUBLIC_API_BASE_URL_ENV);
-    if (value !== undefined) {
-      return value;
-    }
+export function applyPublicApiOriginToHeaders(headersText, origin) {
+  if (!headersText.includes(PUBLIC_API_ORIGIN_PLACEHOLDER)) {
+    throw new Error(
+      '_headers is missing the PUBLIC_API_BASE_URL connect-src placeholder.',
+    );
   }
+  return headersText.replaceAll(PUBLIC_API_ORIGIN_PLACEHOLDER, origin);
+}
 
-  return undefined;
+export function writePublicApiConnectSrc(headersPath, apiBaseUrl) {
+  const origin = publicApiOriginFromBaseUrl(apiBaseUrl);
+  const original = fs.readFileSync(headersPath, 'utf8');
+  fs.writeFileSync(
+    headersPath,
+    applyPublicApiOriginToHeaders(original, origin),
+  );
+  return origin;
 }
 
 export function resolvePublicApiBaseUrl({ required = false } = {}) {
   const fromProcess = process.env[PUBLIC_API_BASE_URL_ENV];
-  const raw = fromProcess !== undefined ? fromProcess : readFromDotEnvFiles();
+  let raw;
+  if (fromProcess !== undefined) {
+    raw = fromProcess;
+  } else {
+    raw = loadEnv(resolveAstroMode(), webRoot, 'PUBLIC_')[PUBLIC_API_BASE_URL_ENV];
+  }
   const value = stripTrailingSlashes((raw ?? '').trim());
 
-  if (required && !value) {
-    throw new Error(missingMessage);
+  if (required) {
+    if (!value) {
+      throw new Error(missingMessage);
+    }
+    publicApiOriginFromBaseUrl(value);
   }
 
   return value;
