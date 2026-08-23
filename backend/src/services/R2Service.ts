@@ -6,6 +6,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
+import { ServiceUnavailableError } from '../utils/errors';
 import logger from '../utils/logger';
 
 // ============================================
@@ -94,9 +95,8 @@ export class R2Service {
     contentType: string,
     prefix: string = 'checkins'
   ): Promise<PresignedUploadResult> {
-    if (!this.isConfigured || !this.s3) {
-      throw new Error('Photo uploads not configured');
-    }
+    const s3 = this.requireConfigured('Photo uploads not configured');
+    const publicUrlBase = this.requirePublicUrl();
 
     // Validate content type
     const ext = ALLOWED_IMAGE_TYPES[contentType];
@@ -112,7 +112,7 @@ export class R2Service {
 
     // Generate presigned PUT URL with 10-minute expiry
     const uploadUrl = await getSignedUrl(
-      this.s3,
+      s3,
       new PutObjectCommand({
         Bucket: this.bucket,
         Key: objectKey,
@@ -124,7 +124,7 @@ export class R2Service {
     return {
       uploadUrl,
       objectKey,
-      publicUrl: `${this.publicUrl}/${objectKey}`,
+      publicUrl: `${publicUrlBase}/${objectKey}`,
     };
   }
 
@@ -137,11 +137,10 @@ export class R2Service {
    * @returns Public URL of the uploaded object
    */
   async uploadBuffer(buffer: Buffer, key: string, contentType: string): Promise<string> {
-    if (!this.isConfigured || !this.s3) {
-      throw new Error('R2 is not configured');
-    }
+    const s3 = this.requireConfigured('R2 is not configured');
+    this.requirePublicUrl();
 
-    await this.s3.send(
+    await s3.send(
       new PutObjectCommand({
         Bucket: this.bucket,
         Key: key,
@@ -154,7 +153,9 @@ export class R2Service {
   }
 
   getPublicUrl(objectKey: string): string {
-    return `${this.publicUrl}/${objectKey}`;
+    const publicUrlBase = this.requirePublicUrl();
+    const key = objectKey.replace(/^\/+/, '');
+    return `${publicUrlBase}/${key}`;
   }
 
   /**
@@ -178,12 +179,10 @@ export class R2Service {
    * Fetch object metadata from R2 without downloading the object body.
    */
   async headObject(objectKey: string): Promise<R2ObjectMetadata> {
-    if (!this.isConfigured || !this.s3) {
-      throw new Error('R2 is not configured');
-    }
+    const s3 = this.requireConfigured('R2 is not configured');
 
     try {
-      const result = await this.s3.send(
+      const result = await s3.send(
         new HeadObjectCommand({
           Bucket: this.bucket,
           Key: objectKey,
@@ -232,6 +231,21 @@ export class R2Service {
    */
   get isReady(): boolean {
     return this.isConfigured;
+  }
+
+  private requireConfigured(message: string): S3Client {
+    if (!this.isConfigured || !this.s3) {
+      throw new ServiceUnavailableError(message);
+    }
+    return this.s3;
+  }
+
+  private requirePublicUrl(): string {
+    const base = this.publicUrl.replace(/\/+$/, '');
+    if (!base) {
+      throw new ServiceUnavailableError('Photo storage public URL is not configured');
+    }
+    return base;
   }
 
   /**

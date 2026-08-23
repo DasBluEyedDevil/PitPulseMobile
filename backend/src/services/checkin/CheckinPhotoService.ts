@@ -15,6 +15,7 @@ import {
   R2ObjectMetadata,
   r2Service,
 } from '../R2Service';
+import { ServiceUnavailableError } from '../../utils/errors';
 import logger from '../../utils/logger';
 
 export interface PhotoUploadUrl {
@@ -46,6 +47,32 @@ function normalizeContentType(contentType?: string): string {
 function expectedExtensionForObjectKey(objectKey: string): string | undefined {
   const extension = objectKey.split('.').pop()?.toLowerCase();
   return extension || undefined;
+}
+
+function objectKeyFromPhotoUrl(photoUrl: string): string | undefined {
+  const base = (process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '');
+  if (base && photoUrl.startsWith(`${base}/`)) {
+    return photoUrl.slice(base.length + 1) || undefined;
+  }
+
+  try {
+    const { pathname } = new URL(photoUrl);
+    return pathname.replace(/^\/+/, '') || undefined;
+  } catch {
+    const trimmed = photoUrl.replace(/^\/+/, '');
+    return trimmed || undefined;
+  }
+}
+
+function requireConfiguredPublicUrl(): void {
+  if (!r2Service.isReady) {
+    return;
+  }
+
+  const publicUrlBase = (process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '');
+  if (!publicUrlBase) {
+    throw new ServiceUnavailableError('Photo storage public URL is not configured');
+  }
 }
 
 function validateUploadedPhotoMetadata(objectKey: string, metadata: R2ObjectMetadata): boolean {
@@ -237,8 +264,8 @@ export class CheckinPhotoService {
 
       // Combine existing URLs with new ones, enforce max
       const existingUrls: string[] = checkinResult.rows[0].image_urls || [];
-      const publicUrlBase = process.env.R2_PUBLIC_URL || '';
-      const newUrls = photoKeys.map((key) => `${publicUrlBase}/${key}`);
+      requireConfiguredPublicUrl();
+      const newUrls = photoKeys.map((key) => r2Service.getPublicUrl(key));
       const combinedUrls = [...existingUrls, ...newUrls];
 
       if (combinedUrls.length > this.MAX_PHOTOS_PER_CHECKIN) {
@@ -249,24 +276,88 @@ export class CheckinPhotoService {
         throw err;
       }
 
-      // Update the check-in with combined URLs
-      await this.db.query(
-        'UPDATE checkins SET image_urls = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-        [combinedUrls, checkinId]
-      );
-
-      await this.db.query(
-        `DELETE FROM pending_photo_uploads WHERE checkin_id = $1 AND object_key = ANY($2::text[])`,
-        [checkinId, photoKeys]
-      );
-
-      return combinedUrls;
+      return await this.confirmPhotosInTransaction(checkinId, userId, photoKeys, newUrls);
     } catch (error) {
       logger.error('[CheckinPhotoService] Add photos error', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });
       throw error;
+    }
+  }
+
+  /**
+   * Lock the check-in row, append confirmed URLs only when
+   * cardinality(image_urls)+n stays at or under MAX, and drop pending keys.
+   */
+  private async confirmPhotosInTransaction(
+    checkinId: string,
+    userId: string,
+    photoKeys: string[],
+    newUrls: string[]
+  ): Promise<string[]> {
+    const client = await this.db.getClient();
+
+    try {
+      await client.query('BEGIN');
+
+      const lockedResult = await client.query(
+        'SELECT user_id, image_urls FROM checkins WHERE id = $1 FOR UPDATE',
+        [checkinId]
+      );
+
+      if (lockedResult.rows.length === 0) {
+        const err: ServiceError = new Error('Check-in not found');
+        err.statusCode = 404;
+        throw err;
+      }
+
+      if (lockedResult.rows[0].user_id !== userId) {
+        const err: ServiceError = new Error('Unauthorized to modify this check-in');
+        err.statusCode = 403;
+        throw err;
+      }
+
+      const lockedUrls: string[] = lockedResult.rows[0].image_urls || [];
+      const combinedUrls = [...lockedUrls, ...newUrls];
+
+      if (combinedUrls.length > this.MAX_PHOTOS_PER_CHECKIN) {
+        const err: ServiceError = new Error(
+          `Maximum ${this.MAX_PHOTOS_PER_CHECKIN} photos per check-in. Would have ${combinedUrls.length}.`
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const updateResult = await client.query(
+        `UPDATE checkins
+         SET image_urls = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2
+           AND cardinality(COALESCE(image_urls, '{}'::text[])) + $3 <= $4
+         RETURNING image_urls`,
+        [combinedUrls, checkinId, newUrls.length, this.MAX_PHOTOS_PER_CHECKIN]
+      );
+
+      if (updateResult.rowCount !== 1) {
+        const err: ServiceError = new Error(
+          `Maximum ${this.MAX_PHOTOS_PER_CHECKIN} photos per check-in. Would have ${combinedUrls.length}.`
+        );
+        err.statusCode = 400;
+        throw err;
+      }
+
+      await client.query(
+        `DELETE FROM pending_photo_uploads WHERE checkin_id = $1 AND object_key = ANY($2::text[])`,
+        [checkinId, photoKeys]
+      );
+
+      await client.query('COMMIT');
+      return (updateResult.rows[0]?.image_urls as string[]) || combinedUrls;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
   }
 
@@ -322,11 +413,34 @@ export class CheckinPhotoService {
 
       const existingUrls: string[] = checkinResult.rows[0].image_urls || [];
       const remainingUrls = existingUrls.filter((url) => !photoUrlsToRemove.includes(url));
+      const removedUrls = existingUrls.filter((url) => photoUrlsToRemove.includes(url));
 
       // Update the check-in with remaining URLs
       await this.db.query(
         'UPDATE checkins SET image_urls = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
         [remainingUrls, checkinId]
+      );
+
+      await Promise.all(
+        removedUrls.map(async (url) => {
+          const objectKey = objectKeyFromPhotoUrl(url);
+          if (!objectKey) {
+            logger.warn('[CheckinPhotoService] Skipping R2 delete for unparseable photo URL', {
+              checkinId,
+            });
+            return;
+          }
+
+          try {
+            await r2Service.deleteObject(objectKey);
+          } catch (error) {
+            logger.error('[CheckinPhotoService] Failed to delete R2 object', {
+              checkinId,
+              objectKey,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        })
       );
 
       return remainingUrls;
