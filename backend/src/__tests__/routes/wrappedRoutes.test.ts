@@ -5,7 +5,7 @@ import { buildErrorResponseForStatus } from '../../middleware/validate';
 
 const mockGetWrappedStats = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockGetWrappedDetailStats = jest.fn<(...args: unknown[]) => Promise<unknown>>();
-const mockFindById = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockGetAuthUser = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 
 jest.mock('../../services/WrappedService', () => ({
   WrappedService: jest.fn().mockImplementation(() => ({
@@ -21,10 +21,8 @@ jest.mock('../../services/ShareCardService', () => ({
   })),
 }));
 
-jest.mock('../../services/UserService', () => ({
-  UserService: jest.fn().mockImplementation(() => ({
-    findById: (...args: unknown[]) => mockFindById(...args),
-  })),
+jest.mock('../../services/user/authUserCache', () => ({
+  getAuthUser: (...args: unknown[]) => mockGetAuthUser(...args),
 }));
 
 jest.mock('../../utils/auth', () => ({
@@ -102,7 +100,7 @@ describe('wrappedRoutes premium gates', () => {
   });
 
   it('returns 403 for GET /:year/detail when isPremium is false', async () => {
-    mockFindById.mockResolvedValue(baseUser({ isPremium: false }));
+    mockGetAuthUser.mockResolvedValue(baseUser({ isPremium: false }));
 
     const response = await request(createApp())
       .get(`/api/wrapped/${year}/detail`)
@@ -121,7 +119,7 @@ describe('wrappedRoutes premium gates', () => {
   });
 
   it('returns 200 for GET /:year/detail when isPremium is true', async () => {
-    mockFindById.mockResolvedValue(baseUser({ isPremium: true }));
+    mockGetAuthUser.mockResolvedValue(baseUser({ isPremium: true }));
     const detail = { ...stats, shows: [{ id: 'checkin-1' }] };
     mockGetWrappedDetailStats.mockResolvedValue(detail);
 
@@ -135,7 +133,7 @@ describe('wrappedRoutes premium gates', () => {
   });
 
   it('still serves free GET /:year without premium', async () => {
-    mockFindById.mockResolvedValue(baseUser({ isPremium: false }));
+    mockGetAuthUser.mockResolvedValue(baseUser({ isPremium: false }));
 
     const response = await request(createApp())
       .get(`/api/wrapped/${year}`)
@@ -147,7 +145,7 @@ describe('wrappedRoutes premium gates', () => {
   });
 
   it('returns 403 for POST /:year/card/:statType when isPremium is false', async () => {
-    mockFindById.mockResolvedValue(baseUser({ isPremium: false }));
+    mockGetAuthUser.mockResolvedValue(baseUser({ isPremium: false }));
 
     const response = await request(createApp())
       .post(`/api/wrapped/${year}/card/top-artist`)
