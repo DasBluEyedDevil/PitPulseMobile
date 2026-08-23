@@ -70,6 +70,10 @@ describe('WebSocket Authentication', () => {
     let httpServer: Server;
     const originalEnableWebsocket = process.env.ENABLE_WEBSOCKET;
 
+    beforeEach(() => {
+      mockDbQuery.mockReset();
+    });
+
     afterEach(() => {
       websocket.close();
       httpServer?.close();
@@ -80,7 +84,7 @@ describe('WebSocket Authentication', () => {
       }
     });
 
-    test('valid Authorization header token is verified before upgrade and connection receives connected plus authenticated', () => {
+    test('valid Authorization header token is verified before upgrade and connection receives connected plus authenticated', async () => {
       process.env.ENABLE_WEBSOCKET = 'true';
       httpServer = createServer();
       websocket.init(httpServer);
@@ -93,10 +97,14 @@ describe('WebSocket Authentication', () => {
         headers: { host: 'localhost', authorization: 'Bearer valid-token' },
       };
 
-      verifyClient({ req }, callback);
+      mockDbQuery.mockResolvedValueOnce({ rows: [{ is_active: true }] });
+      await verifyClient({ req }, callback);
 
       expect(callback).toHaveBeenCalledWith(true);
       expect(req.userId).toBe(USER_123);
+      expect(mockDbQuery).toHaveBeenCalledWith('SELECT is_active FROM users WHERE id = $1', [
+        USER_123,
+      ]);
 
       const sentMessages: any[] = [];
       const mockWs = createMockWs(sentMessages);
@@ -107,7 +115,7 @@ describe('WebSocket Authentication', () => {
       expect(sentMessages[1].payload.userId).toBe(USER_123);
     });
 
-    test('missing, query-string, and invalid tokens are rejected before upgrade', () => {
+    test('missing, query-string, and invalid tokens are rejected before upgrade', async () => {
       process.env.ENABLE_WEBSOCKET = 'true';
       httpServer = createServer();
       websocket.init(httpServer);
@@ -117,12 +125,12 @@ describe('WebSocket Authentication', () => {
       const queryCallback = jest.fn();
       const invalidCallback = jest.fn();
 
-      verifyClient({ req: { url: '/ws', headers: { host: 'localhost' } } }, missingCallback);
-      verifyClient(
+      await verifyClient({ req: { url: '/ws', headers: { host: 'localhost' } } }, missingCallback);
+      await verifyClient(
         { req: { url: '/ws?token=valid-token', headers: { host: 'localhost' } } },
         queryCallback
       );
-      verifyClient(
+      await verifyClient(
         {
           req: {
             url: '/ws',
@@ -135,6 +143,42 @@ describe('WebSocket Authentication', () => {
       expect(missingCallback).toHaveBeenCalledWith(false, 401, 'Authentication required');
       expect(queryCallback).toHaveBeenCalledWith(false, 401, 'Authentication required');
       expect(invalidCallback).toHaveBeenCalledWith(false, 401, 'Invalid or expired token');
+      expect(mockDbQuery).not.toHaveBeenCalled();
+    });
+
+    test('inactive users are rejected before upgrade', async () => {
+      process.env.ENABLE_WEBSOCKET = 'true';
+      httpServer = createServer();
+      websocket.init(httpServer);
+
+      const verifyClient = (websocket as any).wss.options.verifyClient;
+      const inactiveCallback = jest.fn();
+      const missingUserCallback = jest.fn();
+
+      mockDbQuery.mockResolvedValueOnce({ rows: [{ is_active: false }] });
+      await verifyClient(
+        {
+          req: {
+            url: '/ws',
+            headers: { host: 'localhost', authorization: 'Bearer valid-token' },
+          },
+        },
+        inactiveCallback
+      );
+
+      mockDbQuery.mockResolvedValueOnce({ rows: [] });
+      await verifyClient(
+        {
+          req: {
+            url: '/ws',
+            headers: { host: 'localhost', authorization: 'Bearer valid-token' },
+          },
+        },
+        missingUserCallback
+      );
+
+      expect(inactiveCallback).toHaveBeenCalledWith(false, 401, 'User not found or inactive');
+      expect(missingUserCallback).toHaveBeenCalledWith(false, 401, 'User not found or inactive');
     });
   });
 
@@ -426,6 +470,50 @@ describe('WebSocket Authentication', () => {
         clientsMap.delete(clientId);
         userClientsMap.delete(USER_123);
       }
+    });
+
+    test('disconnectUser sends disconnected envelope and closes the user sockets', () => {
+      const clientsMap = (websocket as any).clients as Map<string, any>;
+      const userClientsMap = (websocket as any).userClients as Map<string, Set<string>>;
+      const clientId = 'test-disconnect-user';
+      const client = createClient(mockWs, USER_123);
+
+      clientsMap.set(clientId, client);
+      userClientsMap.set(USER_123, new Set([clientId]));
+
+      const closed = websocket.disconnectUser(USER_123, 'account_banned');
+
+      expect(closed).toBe(1);
+      expect(sentMessages).toEqual([
+        { type: 'disconnected', payload: { reason: 'account_banned' } },
+      ]);
+      expect(mockWs.close).toHaveBeenCalledWith(4003, 'Account banned');
+      expect(clientsMap.has(clientId)).toBe(false);
+      expect(userClientsMap.has(USER_123)).toBe(false);
+    });
+
+    test('handleRealtimeDelivery disconnects user-targeted disconnected envelopes', () => {
+      const clientsMap = (websocket as any).clients as Map<string, any>;
+      const userClientsMap = (websocket as any).userClients as Map<string, Set<string>>;
+      const clientId = 'test-realtime-disconnect';
+      const client = createClient(mockWs, USER_123);
+
+      clientsMap.set(clientId, client);
+      userClientsMap.set(USER_123, new Set([clientId]));
+
+      const delivered = websocket.handleRealtimeDelivery({
+        target: 'user',
+        userId: USER_123,
+        type: 'disconnected',
+        payload: { reason: 'account_banned' },
+      });
+
+      expect(delivered).toBe(1);
+      expect(sentMessages).toEqual([
+        { type: 'disconnected', payload: { reason: 'account_banned' } },
+      ]);
+      expect(mockWs.close).toHaveBeenCalledWith(4003, 'Account banned');
+      expect(clientsMap.has(clientId)).toBe(false);
     });
 
     test('delivers room-targeted realtime envelopes to room clients', () => {

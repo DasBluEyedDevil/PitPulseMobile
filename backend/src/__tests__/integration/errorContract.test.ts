@@ -3,12 +3,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import request from 'supertest';
 import { createPerUserRateLimit } from '../../middleware/perUserRateLimit';
 import { buildErrorResponseForStatus } from '../../middleware/validate';
-import {
-  authenticateToken,
-  rateLimit,
-  requireAdmin,
-  requirePremium,
-} from '../../middleware/auth';
+import { authenticateToken, rateLimit, requireAdmin, requirePremium } from '../../middleware/auth';
 import { dailyCheckinRateLimit } from '../../middleware/checkinRateLimit';
 import adminController from '../../controllers/AdminController';
 
@@ -34,6 +29,7 @@ jest.mock('../../utils/auth', () => ({
       return { userId: 'user-123', email: 'test@example.com', username: 'testuser' };
     }),
   },
+  revokeAllUserTokens: jest.fn(),
 }));
 
 jest.mock('../../services/UserService', () => ({
@@ -57,6 +53,8 @@ jest.mock('../../utils/cache', () => ({
 
 jest.mock('../../utils/websocket', () => ({
   getWebSocketStats: jest.fn(),
+  disconnectUser: jest.fn(),
+  WebSocketEvents: { DISCONNECTED: 'disconnected' },
 }));
 
 function expectObjectEnvelope(
@@ -178,13 +176,23 @@ describe('API error contract', () => {
   it('returns object envelopes from the IP rate limiter', async () => {
     await request(app).get('/ip-limited');
     const response = await request(app).get('/ip-limited');
-    expectObjectEnvelope(response, 429, 'RATE_LIMITED', 'Too many requests, please try again later');
+    expectObjectEnvelope(
+      response,
+      429,
+      'RATE_LIMITED',
+      'Too many requests, please try again later'
+    );
   });
 
   it('returns object envelopes from the daily check-in limiter', async () => {
     mockDbQuery.mockResolvedValue({ rows: [{ cnt: 10 }] });
     const response = await request(app).post('/checkins-limited');
-    expectObjectEnvelope(response, 429, 'RATE_LIMITED', 'Daily check-in limit reached (10 per day)');
+    expectObjectEnvelope(
+      response,
+      429,
+      'RATE_LIMITED',
+      'Daily check-in limit reached (10 per day)'
+    );
   });
 
   it('returns object envelopes from admin validation', async () => {

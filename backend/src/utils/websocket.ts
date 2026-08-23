@@ -68,7 +68,7 @@ class WebSocketServer {
 
     this.wss = new WsServer({
       server,
-      verifyClient: (info: any, callback: any) => {
+      verifyClient: async (info: any, callback: any) => {
         try {
           const token = AuthUtils.extractTokenFromHeader(info.req.headers.authorization);
 
@@ -80,6 +80,14 @@ class WebSocketServer {
           const payload = AuthUtils.verifyToken(token);
           if (!payload) {
             callback(false, 401, 'Invalid or expired token');
+            return;
+          }
+
+          const result = await this.db.query('SELECT is_active FROM users WHERE id = $1', [
+            payload.userId,
+          ]);
+          if (!result.rows[0] || result.rows[0].is_active !== true) {
+            callback(false, 401, 'User not found or inactive');
             return;
           }
 
@@ -252,6 +260,16 @@ class WebSocketServer {
     }
 
     if (envelope.target === 'user') {
+      if (envelope.type === WebSocketEvents.DISCONNECTED) {
+        const delivered = this.disconnectUser(envelope.userId, envelope.payload?.reason);
+        winstonLogger.debug('Disconnected user clients from realtime envelope', {
+          target: 'user',
+          type: envelope.type,
+          delivered,
+        });
+        return delivered;
+      }
+
       const delivered = this.sendToUser(envelope.userId, envelope.type, envelope.payload);
       winstonLogger.debug('Delivered realtime envelope to user clients', {
         target: 'user',
@@ -575,6 +593,27 @@ class WebSocketServer {
   }
 
   /**
+   * Force-close every live socket for a user (ban / deactivate).
+   */
+  disconnectUser(userId: string, reason: string = 'account_banned'): number {
+    const clientIds = this.userClients.get(userId);
+    if (!clientIds || clientIds.size === 0) return 0;
+
+    const ids = Array.from(clientIds);
+    let closed = 0;
+    for (const clientId of ids) {
+      this.send(clientId, WebSocketEvents.DISCONNECTED, { reason });
+      const client = this.clients.get(clientId);
+      if (client) {
+        client.ws.close(4003, 'Account banned');
+      }
+      this.handleDisconnect(clientId);
+      closed++;
+    }
+    return closed;
+  }
+
+  /**
    * Broadcast message to all connected clients
    */
   broadcast(type: string, payload: any): void {
@@ -689,6 +728,8 @@ export const initWebSocket = (server: Server) => websocket.init(server);
 export const broadcast = (type: string, payload: any) => websocket.broadcast(type, payload);
 export const sendToUser = (userId: string, type: string, payload: any) =>
   websocket.sendToUser(userId, type, payload);
+export const disconnectUser = (userId: string, reason?: string) =>
+  websocket.disconnectUser(userId, reason);
 export const broadcastToRoom = (room: string, type: string, payload: any) =>
   websocket.broadcastToRoom(room, type, payload);
 export const getRoomUsers = (room: string) => websocket.getRoomUsers(room);
