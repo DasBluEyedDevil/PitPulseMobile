@@ -210,7 +210,7 @@ export class EventService {
       ]);
 
       if (eventResult.rows.length === 0) {
-        throw new Error('Event not found');
+        throw new NotFoundError('Event not found');
       }
 
       return this.mapDbEventToEvent(
@@ -219,6 +219,9 @@ export class EventService {
         parseInt(countResult.rows[0].checkin_count || '0')
       );
     } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
       logger.error('Get event error', {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,

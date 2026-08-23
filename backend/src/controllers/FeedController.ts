@@ -13,6 +13,17 @@ import { UnauthorizedError, BadRequestError } from '../utils/errors';
 
 const VALID_FEED_TYPES = ['friends', 'event', 'happening_now', 'global'] as const;
 
+function parseFeedLimit(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(1, Math.min(50, Math.trunc(value)));
+  }
+  if (value === undefined || value === null || value === '') {
+    return 20;
+  }
+  const rawLimit = parseInt(String(value), 10);
+  return Math.max(1, Math.min(50, Number.isNaN(rawLimit) ? 20 : rawLimit));
+}
+
 export class FeedController {
   private feedService = new FeedService();
 
@@ -27,9 +38,8 @@ export class FeedController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const cursor = req.query.cursor as string | undefined;
-    const rawLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
-    const limit = Math.max(1, Math.min(50, isNaN(rawLimit) ? 20 : rawLimit));
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const limit = parseFeedLimit(req.query.limit);
 
     // API-015: Validate cursor format -- return 400 for malformed cursors
     if (cursor && !decodeCursor(cursor)) {
@@ -53,9 +63,8 @@ export class FeedController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const cursor = req.query.cursor as string | undefined;
-    const rawLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
-    const limit = Math.max(1, Math.min(50, isNaN(rawLimit) ? 20 : rawLimit));
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const limit = parseFeedLimit(req.query.limit);
 
     // API-015: Validate cursor format -- return 400 for malformed cursors
     if (cursor && !decodeCursor(cursor)) {
@@ -79,9 +88,8 @@ export class FeedController {
       throw new BadRequestError('Event ID is required');
     }
 
-    const cursor = req.query.cursor as string | undefined;
-    const rawLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
-    const limit = Math.max(1, Math.min(50, isNaN(rawLimit) ? 20 : rawLimit));
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const limit = parseFeedLimit(req.query.limit);
 
     // API-015: Validate cursor format
     if (cursor && !decodeCursor(cursor)) {

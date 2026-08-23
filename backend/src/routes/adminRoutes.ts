@@ -29,12 +29,24 @@ export const moderateContentSchema = z.object({
   ]),
 });
 
+const topVenuesQuerySchema = z.object({
+  query: z.object({
+    limit: z.string().regex(/^\d+$/, 'limit must be a positive integer').optional(),
+  }),
+});
+
+const userActivityQuerySchema = z.object({
+  query: z.object({
+    userId: z.string().uuid('userId must be a valid UUID'),
+  }),
+});
+
 router.use(authenticateToken);
 router.use(requireAdmin());
 
 router.get('/stats', adminController.getStats);
-router.get('/top-venues', adminController.getTopVenues);
-router.get('/user-activity', adminController.getUserActivity);
+router.get('/top-venues', validate(topVenuesQuerySchema), adminController.getTopVenues);
+router.get('/user-activity', validate(userActivityQuerySchema), adminController.getUserActivity);
 router.post('/cache/clear', adminController.clearCache);
 router.get('/health/database', adminController.getDatabaseHealth);
 router.post('/moderate', validate(moderateContentSchema), adminController.moderateContent);
