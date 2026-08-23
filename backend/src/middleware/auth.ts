@@ -3,7 +3,12 @@ import { getAuthUser } from '../services/user/authUserCache';
 import { User } from '../types';
 import { AuthUtils } from '../utils/auth';
 import logger from '../utils/logger';
-import { checkRateLimit, getRedis } from '../utils/redisRateLimiter';
+import {
+  buildIpRateLimitKey,
+  checkRateLimit,
+  getRedis,
+  resolveIpRateLimitScope,
+} from '../utils/redisRateLimiter';
 import { setUser as sentrySetUser } from '../utils/sentry';
 import { buildErrorResponseForStatus } from './validate';
 
@@ -183,22 +188,29 @@ function requestPathForRateLimit(req: Request): string {
 }
 
 /**
- * In-memory rate limit check (fallback when Redis unavailable)
+ * In-memory rate limit check (fallback when Redis unavailable).
+ *
+ * Keys are the same shape as Redis (`rate_limit:${scope}:${ip}:${windowMs}`)
+ * so login cannot share a counter with /api/bands.
+ *
+ * At MAX_RATE_LIMIT_ENTRIES after purge: auth/login fail-closed (429);
+ * non-critical routes may fail-open without tracking (KD-16).
  */
 function checkInMemoryRateLimit(
-  clientIP: string,
+  storeKey: string,
   windowMs: number,
-  maxRequests: number
+  maxRequests: number,
+  failClosed: boolean
 ): { allowed: boolean; remaining: number; resetAt: number } {
   const now = Date.now();
-  const clientData = inMemoryRateLimitStore.get(clientIP);
+  const clientData = inMemoryRateLimitStore.get(storeKey);
 
   if (!clientData || now > clientData.resetTime) {
     const resetTime = now + windowMs;
     // Enforce max size before adding new entries
     if (
       inMemoryRateLimitStore.size >= MAX_RATE_LIMIT_ENTRIES &&
-      !inMemoryRateLimitStore.has(clientIP)
+      !inMemoryRateLimitStore.has(storeKey)
     ) {
       // Purge expired entries first
       for (const [key, data] of inMemoryRateLimitStore.entries()) {
@@ -206,13 +218,15 @@ function checkInMemoryRateLimit(
           inMemoryRateLimitStore.delete(key);
         }
       }
-      // If still at capacity after purge, allow request without tracking
-      // (fail-open for memory safety)
       if (inMemoryRateLimitStore.size >= MAX_RATE_LIMIT_ENTRIES) {
+        if (failClosed) {
+          return { allowed: false, remaining: 0, resetAt: resetTime };
+        }
+        // Non-auth GET/browse: fail-open for memory safety (A-013 / KD-16)
         return { allowed: true, remaining: maxRequests - 1, resetAt: resetTime };
       }
     }
-    inMemoryRateLimitStore.set(clientIP, {
+    inMemoryRateLimitStore.set(storeKey, {
       count: 1,
       resetTime,
     });
@@ -242,7 +256,10 @@ function setRateLimitHeaders(
   res.setHeader('X-RateLimit-Reset', Math.ceil(resetAt / 1000).toString());
 }
 
-function sendRateLimitExceeded(res: Response): void {
+function sendRateLimitExceeded(res: Response, context?: { scope: string; path: string }): void {
+  if (context) {
+    logger.warn('Rate limit exceeded', { scope: context.scope, path: context.path });
+  }
   res
     .status(429)
     .json(buildErrorResponseForStatus(429, 'Too many requests, please try again later'));
@@ -253,17 +270,18 @@ export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number
     const clientIP = req.ip || req.socket.remoteAddress || 'unknown';
     const requestPath = requestPathForRateLimit(req);
     const isCritical = isCriticalEndpoint(requestPath) || isCriticalEndpoint(req.path);
+    const scope = resolveIpRateLimitScope(requestPath);
+    const key = buildIpRateLimitKey(scope, clientIP, windowMs);
 
     try {
       // Try Redis first
       if (getRedis()) {
-        const key = `rate_limit:${clientIP}`;
         const result = await checkRateLimit(key, maxRequests, windowMs);
 
         setRateLimitHeaders(res, maxRequests, result.remaining, result.resetAt);
 
         if (!result.allowed) {
-          sendRateLimitExceeded(res);
+          sendRateLimitExceeded(res, { scope, path: requestPath });
           return;
         }
 
@@ -274,15 +292,15 @@ export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number
       if (isCritical) {
         logger.warn('Redis rate limiting unavailable for sensitive endpoint, using fallback', {
           path: requestPath,
-          clientIP,
+          scope,
         });
       }
 
-      const result = checkInMemoryRateLimit(clientIP, windowMs, maxRequests);
+      const result = checkInMemoryRateLimit(key, windowMs, maxRequests, isCritical);
       setRateLimitHeaders(res, maxRequests, result.remaining, result.resetAt);
 
       if (!result.allowed) {
-        sendRateLimitExceeded(res);
+        sendRateLimitExceeded(res, { scope, path: requestPath });
         return;
       }
 
@@ -296,14 +314,16 @@ export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number
       if (isCritical) {
         logger.warn('Redis rate limiting failed for sensitive endpoint, using fallback', {
           path: requestPath,
-          clientIP,
+          scope,
         });
       }
 
-      const result = checkInMemoryRateLimit(clientIP, windowMs, maxRequests);
+      // Redis-throw is not fail-open on login: in-memory still tracks,
+      // and overflow on critical paths fail-closes (429).
+      const result = checkInMemoryRateLimit(key, windowMs, maxRequests, isCritical);
       setRateLimitHeaders(res, maxRequests, result.remaining, result.resetAt);
       if (!result.allowed) {
-        sendRateLimitExceeded(res);
+        sendRateLimitExceeded(res, { scope, path: requestPath });
         return;
       }
 
@@ -311,6 +331,22 @@ export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number
     }
   };
 };
+
+/** Test-only: empty the process-local IP limiter fallback store. */
+export function resetInMemoryRateLimitStoreForTests(): void {
+  inMemoryRateLimitStore.clear();
+}
+
+/** Test-only: fill the fallback store with `count` unexpired entries. */
+export function seedInMemoryRateLimitStoreForTests(count: number): void {
+  const resetTime = Date.now() + 60 * 60 * 1000;
+  inMemoryRateLimitStore.clear();
+  for (let i = 0; i < count; i += 1) {
+    inMemoryRateLimitStore.set(`__seed:${i}`, { count: 1, resetTime });
+  }
+}
+
+export const IN_MEMORY_RATE_LIMIT_MAX_ENTRIES = MAX_RATE_LIMIT_ENTRIES;
 
 /**
  * Clean up expired in-memory rate limit entries

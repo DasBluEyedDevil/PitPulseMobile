@@ -9,10 +9,16 @@ import adminController from '../../controllers/AdminController';
 
 const mockDbQuery = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 
-jest.mock('../../utils/redisRateLimiter', () => ({
-  getRedis: jest.fn().mockReturnValue(null),
-  checkRateLimit: jest.fn(),
-}));
+jest.mock('../../utils/redisRateLimiter', () => {
+  const actual = jest.requireActual(
+    '../../utils/redisRateLimiter'
+  ) as typeof import('../../utils/redisRateLimiter');
+  return {
+    ...actual,
+    getRedis: jest.fn().mockReturnValue(null),
+    checkRateLimit: jest.fn(),
+  };
+});
 
 jest.mock('../../utils/auth', () => ({
   AuthUtils: {

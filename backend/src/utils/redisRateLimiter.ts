@@ -24,6 +24,48 @@ function redisCommandTimeoutMs(): number {
     : configured;
 }
 
+function sanitizeRateLimitScope(scope: string): string {
+  const cleaned = scope
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return cleaned || 'general';
+}
+
+/**
+ * Map a request path to an IP rate-limit family.
+ * Login/register/token must not share a counter with browse routes such as /api/bands.
+ */
+export function resolveIpRateLimitScope(path: string): string {
+  const normalized = (path || '').split('?')[0].replace(/\/+$/, '') || '/';
+  const withoutApi = normalized.replace(/^\/api(?=\/|$)/, '');
+
+  if (
+    /\/(users|auth)\/login$/i.test(withoutApi) ||
+    /\/auth\/social\/(google|apple)$/i.test(withoutApi)
+  ) {
+    return 'login';
+  }
+  if (/\/(users|auth)\/register$/i.test(withoutApi)) {
+    return 'register';
+  }
+  if (/\/tokens(\/|$)/i.test(withoutApi) || /\/auth\/(refresh|revoke)$/i.test(withoutApi)) {
+    return 'token';
+  }
+
+  const family = withoutApi.split('/').filter(Boolean)[0];
+  return family ? sanitizeRateLimitScope(family) : 'general';
+}
+
+/** Redis / in-memory key: rate_limit:${scope}:${ip}:${windowMs} */
+export function buildIpRateLimitKey(scope: string, ip: string, windowMs: number): string {
+  return `rate_limit:${sanitizeRateLimitScope(scope)}:${ip}:${windowMs}`;
+}
+
+export function ipRateLimitResetPattern(ip: string): string {
+  return `rate_limit:*:${ip}:*`;
+}
+
 /**
  * Initialize Redis connection
  * Returns null if REDIS_URL is not configured (graceful fallback)
@@ -93,8 +135,9 @@ export interface RateLimitResult {
 }
 
 /**
- * Check rate limit using Redis sliding window algorithm
- * Falls back to allowing requests if Redis is not available
+ * Check rate limit using Redis sliding window algorithm.
+ * Returns fail-open only when no Redis client exists. Pipeline/command
+ * failures throw so auth/login can fail-closed or use in-memory tracking.
  */
 export async function checkRateLimit(
   key: string,
@@ -130,8 +173,9 @@ export async function checkRateLimit(
 
     const results = await pipeline.exec();
     if (!results) {
-      // Fail-open: allow when pipeline returns no results (Redis issue)
-      return { allowed: true, remaining: maxRequests, resetAt: now + windowMs };
+      // Do not fail-open here. Auth/login must decide fail-closed vs in-memory
+      // tracking; swallowing the error would skip the login budget.
+      throw new Error('Redis rate limit pipeline returned no results');
     }
 
     // Results format: [[error, result], [error, result], ...]
@@ -151,9 +195,7 @@ export async function checkRateLimit(
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
-    // Fail-open: allow requests when rate limit check errors.
-    // The in-memory fallback in auth.ts middleware provides basic protection.
-    return { allowed: true, remaining: maxRequests, resetAt: now + windowMs };
+    throw error;
   }
 }
 
@@ -182,10 +224,21 @@ export async function closeRedis(): Promise<void> {
 export class RedisRateLimiter {
   private windowMs: number;
   private maxRequests: number;
+  private scope: string;
 
-  constructor(windowMs: number = 15 * 60 * 1000, maxRequests: number = 100) {
+  constructor(
+    windowMs: number = 15 * 60 * 1000,
+    maxRequests: number = 100,
+    scope: string = 'general'
+  ) {
     this.windowMs = windowMs;
     this.maxRequests = maxRequests;
+    this.scope = sanitizeRateLimitScope(scope);
+  }
+
+  private keyFor(ip: string, path?: string): string {
+    const scope = path ? resolveIpRateLimitScope(path) : this.scope;
+    return buildIpRateLimitKey(scope, ip, this.windowMs);
   }
 
   /**
@@ -194,7 +247,8 @@ export class RedisRateLimiter {
   middleware() {
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       const clientIP = req.ip || req.socket.remoteAddress || 'unknown';
-      const key = `rate_limit:${clientIP}`;
+      const path = (req.originalUrl || req.path || '').split('?')[0];
+      const key = this.keyFor(clientIP, path);
 
       try {
         const result = await checkRateLimit(key, this.maxRequests, this.windowMs);
@@ -237,7 +291,7 @@ export class RedisRateLimiter {
    * Get current request count for an IP
    */
   async getRequestCount(ip: string): Promise<number> {
-    const key = `rate_limit:${ip}`;
+    const key = this.keyFor(ip);
     const client = getRedis();
 
     if (!client) {
@@ -263,18 +317,36 @@ export class RedisRateLimiter {
    * Reset rate limit for a specific IP
    */
   async reset(ip: string): Promise<void> {
-    const key = `rate_limit:${ip}`;
     const client = getRedis();
+    if (!client) {
+      return;
+    }
 
-    if (client) {
-      try {
-        await client.del(key);
-      } catch (error) {
-        logger.error('Error resetting rate limit', {
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-        });
+    try {
+      const keys = new Set<string>([this.keyFor(ip)]);
+      const pattern = ipRateLimitResetPattern(ip);
+      let cursor = '0';
+      do {
+        const [nextCursor, found] = await client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+        cursor = nextCursor;
+        for (const foundKey of found) {
+          keys.add(foundKey);
+        }
+      } while (cursor !== '0');
+
+      const toDelete = [...keys];
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
+        const batch = toDelete.slice(i, i + BATCH_SIZE);
+        if (batch.length > 0) {
+          await client.unlink(...batch);
+        }
       }
+    } catch (error) {
+      logger.error('Error resetting rate limit', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
     }
   }
 }
