@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { authenticateToken, optionalAuth, requireAdmin } from '../../middleware/auth';
+import { authenticateToken, optionalAuth, requireAdmin, requirePremium } from '../../middleware/auth';
 import { AuthUtils } from '../../utils/auth';
 import { UserService } from '../../services/UserService';
 import { User } from '../../types';
@@ -91,7 +91,7 @@ describe('Auth Middleware', () => {
       expect(mockStatus).toHaveBeenCalledWith(401);
       expect(mockJson).toHaveBeenCalledWith({
         success: false,
-        error: 'Access token required',
+        error: { code: 'UNAUTHORIZED', message: 'Access token required' },
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -107,7 +107,7 @@ describe('Auth Middleware', () => {
       expect(mockStatus).toHaveBeenCalledWith(401);
       expect(mockJson).toHaveBeenCalledWith({
         success: false,
-        error: 'Invalid or expired token',
+        error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' },
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -131,7 +131,7 @@ describe('Auth Middleware', () => {
       expect(mockStatus).toHaveBeenCalledWith(401);
       expect(mockJson).toHaveBeenCalledWith({
         success: false,
-        error: 'User not found or inactive',
+        error: { code: 'UNAUTHORIZED', message: 'User not found or inactive' },
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -154,7 +154,7 @@ describe('Auth Middleware', () => {
       expect(mockStatus).toHaveBeenCalledWith(401);
       expect(mockJson).toHaveBeenCalledWith({
         success: false,
-        error: 'User not found or inactive',
+        error: { code: 'UNAUTHORIZED', message: 'User not found or inactive' },
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -180,7 +180,7 @@ describe('Auth Middleware', () => {
       expect(mockStatus).toHaveBeenCalledWith(500);
       expect(mockJson).toHaveBeenCalledWith({
         success: false,
-        error: 'Authentication failed',
+        error: { code: 'INTERNAL_ERROR', message: 'Authentication failed' },
       });
       expect(mockNext).not.toHaveBeenCalled();
 
@@ -301,7 +301,7 @@ describe('Auth Middleware', () => {
       expect(mockStatus).toHaveBeenCalledWith(401);
       expect(mockJson).toHaveBeenCalledWith({
         success: false,
-        error: 'Authentication required',
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -315,7 +315,7 @@ describe('Auth Middleware', () => {
       expect(mockStatus).toHaveBeenCalledWith(403);
       expect(mockJson).toHaveBeenCalledWith({
         success: false,
-        error: 'Admin privileges required',
+        error: { code: 'FORBIDDEN', message: 'Admin privileges required' },
       });
       expect(mockNext).not.toHaveBeenCalled();
     });
@@ -331,7 +331,47 @@ describe('Auth Middleware', () => {
       expect(mockStatus).toHaveBeenCalledWith(403);
       expect(mockJson).toHaveBeenCalledWith({
         success: false,
-        error: 'Admin privileges required',
+        error: { code: 'FORBIDDEN', message: 'Admin privileges required' },
+      });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('requirePremium', () => {
+    it('should allow premium user to proceed', () => {
+      mockRequest.user = { ...mockUser, isPremium: true };
+
+      const middleware = requirePremium();
+      middleware(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockNext).toHaveBeenCalled();
+      expect(mockStatus).not.toHaveBeenCalled();
+    });
+
+    it('should return 401 when user not authenticated', () => {
+      mockRequest.user = undefined;
+
+      const middleware = requirePremium();
+      middleware(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockStatus).toHaveBeenCalledWith(401);
+      expect(mockJson).toHaveBeenCalledWith({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      });
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('should return 403 for non-premium user', () => {
+      mockRequest.user = mockUser;
+
+      const middleware = requirePremium();
+      middleware(mockRequest as Request, mockResponse as Response, mockNext);
+
+      expect(mockStatus).toHaveBeenCalledWith(403);
+      expect(mockJson).toHaveBeenCalledWith({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'SoundCheck Pro subscription required' },
       });
       expect(mockNext).not.toHaveBeenCalled();
     });

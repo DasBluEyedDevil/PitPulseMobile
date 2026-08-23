@@ -11,6 +11,8 @@ export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
   message?: string;
+  // Hottest failure paths emit ApiErrorObject. Remaining controllers still use
+  // string errors, so narrowing here is not safe until those emitters migrate.
   error?: string | ApiErrorObject;
   retryAfter?: number; // Seconds to wait before retry (for 503/429 responses)
   pagination?: {

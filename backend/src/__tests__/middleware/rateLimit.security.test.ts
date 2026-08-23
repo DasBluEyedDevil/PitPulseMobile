@@ -44,12 +44,13 @@ describe('rateLimit security behavior', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(status).toHaveBeenCalledWith(429);
-    expect(json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        success: false,
-        error: 'Too many requests, please try again later',
-      })
-    );
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      error: {
+        code: 'RATE_LIMITED',
+        message: 'Too many requests, please try again later',
+      },
+    });
   });
 
   it('allows non-critical paths to use the in-memory fallback', async () => {

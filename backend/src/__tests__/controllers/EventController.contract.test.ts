@@ -239,7 +239,10 @@ describe('EventController mobile contract', () => {
     expect(response.status).toBe(503);
     expect(response.body).toEqual({
       success: false,
-      error: 'Event lookup not available: Ticketmaster API key not configured',
+      error: {
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'Event lookup not available: Ticketmaster API key not configured',
+      },
     });
     expect(TicketmasterAdapter).not.toHaveBeenCalled();
   });

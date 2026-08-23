@@ -2,9 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthUtils } from '../utils/auth';
 import { UserService } from '../services/UserService';
 import { checkRateLimit, getRedis } from '../utils/redisRateLimiter';
-import { ApiResponse, User } from '../types';
+import { User } from '../types';
 import logger from '../utils/logger';
 import { setUser as sentrySetUser } from '../utils/sentry';
+import { buildErrorResponseForStatus } from './validate';
 
 export interface AuthenticatedRequest extends Request {
   user: User;
@@ -23,21 +24,13 @@ export const authenticateToken = async (
     const token = AuthUtils.extractTokenFromHeader(authHeader);
 
     if (!token) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'Access token required',
-      };
-      res.status(401).json(response);
+      res.status(401).json(buildErrorResponseForStatus(401, 'Access token required'));
       return;
     }
 
     const payload = AuthUtils.verifyToken(token);
     if (!payload) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'Invalid or expired token',
-      };
-      res.status(401).json(response);
+      res.status(401).json(buildErrorResponseForStatus(401, 'Invalid or expired token'));
       return;
     }
 
@@ -46,11 +39,7 @@ export const authenticateToken = async (
     const user = await userService.findById(payload.userId);
 
     if (!user || !user.isActive) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'User not found or inactive',
-      };
-      res.status(401).json(response);
+      res.status(401).json(buildErrorResponseForStatus(401, 'User not found or inactive'));
       return;
     }
 
@@ -65,11 +54,7 @@ export const authenticateToken = async (
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
-    const response: ApiResponse = {
-      success: false,
-      error: 'Authentication failed',
-    };
-    res.status(500).json(response);
+    res.status(500).json(buildErrorResponseForStatus(500, 'Authentication failed'));
   }
 };
 
@@ -117,18 +102,12 @@ export const requireAdmin = () => {
     const user = req.user;
 
     if (!user) {
-      res.status(401).json({
-        success: false,
-        error: 'Authentication required',
-      });
+      res.status(401).json(buildErrorResponseForStatus(401, 'Authentication required'));
       return;
     }
 
     if (!user.isAdmin) {
-      res.status(403).json({
-        success: false,
-        error: 'Admin privileges required',
-      });
+      res.status(403).json(buildErrorResponseForStatus(403, 'Admin privileges required'));
       return;
     }
 
@@ -144,18 +123,14 @@ export const requirePremium = () => {
     const user = req.user;
 
     if (!user) {
-      res.status(401).json({
-        success: false,
-        error: 'Authentication required',
-      });
+      res.status(401).json(buildErrorResponseForStatus(401, 'Authentication required'));
       return;
     }
 
     if (!user.isPremium) {
-      res.status(403).json({
-        success: false,
-        error: 'SoundCheck Pro subscription required',
-      });
+      res
+        .status(403)
+        .json(buildErrorResponseForStatus(403, 'SoundCheck Pro subscription required'));
       return;
     }
 
@@ -272,11 +247,9 @@ function setRateLimitHeaders(
 }
 
 function sendRateLimitExceeded(res: Response): void {
-  const response: ApiResponse = {
-    success: false,
-    error: 'Too many requests, please try again later',
-  };
-  res.status(429).json(response);
+  res
+    .status(429)
+    .json(buildErrorResponseForStatus(429, 'Too many requests, please try again later'));
 }
 
 export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number = 100) => {
