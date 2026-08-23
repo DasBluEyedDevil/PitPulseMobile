@@ -99,4 +99,53 @@ describe('R2Service', () => {
 
     await expect(service.objectExists('checkins/photo.png')).resolves.toBe(true);
   });
+
+  it('throws 503 when HEAD is called without R2 credentials', async () => {
+    delete process.env.CLOUDFLARE_ACCOUNT_ID;
+    delete process.env.R2_ACCESS_KEY_ID;
+    delete process.env.R2_SECRET_ACCESS_KEY;
+
+    const service = new R2Service();
+    expect(service.isReady).toBe(false);
+
+    await expect(service.headObject('checkins/photo.jpg')).rejects.toMatchObject({
+      message: 'R2 is not configured',
+      statusCode: 503,
+    });
+    expect(mockS3Send).not.toHaveBeenCalled();
+  });
+
+  it('builds public URLs from R2_PUBLIC_URL', () => {
+    const service = new R2Service();
+    expect(service.getPublicUrl('checkins/photo.jpg')).toBe(
+      'https://cdn.example.com/checkins/photo.jpg'
+    );
+  });
+
+  it('strips a trailing slash on R2_PUBLIC_URL when building public URLs', () => {
+    process.env.R2_PUBLIC_URL = 'https://cdn.example.com/';
+    const service = new R2Service();
+    expect(service.getPublicUrl('checkins/photo.jpg')).toBe(
+      'https://cdn.example.com/checkins/photo.jpg'
+    );
+  });
+
+  it('throws 503 when R2 is ready but R2_PUBLIC_URL is empty', () => {
+    process.env.R2_PUBLIC_URL = '';
+    const service = new R2Service();
+    expect(service.isReady).toBe(true);
+
+    expect(() => service.getPublicUrl('checkins/photo.jpg')).toThrow(
+      'Photo storage public URL is not configured'
+    );
+    try {
+      const url = service.getPublicUrl('checkins/photo.jpg');
+      throw new Error(`expected getPublicUrl to throw, got ${url}`);
+    } catch (error) {
+      expect(error).toMatchObject({
+        message: 'Photo storage public URL is not configured',
+        statusCode: 503,
+      });
+    }
+  });
 });
