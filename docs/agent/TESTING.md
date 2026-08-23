@@ -131,7 +131,7 @@ Run locally:
 npm run dev:web
 ```
 
-The web build runs `astro build`, syncs root legal markdown into `web/src/content/legal/`, and emits the Astro static bundle.
+The web build runs `astro build`, syncs root legal markdown into `web/src/content/legal/`, and emits the Astro static bundle. `astro build` fills `_headers` CSP `connect-src` from the `PUBLIC_API_BASE_URL` origin. CI's `web-build` job sets `PUBLIC_API_BASE_URL` and also asserts that `astro build` fails when it is empty.
 
 ## Agent Harness
 
