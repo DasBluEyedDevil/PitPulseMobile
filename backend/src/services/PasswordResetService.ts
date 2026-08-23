@@ -4,6 +4,7 @@ import { EmailService } from './EmailService';
 import { AuthUtils } from '../utils/auth';
 import { revokeAllUserTokens } from '../utils/auth';
 import { logInfo, logError } from '../utils/logger';
+import { invalidateAuthUserCache } from './user/authUserCache';
 
 /**
  * PasswordResetService handles the full forgot-password lifecycle:
@@ -146,6 +147,7 @@ export class PasswordResetService {
 
     // Revoke all refresh tokens for this user (forces re-login on all devices)
     await revokeAllUserTokens(userId);
+    await invalidateAuthUserCache(userId);
 
     logInfo('Password reset successful', { userId });
   }

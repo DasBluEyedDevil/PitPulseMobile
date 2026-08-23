@@ -1,15 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
-import { authenticateToken, optionalAuth, requireAdmin, requirePremium } from '../../middleware/auth';
+import {
+  authenticateToken,
+  optionalAuth,
+  requireAdmin,
+  requirePremium,
+} from '../../middleware/auth';
 import { AuthUtils } from '../../utils/auth';
-import { UserService } from '../../services/UserService';
+import { getAuthUser } from '../../services/user/authUserCache';
 import { User } from '../../types';
 
-// Mock dependencies
 jest.mock('../../utils/auth');
-jest.mock('../../services/UserService');
+jest.mock('../../services/user/authUserCache', () => ({
+  getAuthUser: jest.fn(),
+}));
 
 const MockedAuthUtils = AuthUtils as jest.Mocked<typeof AuthUtils>;
-const MockedUserService = UserService as jest.MockedClass<typeof UserService>;
+const mockGetAuthUser = getAuthUser as jest.MockedFunction<typeof getAuthUser>;
 
 describe('Auth Middleware', () => {
   let mockRequest: Partial<Request>;
@@ -68,15 +74,26 @@ describe('Auth Middleware', () => {
         username: 'testuser',
       });
 
-      const mockFindById = jest.fn().mockResolvedValue(mockUser);
-      MockedUserService.prototype.findById = mockFindById;
+      mockGetAuthUser.mockResolvedValue({
+        id: mockUser.id,
+        username: mockUser.username,
+        isActive: true,
+        isAdmin: false,
+        isPremium: false,
+      });
 
       await authenticateToken(mockRequest as Request, mockResponse as Response, mockNext);
 
       expect(MockedAuthUtils.extractTokenFromHeader).toHaveBeenCalledWith('Bearer valid-token');
       expect(MockedAuthUtils.verifyToken).toHaveBeenCalledWith('valid-token');
-      expect(mockFindById).toHaveBeenCalledWith('user-123');
-      expect(mockRequest.user).toEqual(mockUser);
+      expect(mockGetAuthUser).toHaveBeenCalledWith('user-123');
+      expect(mockRequest.user).toEqual({
+        id: mockUser.id,
+        username: mockUser.username,
+        isActive: true,
+        isAdmin: false,
+        isPremium: false,
+      });
       expect(mockNext).toHaveBeenCalled();
       expect(mockStatus).not.toHaveBeenCalled();
     });
@@ -122,9 +139,13 @@ describe('Auth Middleware', () => {
         username: 'testuser',
       });
 
-      const inactiveUser = { ...mockUser, isActive: false };
-      const mockFindById = jest.fn().mockResolvedValue(inactiveUser);
-      MockedUserService.prototype.findById = mockFindById;
+      mockGetAuthUser.mockResolvedValue({
+        id: mockUser.id,
+        username: mockUser.username,
+        isActive: false,
+        isAdmin: false,
+        isPremium: false,
+      });
 
       await authenticateToken(mockRequest as Request, mockResponse as Response, mockNext);
 
@@ -146,8 +167,7 @@ describe('Auth Middleware', () => {
         username: 'testuser',
       });
 
-      const mockFindById = jest.fn().mockResolvedValue(null);
-      MockedUserService.prototype.findById = mockFindById;
+      mockGetAuthUser.mockResolvedValue(null);
 
       await authenticateToken(mockRequest as Request, mockResponse as Response, mockNext);
 
@@ -169,8 +189,7 @@ describe('Auth Middleware', () => {
         username: 'testuser',
       });
 
-      const mockFindById = jest.fn().mockRejectedValue(new Error('Database error'));
-      MockedUserService.prototype.findById = mockFindById;
+      mockGetAuthUser.mockRejectedValue(new Error('Database error'));
 
       // Mock console.error to suppress error output in tests
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
@@ -199,12 +218,23 @@ describe('Auth Middleware', () => {
         username: 'testuser',
       });
 
-      const mockFindById = jest.fn().mockResolvedValue(mockUser);
-      MockedUserService.prototype.findById = mockFindById;
+      mockGetAuthUser.mockResolvedValue({
+        id: mockUser.id,
+        username: mockUser.username,
+        isActive: true,
+        isAdmin: false,
+        isPremium: false,
+      });
 
       await optionalAuth(mockRequest as Request, mockResponse as Response, mockNext);
 
-      expect(mockRequest.user).toEqual(mockUser);
+      expect(mockRequest.user).toEqual({
+        id: mockUser.id,
+        username: mockUser.username,
+        isActive: true,
+        isAdmin: false,
+        isPremium: false,
+      });
       expect(mockNext).toHaveBeenCalled();
       expect(mockStatus).not.toHaveBeenCalled();
     });
@@ -244,9 +274,13 @@ describe('Auth Middleware', () => {
         username: 'testuser',
       });
 
-      const inactiveUser = { ...mockUser, isActive: false };
-      const mockFindById = jest.fn().mockResolvedValue(inactiveUser);
-      MockedUserService.prototype.findById = mockFindById;
+      mockGetAuthUser.mockResolvedValue({
+        id: mockUser.id,
+        username: mockUser.username,
+        isActive: false,
+        isAdmin: false,
+        isPremium: false,
+      });
 
       await optionalAuth(mockRequest as Request, mockResponse as Response, mockNext);
 
@@ -265,8 +299,7 @@ describe('Auth Middleware', () => {
         username: 'testuser',
       });
 
-      const mockFindById = jest.fn().mockRejectedValue(new Error('Database error'));
-      MockedUserService.prototype.findById = mockFindById;
+      mockGetAuthUser.mockRejectedValue(new Error('Database error'));
 
       // Mock console.error to suppress error output in tests
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();

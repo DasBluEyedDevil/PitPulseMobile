@@ -1,5 +1,6 @@
 import Database from '../config/database';
 import logger from '../utils/logger';
+import { invalidateAuthUserCache } from './user/authUserCache';
 
 interface WebhookEvent {
   id: string;
@@ -169,6 +170,7 @@ export class SubscriptionService {
    */
   async setUserPremium(userId: string, isPremium: boolean): Promise<void> {
     await this.db.query('UPDATE users SET is_premium = $2 WHERE id = $1', [userId, isPremium]);
+    await invalidateAuthUserCache(userId);
   }
 
   /**

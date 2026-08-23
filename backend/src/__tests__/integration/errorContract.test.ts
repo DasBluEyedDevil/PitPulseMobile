@@ -38,6 +38,11 @@ jest.mock('../../services/UserService', () => ({
   })),
 }));
 
+jest.mock('../../services/user/authUserCache', () => ({
+  getAuthUser: jest.fn(async () => null),
+  invalidateAuthUserCache: jest.fn(),
+}));
+
 jest.mock('../../config/database', () => ({
   __esModule: true,
   default: {

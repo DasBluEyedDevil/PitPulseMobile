@@ -35,6 +35,7 @@ import Database from '../config/database';
 import { createPubSubConnection } from '../config/redis';
 import winstonLogger from './logger';
 import { REALTIME_DELIVERY_CHANNEL, RealtimeDeliveryEnvelope } from '../services/RealtimePublisher';
+import { getAuthUser } from '../services/user/authUserCache';
 
 interface Client {
   ws: WebSocket;
@@ -83,10 +84,8 @@ class WebSocketServer {
             return;
           }
 
-          const result = await this.db.query('SELECT is_active FROM users WHERE id = $1', [
-            payload.userId,
-          ]);
-          if (!result.rows[0] || result.rows[0].is_active !== true) {
+          const user = await getAuthUser(payload.userId);
+          if (!user || !user.isActive) {
             callback(false, 401, 'User not found or inactive');
             return;
           }

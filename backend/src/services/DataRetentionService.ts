@@ -2,6 +2,7 @@ import Database from '../config/database';
 import crypto from 'crypto';
 import { r2Service } from './R2Service';
 import logger from '../utils/logger';
+import { invalidateAuthUserCache } from './user/authUserCache';
 
 /**
  * Deletion request status types
@@ -264,6 +265,7 @@ export class DataRetentionService {
       );
 
       await client.query('COMMIT');
+      await invalidateAuthUserCache(userId);
 
       return {
         success: true,
@@ -361,6 +363,7 @@ export class DataRetentionService {
     await this.db.query('UPDATE users SET is_active = true, updated_at = NOW() WHERE id = $1', [
       userId,
     ]);
+    await invalidateAuthUserCache(userId);
 
     const row = result.rows[0];
     return {

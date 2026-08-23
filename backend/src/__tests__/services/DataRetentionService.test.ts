@@ -5,6 +5,7 @@ import {
 } from '../../services/DataRetentionService';
 import Database from '../../config/database';
 import { r2Service } from '../../services/R2Service';
+import { invalidateAuthUserCache } from '../../services/user/authUserCache';
 
 // Mock dependencies
 jest.mock('../../config/database');
@@ -13,6 +14,9 @@ jest.mock('../../services/R2Service', () => ({
     isReady: false,
     deleteObject: jest.fn(),
   },
+}));
+jest.mock('../../services/user/authUserCache', () => ({
+  invalidateAuthUserCache: jest.fn().mockResolvedValue(undefined),
 }));
 
 const mockClient = {
@@ -245,6 +249,7 @@ describe('DataRetentionService', () => {
       expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
       expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
       expect(mockClient.release).toHaveBeenCalled();
+      expect(invalidateAuthUserCache).toHaveBeenCalledWith(userId);
     });
 
     it('should anonymize email with unique suffix', async () => {
@@ -647,6 +652,7 @@ describe('DataRetentionService', () => {
         expect.stringContaining('UPDATE users SET is_active = true'),
         [userId]
       );
+      expect(invalidateAuthUserCache).toHaveBeenCalledWith(userId);
     });
 
     it('should throw error if no pending request found', async () => {
