@@ -257,6 +257,16 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Verify astro build fails closed without PUBLIC_API_BASE_URL
+      env:
+        PUBLIC_API_BASE_URL: ''
+      run: |
+        if npx astro build > "$RUNNER_TEMP/web-build-without-api-base-url.txt" 2>&1; then
+          echo "Expected astro build to reject absent PUBLIC_API_BASE_URL"
+          exit 1
+        fi
+        grep -F 'PUBLIC_API_BASE_URL' "$RUNNER_TEMP/web-build-without-api-base-url.txt"
+
     - name: Regenerate deterministic mobile platform icons
       run: npm run generate:platform-icons
 
@@ -268,6 +278,8 @@ jobs:
         ../mobile/store-assets/app-icons
 
     - name: Build release-dependent web surface
+      env:
+        PUBLIC_API_BASE_URL: http://127.0.0.1:3000/api
       run: npm run build
 
   secret-scan:
