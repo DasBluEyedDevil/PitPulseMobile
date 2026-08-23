@@ -114,7 +114,7 @@ SoundCheck/
    npm run dev:web
    ```
 
-   To verify a production build:
+   To verify a production build, set `PUBLIC_API_BASE_URL` (see `web/.env.example`):
    ```bash
    npm run build:web
    ```

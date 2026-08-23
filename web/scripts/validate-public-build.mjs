@@ -9,15 +9,29 @@ import {
   validateAasa,
   validateAssetlinks,
 } from "./association-contracts.mjs";
+import { resolvePublicApiBaseUrl } from "./public-api-base-url.mjs";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(currentDir, "..");
 const distDir = path.join(webRoot, "dist");
 const failures = [];
+
+let apiBaseUrl = "";
+try {
+  apiBaseUrl = resolvePublicApiBaseUrl({ required: true });
+} catch (error) {
+  failures.push(error.message);
+}
+
 const requiredPages = new Map([
   [
     "reset-password",
-    ["Reset password", "/auth/reset-password", "URLSearchParams"],
+    [
+      "Reset password",
+      "/auth/reset-password",
+      "URLSearchParams",
+      apiBaseUrl,
+    ],
   ],
   ["delete-account", ["Delete your account", "support@soundcheck.app"]],
   ["support", ["Support", "support@soundcheck.app"]],
