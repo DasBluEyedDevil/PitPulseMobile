@@ -225,7 +225,7 @@ export class DataRetentionService {
 
       // 5. Anonymize check-in photos
       const checkinPhotoResult = await client.query(
-        'UPDATE checkins SET photo_url = NULL WHERE user_id = $1',
+        'UPDATE checkins SET image_urls = NULL, photo_url = NULL WHERE user_id = $1',
         [userId]
       );
       anonymizedCheckinPhotos = checkinPhotoResult.rowCount || 0;

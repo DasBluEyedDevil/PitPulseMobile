@@ -133,6 +133,7 @@ describeIntegration('CheckinService Integration Tests', () => {
       expect(columns).toContain('rating');
       expect(columns).toContain('comment');
       expect(columns).toContain('photo_url');
+      expect(columns).toContain('image_urls');
       expect(columns).toContain('event_date');
       expect(columns).toContain('checkin_latitude');
       expect(columns).toContain('checkin_longitude');

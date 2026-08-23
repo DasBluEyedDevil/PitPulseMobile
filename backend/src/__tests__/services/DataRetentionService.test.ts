@@ -462,7 +462,13 @@ describe('DataRetentionService', () => {
 
       expect(result.anonymizedCheckinPhotos).toBe(7);
       expect(mockClient.query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE checkins SET photo_url = NULL WHERE user_id = $1'),
+        expect.stringContaining(
+          'UPDATE checkins SET image_urls = NULL, photo_url = NULL WHERE user_id = $1'
+        ),
+        [userId]
+      );
+      expect(mockClient.query).not.toHaveBeenCalledWith(
+        expect.stringMatching(/UPDATE checkins SET photo_url = NULL WHERE user_id = \$1\s*$/),
         [userId]
       );
     });

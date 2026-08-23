@@ -143,8 +143,65 @@ describe('DataExportService', () => {
       expect(result.checkins[0].bandGenre).toBe('Rock');
       expect(result.checkins[0].rating).toBe(4.5);
       expect(result.checkins[0].comment).toBe('Great show!');
+      expect(result.checkins[0].photoUrl).toBe('https://example.com/photo.jpg');
       expect(result.checkins[0].checkinLatitude).toBe(34.09);
       expect(result.checkins[0].checkinLongitude).toBe(-118.3877);
+
+      const checkinQuery = mockDb.query.mock.calls[1][0] as string;
+      expect(checkinQuery).toContain('c.image_urls');
+      expect(checkinQuery).toContain('c.photo_url');
+    });
+
+    it('prefers image_urls over legacy photo_url in check-in export', async () => {
+      const mockCheckin = {
+        id: 'checkin-1',
+        rating: 4.5,
+        comment: 'Great show!',
+        image_urls: ['https://cdn.example.com/new.jpg', 'https://cdn.example.com/two.jpg'],
+        photo_url: 'https://example.com/legacy.jpg',
+        event_date: new Date('2024-03-15'),
+        created_at: new Date('2024-03-16'),
+        venue_name: 'The Roxy',
+        venue_city: 'Los Angeles',
+        band_name: 'The Strokes',
+        band_genre: 'Rock',
+        checkin_latitude: null,
+        checkin_longitude: null,
+      };
+
+      mockDb.query.mockResolvedValueOnce({ rows: [mockProfile] });
+      mockDb.query.mockResolvedValueOnce({ rows: [mockCheckin] });
+      mockEmptyParallelTail(mockDb.query, 17);
+
+      const result = await dataExportService.exportUserData(userId);
+
+      expect(result.checkins[0].photoUrl).toBe('https://cdn.example.com/new.jpg');
+    });
+
+    it('falls back to photo_url when image_urls is empty', async () => {
+      const mockCheckin = {
+        id: 'checkin-1',
+        rating: 4,
+        comment: null,
+        image_urls: [],
+        photo_url: 'https://example.com/legacy.jpg',
+        event_date: null,
+        created_at: new Date('2024-03-16'),
+        venue_name: null,
+        venue_city: null,
+        band_name: null,
+        band_genre: null,
+        checkin_latitude: null,
+        checkin_longitude: null,
+      };
+
+      mockDb.query.mockResolvedValueOnce({ rows: [mockProfile] });
+      mockDb.query.mockResolvedValueOnce({ rows: [mockCheckin] });
+      mockEmptyParallelTail(mockDb.query, 17);
+
+      const result = await dataExportService.exportUserData(userId);
+
+      expect(result.checkins[0].photoUrl).toBe('https://example.com/legacy.jpg');
     });
 
     it('should include followers list', async () => {

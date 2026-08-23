@@ -306,7 +306,7 @@ export class DataExportService {
    */
   private async getCheckins(userId: string): Promise<ExportedCheckin[]> {
     const query = `
-      SELECT c.id, c.rating, c.comment, c.photo_url, c.event_date, c.created_at,
+      SELECT c.id, c.rating, c.comment, c.image_urls, c.photo_url, c.event_date, c.created_at,
              c.checkin_latitude, c.checkin_longitude,
              v.name as venue_name, v.city as venue_city,
              b.name as band_name, b.genre as band_genre
@@ -328,7 +328,7 @@ export class DataExportService {
       bandGenre: row.band_genre,
       rating: parseFloat(row.rating) || 0,
       comment: row.comment,
-      photoUrl: row.photo_url,
+      photoUrl: resolveExportedPhotoUrl(row.image_urls, row.photo_url),
       eventDate: row.event_date ? row.event_date.toISOString() : null,
       checkinLatitude: row.checkin_latitude ? parseFloat(row.checkin_latitude) : null,
       checkinLongitude: row.checkin_longitude ? parseFloat(row.checkin_longitude) : null,
@@ -681,4 +681,13 @@ export class DataExportService {
       createdAt: row.created_at.toISOString(),
     }));
   }
+}
+
+/** Prefer image_urls[0]; fall back to legacy photo_url. Empty strings are treated as missing. */
+function resolveExportedPhotoUrl(imageUrls: unknown, photoUrl: unknown): string | null {
+  if (Array.isArray(imageUrls)) {
+    const first = imageUrls.find((url) => typeof url === 'string' && url.length > 0);
+    if (first) return first;
+  }
+  return typeof photoUrl === 'string' && photoUrl.length > 0 ? photoUrl : null;
 }
