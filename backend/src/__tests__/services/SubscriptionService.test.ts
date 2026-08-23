@@ -84,11 +84,16 @@ describe('SubscriptionService', () => {
     it('should fail closed when expected RevenueCat environment is not configured', async () => {
       delete process.env.REVENUECAT_WEBHOOK_ENVIRONMENT;
       subscriptionService = new SubscriptionService();
-      mockDb.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
+      mockDb.query.mockResolvedValueOnce({ rows: [] });
 
       const result = await subscriptionService.processWebhookEvent(mockEvent);
 
-      expect(result).toEqual({ processed: true, reason: 'Ignored unexpected environment' });
+      expect(result).toEqual({ processed: false, reason: 'config_missing' });
+      expect(mockDb.query).toHaveBeenCalledTimes(1);
+      expect(mockDb.query).not.toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO processed_webhook_events'),
+        expect.anything()
+      );
       expect(mockDb.query).not.toHaveBeenCalledWith(
         'UPDATE users SET is_premium = $2 WHERE id = $1',
         expect.anything()
@@ -103,7 +108,11 @@ describe('SubscriptionService', () => {
         environment: 'SANDBOX',
       });
 
-      expect(result).toEqual({ processed: true, reason: 'Ignored unexpected environment' });
+      expect(result).toEqual({ processed: true, reason: 'ignored_unexpected_environment' });
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO processed_webhook_events'),
+        ['evt-123', 'INITIAL_PURCHASE', 'user-456']
+      );
       expect(mockDb.query).not.toHaveBeenCalledWith(
         'UPDATE users SET is_premium = $2 WHERE id = $1',
         expect.anything()
@@ -220,9 +229,14 @@ describe('SubscriptionService', () => {
       const result = await subscriptionService.processWebhookEvent(mockEvent);
 
       expect(result.processed).toBe(false);
-      expect(result.reason).toBe('User not found');
+      expect(result.reason).toBe('user_not_found');
+      expect(mockDb.query).not.toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO processed_webhook_events'),
+        expect.anything()
+      );
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        'SubscriptionService: User not found for app_user_id=user-456'
+        'SubscriptionService: User not found for app_user_id=user-456',
+        expect.objectContaining({ metric: 'webhook.user_not_found' })
       );
     });
 
