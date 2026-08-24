@@ -10,10 +10,15 @@ interface WebhookEvent {
   expiration_at_ms?: number | null;
 }
 
+export const WEBHOOK_REASON = {
+  CONFIG_MISSING: 'config_missing',
+  IGNORED_UNEXPECTED_ENVIRONMENT: 'ignored_unexpected_environment',
+  USER_NOT_FOUND: 'user_not_found',
+} as const;
+
 export class SubscriptionService {
   private db = Database.getInstance();
   private premiumEntitlementId = process.env.REVENUECAT_ENTITLEMENT_ID || 'pro';
-  private expectedEnvironment = process.env.REVENUECAT_WEBHOOK_ENVIRONMENT;
 
   /**
    * Process a RevenueCat webhook event idempotently.
@@ -27,6 +32,17 @@ export class SubscriptionService {
     );
     if (existing.rows.length > 0) {
       return { processed: false, reason: 'Already processed' };
+    }
+
+    // Missing env is not a sandbox/prod mismatch — do not mark processed (HTTP 503).
+    const expectedEnvironment = process.env.REVENUECAT_WEBHOOK_ENVIRONMENT;
+    if (!expectedEnvironment) {
+      logger.error('SubscriptionService: REVENUECAT_WEBHOOK_ENVIRONMENT not configured', {
+        metric: 'webhook.config_missing',
+        eventId: event.id,
+        eventType: event.type,
+      });
+      return { processed: false, reason: WEBHOOK_REASON.CONFIG_MISSING };
     }
 
     if (event.type === 'TEST') {
@@ -45,15 +61,16 @@ export class SubscriptionService {
       return { processed: true, reason: 'Ignored non-premium entitlement' };
     }
 
-    if (!this.matchesExpectedEnvironment(event)) {
+    if (!this.matchesExpectedEnvironment(event, expectedEnvironment)) {
       logger.warn('SubscriptionService: Ignoring RevenueCat event for unexpected environment', {
+        metric: 'webhook.ignored_unexpected_environment',
         eventId: event.id,
         eventType: event.type,
         environment: event.environment,
-        expectedEnvironment: this.expectedEnvironment,
+        expectedEnvironment,
       });
       await this.markEventProcessed(event);
-      return { processed: true, reason: 'Ignored unexpected environment' };
+      return { processed: true, reason: WEBHOOK_REASON.IGNORED_UNEXPECTED_ENVIRONMENT };
     }
 
     // 2. Resolve user by app_user_id (set via Purchases.logIn(userId) on mobile)
@@ -61,8 +78,11 @@ export class SubscriptionService {
       event.app_user_id,
     ]);
     if (userResult.rows.length === 0) {
-      logger.warn(`SubscriptionService: User not found for app_user_id=${event.app_user_id}`);
-      return { processed: false, reason: 'User not found' };
+      logger.warn(`SubscriptionService: User not found for app_user_id=${event.app_user_id}`, {
+        metric: 'webhook.user_not_found',
+        eventId: event.id,
+      });
+      return { processed: false, reason: WEBHOOK_REASON.USER_NOT_FOUND };
     }
 
     // 3. Process based on event type
@@ -116,12 +136,8 @@ export class SubscriptionService {
     return event.entitlement_ids.includes(this.premiumEntitlementId);
   }
 
-  private matchesExpectedEnvironment(event: WebhookEvent): boolean {
-    if (!this.expectedEnvironment) {
-      return false;
-    }
-
-    return event.environment === this.expectedEnvironment;
+  private matchesExpectedEnvironment(event: WebhookEvent, expectedEnvironment: string): boolean {
+    return event.environment === expectedEnvironment;
   }
 
   private hasValidFutureExpiration(event: WebhookEvent): boolean {

@@ -6,10 +6,15 @@
 
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-import { SubscriptionService } from '../services/SubscriptionService';
+import { SubscriptionService, WEBHOOK_REASON } from '../services/SubscriptionService';
 import { asyncHandler } from '../utils/asyncHandler';
 import { UnauthorizedError } from '../utils/errors';
 import logger from '../utils/logger';
+
+const WEBHOOK_FAIL_CLOSED_REASONS = new Set<string>([
+  WEBHOOK_REASON.CONFIG_MISSING,
+  WEBHOOK_REASON.USER_NOT_FOUND,
+]);
 
 export class SubscriptionController {
   private subscriptionService: Pick<
@@ -31,8 +36,13 @@ export class SubscriptionController {
     // 1. Validate Authorization header
     const webhookAuth = process.env.REVENUECAT_WEBHOOK_AUTH;
     if (!webhookAuth) {
-      logger.error('SubscriptionController: REVENUECAT_WEBHOOK_AUTH not configured');
-      res.status(200).json({ message: 'Webhook not configured' });
+      logger.error('SubscriptionController: REVENUECAT_WEBHOOK_AUTH not configured', {
+        metric: 'webhook.config_missing',
+      });
+      res.status(503).json({
+        success: false,
+        error: { code: 'SERVICE_UNAVAILABLE', message: WEBHOOK_REASON.CONFIG_MISSING },
+      });
       return;
     }
 
@@ -43,7 +53,9 @@ export class SubscriptionController {
     const tokenBuf = Buffer.from(token);
     const expectedBuf = Buffer.from(webhookAuth);
     if (tokenBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(tokenBuf, expectedBuf)) {
-      logger.warn('SubscriptionController: Invalid webhook authorization');
+      logger.warn('SubscriptionController: Invalid webhook authorization', {
+        metric: 'webhook.auth_rejected',
+      });
       // Return 200 to prevent RevenueCat retry storms on auth failures
       res.status(200).json({ message: 'Unauthorized' });
       return;
@@ -69,6 +81,20 @@ export class SubscriptionController {
       environment: event.environment,
       expiration_at_ms: event.expiration_at_ms,
     });
+
+    // Map by reason, not processed===false: user-not-found and config_missing
+    // must 503 (retry) while already-processed and env mismatch stay 200.
+    if (WEBHOOK_FAIL_CLOSED_REASONS.has(result.reason)) {
+      logger.error('SubscriptionController: webhook fail-closed', {
+        metric: `webhook.${result.reason}`,
+        reason: result.reason,
+      });
+      res.status(503).json({
+        success: false,
+        error: { code: 'SERVICE_UNAVAILABLE', message: result.reason },
+      });
+      return;
+    }
 
     // API-031: Use canonical ApiResponse format for webhook responses
     res.status(200).json({ success: true, data: { message: result.reason } });
