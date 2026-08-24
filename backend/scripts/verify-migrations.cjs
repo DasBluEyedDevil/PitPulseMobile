@@ -28,7 +28,7 @@ if (
 
 const bootstrapDir = path.resolve(__dirname, '../dist/bootstrap-migrations');
 const migrationsDir = path.resolve(__dirname, '../dist/migrations');
-const NORMAL_MIGRATION_COUNT = 62;
+const NORMAL_MIGRATION_COUNT = 63;
 
 function createClient(applicationName) {
   return new Client({

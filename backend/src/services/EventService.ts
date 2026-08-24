@@ -400,9 +400,11 @@ export class EventService {
         );
 
         if (checkinExists.rows.length > 0) {
-          await this.cancelEventPreservingCheckins(client, eventId, actor);
+          const cancelled = await this.cancelEventPreservingCheckins(client, eventId);
           await client.query('COMMIT');
-          await this.notifyEventCheckinUsers(eventId);
+          if (cancelled) {
+            await this.notifyEventCheckinUsers(eventId);
+          }
           return { deleted: false, cancelled: true };
         }
 
@@ -413,7 +415,12 @@ export class EventService {
           if (isPgErrorCode(deleteErr, '23503')) {
             await client.query('ROLLBACK TO SAVEPOINT event_delete');
             try {
-              await this.cancelEventPreservingCheckins(client, eventId, actor);
+              const cancelled = await this.cancelEventPreservingCheckins(client, eventId);
+              await client.query('COMMIT');
+              if (cancelled) {
+                await this.notifyEventCheckinUsers(eventId);
+              }
+              return { deleted: false, cancelled: true };
             } catch (cancelErr) {
               logger.error('Failed to cancel event after delete conflict', {
                 eventId,
@@ -422,9 +429,6 @@ export class EventService {
               });
               throw new ConflictError('Event could not be deleted or cancelled');
             }
-            await client.query('COMMIT');
-            await this.notifyEventCheckinUsers(eventId);
-            return { deleted: false, cancelled: true };
           }
           throw deleteErr;
         }
@@ -451,19 +455,19 @@ export class EventService {
 
   private async cancelEventPreservingCheckins(
     client: PoolClient,
-    eventId: string,
-    actor: DeleteEventActor
-  ): Promise<void> {
+    eventId: string
+  ): Promise<boolean> {
     const result = await client.query(
       `UPDATE events SET
         status = 'cancelled',
         updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1`,
+       WHERE id = $1
+         AND status IS DISTINCT FROM 'cancelled'
+       RETURNING id`,
       [eventId]
     );
-    if ((result.rowCount ?? 0) === 0) {
-      throw new ConflictError('Event could not be cancelled');
-    }
+
+    return (result.rowCount ?? 0) > 0;
   }
 
   private async notifyEventCheckinUsers(eventId: string): Promise<void> {

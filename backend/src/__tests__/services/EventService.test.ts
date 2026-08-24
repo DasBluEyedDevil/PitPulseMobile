@@ -596,6 +596,34 @@ describe('EventService', () => {
       });
     });
 
+    it('does not send duplicate notifications when retrying an already-cancelled delete', async () => {
+      const sqls: string[] = [];
+      setupClient(async (sql: string) => {
+        sqls.push(sql);
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return {};
+        }
+        if (sql.includes('FOR UPDATE')) {
+          return { rows: [{ id: 'event-123', created_by_user_id: 'user-a', status: 'cancelled' }] };
+        }
+        if (sql.includes('FROM checkins')) {
+          return { rows: [{ '?column?': 1 }] };
+        }
+        if (sql.includes("status = 'cancelled'")) {
+          return { rowCount: 0 };
+        }
+        throw new Error(`Unexpected query: ${sql}`);
+      });
+
+      const result = await eventService.deleteEvent('event-123', actor);
+
+      expect(result).toEqual({ deleted: false, cancelled: true });
+      expect(sqls.some((sql) => sql.includes('DELETE FROM events'))).toBe(false);
+      expect(sqls.some((sql) => sql.includes("status IS DISTINCT FROM 'cancelled'"))).toBe(true);
+      expect(mockDb.query).not.toHaveBeenCalled();
+      expect(mockNotificationService.createNotification).not.toHaveBeenCalled();
+    });
+
     it('cancels in the same request when RESTRICT races a check-in insert', async () => {
       setupClient(async (sql: string) => {
         if (
