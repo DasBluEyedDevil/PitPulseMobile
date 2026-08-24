@@ -11,8 +11,8 @@ import {
 } from "./association-contracts.mjs";
 import {
   PUBLIC_API_ORIGIN_PLACEHOLDER,
+  extractPublicApiBaseUrlFromHtml,
   publicApiOriginFromBaseUrl,
-  resolvePublicApiBaseUrl,
 } from "./public-api-base-url.mjs";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -20,21 +20,11 @@ const webRoot = path.resolve(currentDir, "..");
 const distDir = path.join(webRoot, "dist");
 const failures = [];
 
-let apiBaseUrl;
-try {
-  apiBaseUrl = resolvePublicApiBaseUrl({ required: true });
-} catch (error) {
-  failures.push(error.message);
-}
-
 const resetPasswordMarkers = [
   "Reset password",
   "/auth/reset-password",
   "URLSearchParams",
 ];
-if (apiBaseUrl) {
-  resetPasswordMarkers.push(`const apiBaseUrl = ${JSON.stringify(apiBaseUrl)}`);
-}
 
 const requiredPages = new Map([
   [
@@ -122,6 +112,23 @@ async function main() {
   }
 
   requiredPages.forEach((markers, route) => checkPage(route, markers));
+
+  let apiBaseUrl;
+  const resetPasswordPath = path.join(
+    distDir,
+    "reset-password",
+    "index.html",
+  );
+  if (fs.existsSync(resetPasswordPath)) {
+    try {
+      apiBaseUrl = extractPublicApiBaseUrlFromHtml(
+        fs.readFileSync(resetPasswordPath, "utf8"),
+      );
+    } catch (error) {
+      failures.push(error.message);
+    }
+  }
+
   await checkImage("favicon.png", {
     square: true,
     width: 512,
