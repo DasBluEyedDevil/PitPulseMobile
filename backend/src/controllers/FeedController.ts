@@ -6,12 +6,18 @@
 
 import { Request, Response } from 'express';
 import { routeParams } from '../utils/requestParams';
-import { FeedService, decodeCursor } from '../services/FeedService';
+import { FeedService } from '../services/FeedService';
 import { ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
-import { UnauthorizedError, BadRequestError } from '../utils/errors';
+import { UnauthorizedError } from '../utils/errors';
 
-const VALID_FEED_TYPES = ['friends', 'event', 'happening_now', 'global'] as const;
+function parseFeedLimit(value: unknown): number {
+  if (typeof value !== 'string') {
+    return 20;
+  }
+  const rawLimit = Number.parseInt(value, 10);
+  return Math.max(1, Math.min(50, Number.isNaN(rawLimit) ? 20 : rawLimit));
+}
 
 export class FeedController {
   private feedService = new FeedService();
@@ -27,14 +33,8 @@ export class FeedController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const cursor = req.query.cursor as string | undefined;
-    const rawLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
-    const limit = Math.max(1, Math.min(50, isNaN(rawLimit) ? 20 : rawLimit));
-
-    // API-015: Validate cursor format -- return 400 for malformed cursors
-    if (cursor && !decodeCursor(cursor)) {
-      throw new BadRequestError('Invalid cursor format');
-    }
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const limit = parseFeedLimit(req.query.limit);
 
     const result = await this.feedService.getFriendsFeed(userId, cursor, limit);
 
@@ -53,14 +53,8 @@ export class FeedController {
       throw new UnauthorizedError('Authentication required');
     }
 
-    const cursor = req.query.cursor as string | undefined;
-    const rawLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
-    const limit = Math.max(1, Math.min(50, isNaN(rawLimit) ? 20 : rawLimit));
-
-    // API-015: Validate cursor format -- return 400 for malformed cursors
-    if (cursor && !decodeCursor(cursor)) {
-      throw new BadRequestError('Invalid cursor format');
-    }
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const limit = parseFeedLimit(req.query.limit);
 
     const result = await this.feedService.getGlobalFeed(userId, cursor, limit);
 
@@ -75,18 +69,8 @@ export class FeedController {
   getEventFeed = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { eventId } = routeParams(req);
 
-    if (!eventId) {
-      throw new BadRequestError('Event ID is required');
-    }
-
-    const cursor = req.query.cursor as string | undefined;
-    const rawLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
-    const limit = Math.max(1, Math.min(50, isNaN(rawLimit) ? 20 : rawLimit));
-
-    // API-015: Validate cursor format
-    if (cursor && !decodeCursor(cursor)) {
-      throw new BadRequestError('Invalid cursor format');
-    }
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    const limit = parseFeedLimit(req.query.limit);
 
     const userId = req.user?.id;
     const result = await this.feedService.getEventFeed(eventId, userId, cursor, limit);
@@ -142,16 +126,6 @@ export class FeedController {
     }
 
     const { feedType, lastSeenAt, lastSeenCheckinId } = req.body;
-
-    // Validate feedType
-    if (!feedType || !VALID_FEED_TYPES.includes(feedType)) {
-      throw new BadRequestError(`feedType must be one of: ${VALID_FEED_TYPES.join(', ')}`);
-    }
-
-    // Validate lastSeenAt is a valid ISO date string
-    if (!lastSeenAt || isNaN(Date.parse(lastSeenAt))) {
-      throw new BadRequestError('lastSeenAt must be a valid ISO 8601 date string');
-    }
 
     await this.feedService.markFeedRead(userId, feedType, lastSeenAt, lastSeenCheckinId);
 

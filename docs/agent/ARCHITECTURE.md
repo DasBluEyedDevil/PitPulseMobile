@@ -51,7 +51,7 @@ authenticated user; logout runs cleanup and never bootstraps.
 
 ## Web Boundaries
 
-The web app is a static frontend surface. It should not own backend business logic, secrets, or support-ticket processing. Legal content remains sourced from the root markdown files and is copied by `web/scripts/sync-legal.mjs` before Astro runs.
+The web app is a static frontend surface. It should not own backend business logic, secrets, or support-ticket processing. Password reset is the only page that calls the API; `PUBLIC_API_BASE_URL` is required at web build and the built CSP `connect-src` allowlist is derived from that origin. Legal content remains sourced from the root markdown files and is copied by `web/scripts/sync-legal.mjs` before Astro runs.
 
 ## Integration Contracts
 

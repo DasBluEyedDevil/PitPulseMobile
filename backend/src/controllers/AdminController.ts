@@ -108,11 +108,6 @@ export class AdminController {
   getUserActivity = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const userId = req.query.userId as string;
 
-    if (!userId) {
-      res.status(400).json(buildErrorResponseForStatus(400, 'userId is required'));
-      return;
-    }
-
     const db = Database.getInstance();
 
     // Get user info -- SEC-012: Exclude email to prevent PII exposure
@@ -224,13 +219,6 @@ export class AdminController {
    */
   moderateContent = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { action, targetType, targetId, reason } = req.body;
-
-    if (!action || !targetType || !targetId) {
-      res
-        .status(400)
-        .json(buildErrorResponseForStatus(400, 'action, targetType, and targetId are required'));
-      return;
-    }
 
     const db = Database.getInstance();
 

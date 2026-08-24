@@ -2,6 +2,8 @@ import express from 'express';
 import request from 'supertest';
 import { FeedController } from '../../controllers/FeedController';
 import { FeedService, encodeCursor } from '../../services/FeedService';
+import { validate } from '../../middleware/validate';
+import { eventFeedSchema, feedQuerySchema, markReadSchema } from '../../routes/feedRoutes';
 
 jest.mock('../../services/FeedService', () => {
   const actual = jest.requireActual('../../services/FeedService');
@@ -12,6 +14,8 @@ jest.mock('../../services/FeedService', () => {
 });
 
 describe('FeedController mobile contract', () => {
+  const EVENT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const CHECKIN_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
   let feedService: jest.Mocked<FeedService>;
 
   const createApp = (user?: { id: string }) => {
@@ -24,12 +28,12 @@ describe('FeedController mobile contract', () => {
       (req as any).user = user;
       next();
     });
-    app.get('/friends', controller.getFriendsFeed);
-    app.get('/global', controller.getGlobalFeed);
-    app.get('/events/:eventId', controller.getEventFeed);
+    app.get('/friends', validate(feedQuerySchema), controller.getFriendsFeed);
+    app.get('/global', validate(feedQuerySchema), controller.getGlobalFeed);
+    app.get('/events/:eventId', validate(eventFeedSchema), controller.getEventFeed);
     app.get('/happening-now', controller.getHappeningNow);
     app.get('/unseen', controller.getUnseenCounts);
-    app.post('/mark-read', controller.markRead);
+    app.post('/mark-read', validate(markReadSchema), controller.markRead);
     app.use(
       (
         error: Error & { statusCode?: number },
@@ -67,14 +71,15 @@ describe('FeedController mobile contract', () => {
     const response = await request(createApp({ id: 'user-1' })).get('/friends?cursor=not-a-cursor');
 
     expect(response.status).toBe(400);
-    expect(response.body).toEqual({ error: 'Invalid cursor format' });
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
     expect(feedService.getFriendsFeed).not.toHaveBeenCalled();
   });
 
   it.each([
     ['0', 1],
     ['999', 50],
-    ['not-a-number', 20],
+    ['12', 12],
   ])('normalizes friends feed limit %s to %d', async (rawLimit, expectedLimit) => {
     feedService.getFriendsFeed.mockResolvedValue({ items: [], nextCursor: null, hasMore: false });
 
@@ -129,15 +134,15 @@ describe('FeedController mobile contract', () => {
   it('allows a public event feed while preserving optional viewer context', async () => {
     feedService.getEventFeed.mockResolvedValue({ items: [], nextCursor: null, hasMore: false });
 
-    const publicResponse = await request(createApp()).get('/events/event-1?limit=3');
+    const publicResponse = await request(createApp()).get(`/events/${EVENT_ID}?limit=3`);
     const viewerResponse = await request(createApp({ id: 'user-1' })).get(
-      '/events/event-1?limit=4'
+      `/events/${EVENT_ID}?limit=4`
     );
 
     expect(publicResponse.status).toBe(200);
     expect(viewerResponse.status).toBe(200);
-    expect(feedService.getEventFeed).toHaveBeenNthCalledWith(1, 'event-1', undefined, undefined, 3);
-    expect(feedService.getEventFeed).toHaveBeenNthCalledWith(2, 'event-1', 'user-1', undefined, 4);
+    expect(feedService.getEventFeed).toHaveBeenNthCalledWith(1, EVENT_ID, undefined, undefined, 3);
+    expect(feedService.getEventFeed).toHaveBeenNthCalledWith(2, EVENT_ID, 'user-1', undefined, 4);
   });
 
   it('returns happening-now and unseen data only for the authenticated user', async () => {
@@ -162,25 +167,17 @@ describe('FeedController mobile contract', () => {
   });
 
   it.each([
-    [
-      { lastSeenAt: '2026-07-26T12:00:00.000Z' },
-      'feedType must be one of: friends, event, happening_now, global',
-    ],
-    [
-      { feedType: 'nearby', lastSeenAt: '2026-07-26T12:00:00.000Z' },
-      'feedType must be one of: friends, event, happening_now, global',
-    ],
-    [
-      { feedType: 'friends', lastSeenAt: 'not-a-date' },
-      'lastSeenAt must be a valid ISO 8601 date string',
-    ],
-  ])('rejects an invalid mark-read body %#', async (body, message) => {
+    [{ lastSeenAt: '2026-07-26T12:00:00.000Z' }],
+    [{ feedType: 'nearby', lastSeenAt: '2026-07-26T12:00:00.000Z' }],
+    [{ feedType: 'friends', lastSeenAt: 'not-a-date' }],
+  ])('rejects an invalid mark-read body %#', async (body) => {
     const response = await request(createApp({ id: 'user-1' }))
       .post('/mark-read')
       .send(body);
 
     expect(response.status).toBe(400);
-    expect(response.body).toEqual({ error: message });
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
     expect(feedService.markFeedRead).not.toHaveBeenCalled();
   });
 
@@ -192,7 +189,7 @@ describe('FeedController mobile contract', () => {
       .send({
         feedType: 'friends',
         lastSeenAt: '2026-07-26T12:00:00.000Z',
-        lastSeenCheckinId: 'checkin-9',
+        lastSeenCheckinId: CHECKIN_ID,
       });
 
     expect(response.status).toBe(200);
@@ -201,7 +198,7 @@ describe('FeedController mobile contract', () => {
       'user-1',
       'friends',
       '2026-07-26T12:00:00.000Z',
-      'checkin-9'
+      CHECKIN_ID
     );
   });
 });

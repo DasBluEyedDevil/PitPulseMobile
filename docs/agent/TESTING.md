@@ -119,6 +119,8 @@ These targeted suites cover WebSocket URI/token construction, authenticated stat
 
 ## Web
 
+`PUBLIC_API_BASE_URL` is required for `astro build` (password-reset is the only web→API call). Copy `web/.env.example` or export the variable. Use the env var name only; do not commit API hosts as source fallbacks.
+
 Run from the repo root:
 
 ```bash
@@ -131,7 +133,7 @@ Run locally:
 npm run dev:web
 ```
 
-The web build runs `astro build`, syncs root legal markdown into `web/src/content/legal/`, and emits the Astro static bundle.
+The web build runs `astro build`, syncs root legal markdown into `web/src/content/legal/`, and emits the Astro static bundle. `astro build` fills `_headers` CSP `connect-src` from the `PUBLIC_API_BASE_URL` origin. CI's `web-build` job sets `PUBLIC_API_BASE_URL` and also asserts that `astro build` fails when it is empty.
 
 ## Agent Harness
 

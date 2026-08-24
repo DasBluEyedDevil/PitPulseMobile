@@ -9,15 +9,27 @@ import {
   validateAasa,
   validateAssetlinks,
 } from "./association-contracts.mjs";
+import {
+  PUBLIC_API_ORIGIN_PLACEHOLDER,
+  extractPublicApiBaseUrlFromHtml,
+  publicApiOriginFromBaseUrl,
+} from "./public-api-base-url.mjs";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(currentDir, "..");
 const distDir = path.join(webRoot, "dist");
 const failures = [];
+
+const resetPasswordMarkers = [
+  "Reset password",
+  "/auth/reset-password",
+  "URLSearchParams",
+];
+
 const requiredPages = new Map([
   [
     "reset-password",
-    ["Reset password", "/auth/reset-password", "URLSearchParams"],
+    resetPasswordMarkers,
   ],
   ["delete-account", ["Delete your account", "support@soundcheck.app"]],
   ["support", ["Support", "support@soundcheck.app"]],
@@ -100,6 +112,23 @@ async function main() {
   }
 
   requiredPages.forEach((markers, route) => checkPage(route, markers));
+
+  let apiBaseUrl;
+  const resetPasswordPath = path.join(
+    distDir,
+    "reset-password",
+    "index.html",
+  );
+  if (fs.existsSync(resetPasswordPath)) {
+    try {
+      apiBaseUrl = extractPublicApiBaseUrlFromHtml(
+        fs.readFileSync(resetPasswordPath, "utf8"),
+      );
+    } catch (error) {
+      failures.push(error.message);
+    }
+  }
+
   await checkImage("favicon.png", {
     square: true,
     width: 512,
@@ -144,6 +173,27 @@ async function main() {
   const headersPath = requireFile("_headers");
   if (headersPath) {
     const headers = fs.readFileSync(headersPath, "utf8");
+    if (headers.includes(PUBLIC_API_ORIGIN_PLACEHOLDER)) {
+      failures.push(
+        "_headers still contains the PUBLIC_API_BASE_URL connect-src placeholder.",
+      );
+    }
+    if (apiBaseUrl) {
+      try {
+        const origin = publicApiOriginFromBaseUrl(apiBaseUrl);
+        const connectSrc = headers.match(/connect-src\s+([^;]+)/i);
+        const sources = connectSrc
+          ? connectSrc[1].trim().split(/\s+/)
+          : [];
+        if (!sources.includes(origin)) {
+          failures.push(
+            `_headers connect-src does not allow PUBLIC_API_BASE_URL origin ${JSON.stringify(origin)}.`,
+          );
+        }
+      } catch (error) {
+        failures.push(error.message);
+      }
+    }
     for (const associationPath of [
       "/.well-known/apple-app-site-association",
       "/.well-known/assetlinks.json",

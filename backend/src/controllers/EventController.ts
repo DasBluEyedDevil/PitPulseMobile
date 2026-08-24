@@ -47,22 +47,7 @@ export class EventController {
     } = req.body;
     const userId = req.user?.id; // From auth middleware
 
-    // Validate required fields
-    if (!venueId) {
-      throw new BadRequestError('venueId is required');
-    }
-
-    if (!eventDate || isNaN(new Date(eventDate).getTime())) {
-      throw new BadRequestError('A valid eventDate is required');
-    }
-
-    // Require at least one band (via bandId or lineup)
     const hasLineup = lineup && Array.isArray(lineup) && lineup.length > 0;
-    if (!bandId && !hasLineup) {
-      throw new BadRequestError(
-        'At least one band is required (bandId or lineup with bandId/bandName)'
-      );
-    }
 
     // Resolve lineup: convert bandName entries to bandId via BandMatcher
     let resolvedLineup: { bandId: string; setOrder?: number; isHeadliner?: boolean }[] | undefined;
@@ -76,10 +61,6 @@ export class EventController {
         if (!resolvedBandId && entry.bandName) {
           const matchResult = await this.bandMatcher.matchOrCreateBand(entry.bandName);
           resolvedBandId = matchResult.bandId;
-        }
-
-        if (!resolvedBandId) {
-          throw new BadRequestError('Each lineup entry must have either bandId or bandName');
         }
 
         resolvedLineup.push({
@@ -297,11 +278,11 @@ export class EventController {
    * Requires lat and lng query parameters.
    */
   getNearbyEvents = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const lat = req.query.lat ? parseFloat(req.query.lat as string) : undefined;
-    const lng = req.query.lng ? parseFloat(req.query.lng as string) : undefined;
+    const lat = parseFloat(req.query.lat as string);
+    const lng = parseFloat(req.query.lng as string);
 
     // API-021: Range-validate geo coordinates
-    if (lat === undefined || lng === undefined || isNaN(lat) || isNaN(lng)) {
+    if (isNaN(lat) || isNaN(lng)) {
       throw new BadRequestError('lat and lng query parameters are required and must be numeric');
     }
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
@@ -326,11 +307,11 @@ export class EventController {
    * GET /api/events/discover?lat=&lon=&radius=50&days=30&limit=20
    */
   getNearbyUpcoming = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const lat = req.query.lat ? parseFloat(req.query.lat as string) : undefined;
-    const lon = req.query.lon ? parseFloat(req.query.lon as string) : undefined;
+    const lat = parseFloat(req.query.lat as string);
+    const lon = parseFloat(req.query.lon as string);
 
     // API-021: Range-validate geo coordinates
-    if (lat === undefined || lon === undefined || isNaN(lat) || isNaN(lon)) {
+    if (isNaN(lat) || isNaN(lon)) {
       throw new BadRequestError('lat and lon query parameters are required and must be numeric');
     }
     if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
@@ -358,10 +339,6 @@ export class EventController {
   getByGenre = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const { genre } = routeParams(req);
 
-    if (!genre) {
-      throw new BadRequestError('genre parameter is required');
-    }
-
     // API-014: Bounded parseInt with NaN handling
     const rawGenreLimit = parseInt(req.query.limit as string, 10);
     const limit = isNaN(rawGenreLimit) ? 20 : Math.max(1, Math.min(100, rawGenreLimit));
@@ -385,13 +362,9 @@ export class EventController {
   searchEvents = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const q = req.query.q as string;
 
-    if (!q || q.trim().length === 0) {
-      throw new BadRequestError('q query parameter is required');
-    }
-
     const limit = parseBoundedInt(req.query.limit, 20, { min: 1, max: 100 });
 
-    const events = await this.eventService.searchEvents(q.trim(), limit);
+    const events = await this.eventService.searchEvents(q, limit);
 
     const response: ApiResponse = {
       success: true,

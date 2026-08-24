@@ -5,7 +5,7 @@ import { createPerUserRateLimit } from '../../middleware/perUserRateLimit';
 import { buildErrorResponseForStatus } from '../../middleware/validate';
 import { authenticateToken, rateLimit, requireAdmin, requirePremium } from '../../middleware/auth';
 import { dailyCheckinRateLimit } from '../../middleware/checkinRateLimit';
-import adminController from '../../controllers/AdminController';
+import adminRoutes from '../../routes/adminRoutes';
 
 const mockDbQuery = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 
@@ -45,7 +45,13 @@ jest.mock('../../services/UserService', () => ({
 }));
 
 jest.mock('../../services/user/authUserCache', () => ({
-  getAuthUser: jest.fn(async () => null),
+  getAuthUser: jest.fn(async () => ({
+    id: 'admin-user',
+    username: 'admin',
+    isActive: true,
+    isAdmin: true,
+    isPremium: false,
+  })),
   invalidateAuthUserCache: jest.fn(),
 }));
 
@@ -127,8 +133,14 @@ describe('API error contract', () => {
         res.status(200).json({ success: true });
       }
     );
-    app.post('/admin/moderate', adminController.moderateContent);
-    app.get('/admin/user-activity', adminController.getUserActivity);
+    app.use(
+      '/admin',
+      (req, _res, next) => {
+        req.headers.authorization = 'Bearer valid-token';
+        next();
+      },
+      adminRoutes
+    );
     app.use((req, res) => {
       res.status(404).json(buildErrorResponseForStatus(404, `Route ${req.originalUrl} not found`));
     });
@@ -208,14 +220,33 @@ describe('API error contract', () => {
 
   it('returns object envelopes from admin validation', async () => {
     const missingFields = await request(app).post('/admin/moderate').send({});
-    expectObjectEnvelope(
-      missingFields,
-      400,
-      'BAD_REQUEST',
-      'action, targetType, and targetId are required'
+    expect(missingFields.status).toBe(400);
+    expect(missingFields.body).toEqual(
+      expect.objectContaining({
+        success: false,
+        error: expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+        }),
+      })
+    );
+    expect(missingFields.body.error.details).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: expect.stringContaining('body.') })])
     );
 
     const missingUserId = await request(app).get('/admin/user-activity');
-    expectObjectEnvelope(missingUserId, 400, 'BAD_REQUEST', 'userId is required');
+    expect(missingUserId.status).toBe(400);
+    expect(missingUserId.body).toEqual(
+      expect.objectContaining({
+        success: false,
+        error: expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+        }),
+      })
+    );
+    expect(missingUserId.body.error.details).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: expect.stringContaining('query.') })])
+    );
   });
 });
