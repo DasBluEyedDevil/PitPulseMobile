@@ -364,7 +364,7 @@ export class EventController {
 
     const limit = parseBoundedInt(req.query.limit, 20, { min: 1, max: 100 });
 
-    const events = await this.eventService.searchEvents(q.trim(), limit);
+    const events = await this.eventService.searchEvents(q, limit);
 
     const response: ApiResponse = {
       success: true,
