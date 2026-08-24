@@ -2,6 +2,14 @@ import express from 'express';
 import request from 'supertest';
 import { EventController } from '../../controllers/EventController';
 import { TicketmasterAdapter } from '../../services/TicketmasterAdapter';
+import { validate } from '../../middleware/validate';
+import {
+  createEventSchema,
+  discoverQuerySchema,
+  genreParamSchema,
+  nearbyQuerySchema,
+  searchQuerySchema,
+} from '../../routes/eventRoutes';
 
 jest.mock('../../services/TicketmasterAdapter', () => ({
   TicketmasterAdapter: jest.fn(),
@@ -12,6 +20,8 @@ jest.mock('../../services/BandMatcher', () => ({ BandMatcher: jest.fn() }));
 jest.mock('../../services/DiscoveryService', () => ({ DiscoveryService: jest.fn() }));
 
 describe('EventController mobile contract', () => {
+  const VENUE_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const BAND_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
   const event = {
     id: 'event-1',
     venueId: 'venue-1',
@@ -37,14 +47,14 @@ describe('EventController mobile contract', () => {
       (req as any).user = user;
       next();
     });
-    app.post('/events', controller.createEvent);
+    app.post('/events', validate(createEventSchema), controller.createEvent);
     app.get('/events/upcoming', controller.getUpcomingEvents);
     app.get('/events/trending', controller.getTrendingEvents);
     app.get('/events/lookup/:ticketmasterId', controller.lookupEvent);
-    app.get('/events/nearby', controller.getNearbyEvents);
-    app.get('/events/discover', controller.getNearbyUpcoming);
-    app.get('/events/genre/:genre', controller.getByGenre);
-    app.get('/events/search', controller.searchEvents);
+    app.get('/events/nearby', validate(nearbyQuerySchema), controller.getNearbyEvents);
+    app.get('/events/discover', validate(discoverQuerySchema), controller.getNearbyUpcoming);
+    app.get('/events/genre/:genre', validate(genreParamSchema), controller.getByGenre);
+    app.get('/events/search', validate(searchQuerySchema), controller.searchEvents);
     app.get('/events/recommended', controller.getRecommendedEvents);
     app.get('/events/:id', controller.getEventById);
     app.delete('/events/:id', controller.deleteEvent);
@@ -92,22 +102,17 @@ describe('EventController mobile contract', () => {
   });
 
   it.each([
-    [{ bandId: 'band-1', eventDate: '2026-08-01T20:00:00.000Z' }, 'venueId is required'],
-    [
-      { venueId: 'venue-1', eventDate: 'not-a-date', bandId: 'band-1' },
-      'A valid eventDate is required',
-    ],
-    [
-      { venueId: 'venue-1', eventDate: '2026-08-01T20:00:00.000Z' },
-      'At least one band is required (bandId or lineup with bandId/bandName)',
-    ],
-  ])('rejects an invalid event body before persistence', async (body, message) => {
+    [{ bandId: BAND_ID, eventDate: '2026-08-01T20:00:00.000Z' }],
+    [{ venueId: VENUE_ID, eventDate: 'not-a-date', bandId: BAND_ID }],
+    [{ venueId: VENUE_ID, eventDate: '2026-08-01T20:00:00.000Z' }],
+  ])('rejects an invalid event body before persistence', async (body) => {
     const response = await request(createApp({ id: 'user-1' }))
       .post('/events')
       .send(body);
 
     expect(response.status).toBe(400);
-    expect(response.body).toEqual({ error: message });
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
     expect(eventService.createEvent).not.toHaveBeenCalled();
   });
 
@@ -118,12 +123,12 @@ describe('EventController mobile contract', () => {
     const response = await request(createApp({ id: 'user-1' }))
       .post('/events')
       .send({
-        venueId: 'venue-1',
+        venueId: VENUE_ID,
         eventDate: '2026-08-01T20:00:00.000Z',
         eventName: 'Summer Show',
         lineup: [
           { bandName: 'The New Band', setOrder: 2, isHeadliner: true },
-          { bandId: 'band-existing', setOrder: 1 },
+          { bandId: BAND_ID, setOrder: 1 },
         ],
       });
 
@@ -134,7 +139,7 @@ describe('EventController mobile contract', () => {
       message: 'Event created successfully',
     });
     expect(eventService.createEvent).toHaveBeenCalledWith({
-      venueId: 'venue-1',
+      venueId: VENUE_ID,
       bandId: undefined,
       eventDate: new Date('2026-08-01T20:00:00.000Z'),
       eventName: 'Summer Show',
@@ -145,7 +150,7 @@ describe('EventController mobile contract', () => {
       createdByUserId: 'user-1',
       lineup: [
         { bandId: 'band-resolved', setOrder: 2, isHeadliner: true },
-        { bandId: 'band-existing', setOrder: 1, isHeadliner: undefined },
+        { bandId: BAND_ID, setOrder: 1, isHeadliner: undefined },
       ],
     });
   });
@@ -154,15 +159,14 @@ describe('EventController mobile contract', () => {
     const response = await request(createApp())
       .post('/events')
       .send({
-        venueId: 'venue-1',
+        venueId: VENUE_ID,
         eventDate: '2026-08-01T20:00:00.000Z',
         lineup: [{ setOrder: 1 }],
       });
 
     expect(response.status).toBe(400);
-    expect(response.body).toEqual({
-      error: 'Each lineup entry must have either bandId or bandName',
-    });
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
     expect(eventService.createEvent).not.toHaveBeenCalled();
   });
 
@@ -293,7 +297,11 @@ describe('EventController mobile contract', () => {
     const response = await request(createApp()).get(path);
 
     expect(response.status).toBe(400);
-    expect(response.body.error).toContain(message);
+    if (path === '/events/nearby' || path === '/events/discover?lat=40') {
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
+    } else {
+      expect(response.body.error).toContain(message);
+    }
   });
 
   it('loads nearby events with bounded defaults', async () => {
@@ -332,7 +340,8 @@ describe('EventController mobile contract', () => {
     const response = await request(createApp()).get('/events/search?q=%20%20');
 
     expect(response.status).toBe(400);
-    expect(response.body).toEqual({ error: 'q query parameter is required' });
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('VALIDATION_ERROR');
     expect(eventService.searchEvents).not.toHaveBeenCalled();
   });
 

@@ -19,18 +19,18 @@ const feedQueryFields = z.object({
   limit: z.string().regex(/^\d+$/, 'limit must be a positive integer').optional(),
 });
 
-const feedQuerySchema = z.object({
+export const feedQuerySchema = z.object({
   query: feedQueryFields,
 });
 
-const eventFeedSchema = z.object({
+export const eventFeedSchema = z.object({
   params: z.object({
     eventId: z.string().uuid('Event ID must be a valid UUID'),
   }),
   query: feedQueryFields,
 });
 
-const markReadSchema = z.object({
+export const markReadSchema = z.object({
   body: z.object({
     feedType: z.enum(['friends', 'event', 'happening_now', 'global']),
     lastSeenAt: z
