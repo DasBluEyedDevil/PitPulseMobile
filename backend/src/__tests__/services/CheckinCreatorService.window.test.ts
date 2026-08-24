@@ -166,6 +166,54 @@ describe('isCheckinWithinTimeWindow', () => {
       expected: false,
     },
     {
+      name: 'doors 23:30 with start 00:30 opens on the preceding calendar evening',
+      event: {
+        event_date: EVENT_DATE,
+        timezone: ZONE,
+        doors_time: '23:30',
+        start_time: '00:30',
+        end_time: '02:00',
+      },
+      now: at('2026-04-14T23:30:00'),
+      expected: true,
+    },
+    {
+      name: 'doors 23:30 with start 00:30 includes the event-date start',
+      event: {
+        event_date: EVENT_DATE,
+        timezone: ZONE,
+        doors_time: '23:30',
+        start_time: '00:30',
+        end_time: '02:00',
+      },
+      now: at('2026-04-15T00:30:00'),
+      expected: true,
+    },
+    {
+      name: 'same-day doors 19:00 with start 20:00 remains on event_date',
+      event: {
+        event_date: EVENT_DATE,
+        timezone: ZONE,
+        doors_time: '19:00',
+        start_time: '20:00',
+        end_time: '22:00',
+      },
+      now: at('2026-04-15T19:00:00'),
+      expected: true,
+    },
+    {
+      name: 'same-day doors 19:00 with start 20:00 rejects the preceding evening',
+      event: {
+        event_date: EVENT_DATE,
+        timezone: ZONE,
+        doors_time: '19:00',
+        start_time: '20:00',
+        end_time: '22:00',
+      },
+      now: at('2026-04-14T19:00:00'),
+      expected: false,
+    },
+    {
       name: 'NULL timezone is all-day on event_date, not UTC-deny',
       event: {
         event_date: EVENT_DATE,

@@ -142,12 +142,14 @@ export function isCheckinWithinTimeWindow(
   }
 
   let startClock: ParsedClock;
-  let derivedViaMinus2h = false;
+  let startCrossesMidnight = false;
   if (doors !== 'missing') {
     startClock = doors;
+    startCrossesMidnight =
+      startTime !== 'missing' && clockSeconds(startClock) > clockSeconds(startTime);
   } else if (startTime !== 'missing') {
     startClock = addHoursToClock(startTime, -2);
-    derivedViaMinus2h = true;
+    startCrossesMidnight = clockSeconds(startClock) > clockSeconds(startTime);
   } else {
     startClock = { hours: 16, minutes: 0, seconds: 0 };
   }
@@ -167,12 +169,8 @@ export function isCheckinWithinTimeWindow(
     return failClosed('unparsable_local_instant', event);
   }
 
-  // start_time - 2h crossed backward over midnight (00:30 → 22:30 previous calendar day).
-  if (
-    derivedViaMinus2h &&
-    startTime !== 'missing' &&
-    clockSeconds(startClock) > clockSeconds(startTime)
-  ) {
+  // Explicit doors_time or start_time - 2h can anchor the window to the previous calendar day.
+  if (startCrossesMidnight) {
     startLocal = startLocal.minus({ days: 1 });
   }
   if (endLocal <= startLocal) {
