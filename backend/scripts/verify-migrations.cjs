@@ -124,10 +124,19 @@ async function verifyRollbackAndReupgrade() {
     await client.query(
       `INSERT INTO events
          (venue_id, event_date, event_name, created_by_user_id, source, status)
-       VALUES ($1, DATE '2026-08-24', 'Replacement Pair', $2, 'user_created', 'cancelled'),
-              ($1, DATE '2026-08-24', 'Replacement Pair', $2, 'user_created', 'active')`,
+       VALUES ($1, DATE '2026-08-24', 'Replacement Pair (cancelled)', $2, 'user_created', 'cancelled'),
+              ($1, DATE '2026-08-24', 'Replacement Pair (active)', $2, 'user_created', 'active')`,
       [venue.rows[0].id, user.rows[0].id]
     );
+
+    const duplicates = await client.query(
+      `SELECT venue_id, event_date, event_name, created_by_user_id, COUNT(*)::int AS count
+       FROM events
+       WHERE source = 'user_created'
+       GROUP BY venue_id, event_date, event_name, created_by_user_id
+       HAVING COUNT(*) > 1`
+    );
+    assert.equal(duplicates.rowCount, 0);
   });
   await withClient('phase30-rollback', async (client) => {
     await runner({
