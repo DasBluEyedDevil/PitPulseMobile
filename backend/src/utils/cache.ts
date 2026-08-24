@@ -75,10 +75,7 @@ function isProtectedCachePattern(pattern: string): boolean {
   if (callerShaped.startsWith('rate_limit:')) {
     return true;
   }
-  if (
-    callerShaped === 'bull' ||
-    callerShaped.startsWith('bull:')
-  ) {
+  if (callerShaped === 'bull' || callerShaped.startsWith('bull:')) {
     return true;
   }
   return BULLMQ_QUEUE_NAMES.some((queueName) => {
@@ -116,10 +113,7 @@ function matchesGlob(key: string, globPattern: string): boolean {
 
   while (keyIndex < key.length) {
     const patternCharacter = globPattern[patternIndex];
-    if (
-      patternCharacter === '?' ||
-      patternCharacter === key[keyIndex]
-    ) {
+    if (patternCharacter === '?' || patternCharacter === key[keyIndex]) {
       keyIndex += 1;
       patternIndex += 1;
       continue;
@@ -411,7 +405,11 @@ class CacheService {
     if (redis) {
       try {
         if ((await redis.exists(prefixed)) > 0) return true;
-        if (prefixed !== key && (await canReadLegacyCache(redis)) && (await redis.exists(key)) > 0) {
+        if (
+          prefixed !== key &&
+          (await canReadLegacyCache(redis)) &&
+          (await redis.exists(key)) > 0
+        ) {
           return true;
         }
         return false;

@@ -332,9 +332,11 @@ describe('transparent cache prefix and pattern safety', () => {
         if (key === 'cache:legacy-read-disabled') legacyReadsDisabled = true;
         return 'OK';
       }),
-      exists: jest.fn<(key: string) => Promise<number>>().mockImplementation(async (key: string) =>
-        key === 'cache:legacy-read-disabled' && legacyReadsDisabled ? 1 : 0
-      ),
+      exists: jest
+        .fn<(key: string) => Promise<number>>()
+        .mockImplementation(async (key: string) =>
+          key === 'cache:legacy-read-disabled' && legacyReadsDisabled ? 1 : 0
+        ),
       scan: jest
         .fn<() => Promise<[string, string[]]>>()
         .mockResolvedValue(['0', ['cache:feed:one']]),
@@ -388,9 +390,11 @@ describe('transparent cache prefix and pattern safety', () => {
         if (key === 'cache:legacy-read-disabled') legacyReadsDisabled = true;
         return 'OK';
       }),
-      exists: jest.fn<(key: string) => Promise<number>>().mockImplementation(async (key: string) =>
-        key === 'cache:legacy-read-disabled' && legacyReadsDisabled ? 1 : 0
-      ),
+      exists: jest
+        .fn<(key: string) => Promise<number>>()
+        .mockImplementation(async (key: string) =>
+          key === 'cache:legacy-read-disabled' && legacyReadsDisabled ? 1 : 0
+        ),
       scan: jest
         .fn<() => Promise<[string, string[]]>>()
         .mockResolvedValue(['0', ['cache:feed:one']]),
