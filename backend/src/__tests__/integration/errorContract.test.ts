@@ -67,7 +67,6 @@ function expectObjectEnvelope(
 ): void {
   expect(response.status).toBe(status);
   expect(typeof response.body.error).toBe('object');
-  expect(typeof response.body.error).not.toBe('string');
   expect(response.body.error).not.toEqual(message);
   expect(response.body).toEqual({
     success: false,
