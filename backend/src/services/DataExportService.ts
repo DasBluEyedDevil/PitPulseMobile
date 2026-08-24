@@ -24,6 +24,7 @@ export interface ExportedCheckin {
   bandGenre: string | null;
   rating: number;
   comment: string | null;
+  imageUrls: string[];
   photoUrl: string | null;
   eventDate: string | null;
   checkinLatitude: number | null;
@@ -328,6 +329,7 @@ export class DataExportService {
       bandGenre: row.band_genre,
       rating: parseFloat(row.rating) || 0,
       comment: row.comment,
+      imageUrls: normalizeExportedImageUrls(row.image_urls),
       photoUrl: resolveExportedPhotoUrl(row.image_urls, row.photo_url),
       eventDate: row.event_date ? row.event_date.toISOString() : null,
       checkinLatitude: row.checkin_latitude ? parseFloat(row.checkin_latitude) : null,
@@ -690,4 +692,10 @@ function resolveExportedPhotoUrl(imageUrls: unknown, photoUrl: unknown): string 
     if (first) return first;
   }
   return typeof photoUrl === 'string' && photoUrl.length > 0 ? photoUrl : null;
+}
+
+function normalizeExportedImageUrls(imageUrls: unknown): string[] {
+  return Array.isArray(imageUrls)
+    ? imageUrls.filter((url): url is string => typeof url === 'string')
+    : [];
 }

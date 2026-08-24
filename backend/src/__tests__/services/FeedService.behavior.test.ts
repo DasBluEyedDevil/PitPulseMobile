@@ -114,7 +114,7 @@ describe('FeedService behavior', () => {
     const page = await new FeedService().getFriendsFeed(userId, undefined, 2);
 
     expect(mockDb.query).toHaveBeenCalledWith(
-      expect.stringContaining('COALESCE(c.image_urls[1], c.photo_url) AS photo_url'),
+      expect.stringContaining("COALESCE(NULLIF(c.image_urls[1], ''), c.photo_url) AS photo_url"),
       [userId, 3]
     );
     expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('JOIN user_followers'), [
@@ -161,7 +161,7 @@ describe('FeedService behavior', () => {
 
     expect(mockedGetCache).toHaveBeenCalledWith(`feed:event:${eventId}:v4:${userId}:${cursor}`);
     expect(mockDb.query).toHaveBeenCalledWith(
-      expect.stringContaining('COALESCE(c.image_urls[1], c.photo_url) AS photo_url'),
+      expect.stringContaining("COALESCE(NULLIF(c.image_urls[1], ''), c.photo_url) AS photo_url"),
       [eventId, 8, '2026-07-26T12:00:00.000Z', '33333333-3333-4333-8333-333333333333', userId]
     );
     expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('$5::uuid'), [
@@ -184,7 +184,7 @@ describe('FeedService behavior', () => {
 
     expect(mockDb.query).toHaveBeenCalledTimes(3);
     for (const [sql] of mockDb.query.mock.calls) {
-      expect(sql).toContain('COALESCE(c.image_urls[1], c.photo_url) AS photo_url');
+      expect(sql).toContain("COALESCE(NULLIF(c.image_urls[1], ''), c.photo_url) AS photo_url");
       expect(sql).not.toMatch(/^\s*c\.photo_url,?$/m);
     }
   });

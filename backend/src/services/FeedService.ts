@@ -51,7 +51,7 @@ interface FeedCursor {
 }
 
 // Canonical photo is image_urls; photo_url is legacy fallback only. Postgres arrays are 1-indexed.
-const CHECKIN_FEED_PHOTO_SQL = 'COALESCE(c.image_urls[1], c.photo_url) AS photo_url';
+const CHECKIN_FEED_PHOTO_SQL = "COALESCE(NULLIF(c.image_urls[1], ''), c.photo_url) AS photo_url";
 
 // ============================================
 // Cursor helpers (module-level exports)

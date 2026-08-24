@@ -143,6 +143,7 @@ describe('DataExportService', () => {
       expect(result.checkins[0].bandGenre).toBe('Rock');
       expect(result.checkins[0].rating).toBe(4.5);
       expect(result.checkins[0].comment).toBe('Great show!');
+      expect(result.checkins[0].imageUrls).toEqual([]);
       expect(result.checkins[0].photoUrl).toBe('https://example.com/photo.jpg');
       expect(result.checkins[0].checkinLatitude).toBe(34.09);
       expect(result.checkins[0].checkinLongitude).toBe(-118.3877);
@@ -175,6 +176,10 @@ describe('DataExportService', () => {
 
       const result = await dataExportService.exportUserData(userId);
 
+      expect(result.checkins[0].imageUrls).toEqual([
+        'https://cdn.example.com/new.jpg',
+        'https://cdn.example.com/two.jpg',
+      ]);
       expect(result.checkins[0].photoUrl).toBe('https://cdn.example.com/new.jpg');
     });
 

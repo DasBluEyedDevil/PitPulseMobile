@@ -4,9 +4,16 @@ import {
   DeletionStatus,
 } from '../../services/DataRetentionService';
 import Database from '../../config/database';
+import { r2Service } from '../../services/R2Service';
 
 // Mock dependencies
 jest.mock('../../config/database');
+jest.mock('../../services/R2Service', () => ({
+  r2Service: {
+    isReady: false,
+    deleteObject: jest.fn(),
+  },
+}));
 
 const mockClient = {
   query: jest.fn(),
@@ -113,6 +120,79 @@ describe('DataRetentionService', () => {
   });
 
   describe('executeAccountDeletion', () => {
+    it('deletes trusted canonical R2 objects before clearing check-in URLs', async () => {
+      const userId = 'user-123';
+      const objectKey = 'checkins/checkin-123/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg';
+      const publicUrl = `https://cdn.example.com/${objectKey}`;
+      const mockR2Service = r2Service as any;
+
+      process.env.R2_PUBLIC_URL = 'https://cdn.example.com';
+      mockR2Service.isReady = true;
+      mockR2Service.deleteObject.mockResolvedValue(undefined);
+      mockDb.query.mockResolvedValueOnce({ rows: [{ id: userId, email: 'test@example.com' }] });
+      mockClient.query.mockImplementation(async (query: string) => {
+        if (query === 'BEGIN' || query === 'COMMIT') return {};
+        if (query.includes('SELECT image_urls, photo_url')) {
+          return { rows: [{ image_urls: [publicUrl], photo_url: null }] };
+        }
+        if (query.includes('UPDATE checkins SET image_urls')) return { rowCount: 1 };
+        if (query.includes('UPDATE users SET')) return { rowCount: 1 };
+        return { rowCount: 0 };
+      });
+
+      await dataRetentionService.executeAccountDeletion(userId);
+
+      expect(mockR2Service.deleteObject).toHaveBeenCalledWith(objectKey);
+      const photoLookupIndex = mockClient.query.mock.calls.findIndex((call: any[]) =>
+        call[0].includes('SELECT image_urls, photo_url')
+      );
+      const photoClearIndex = mockClient.query.mock.calls.findIndex((call: any[]) =>
+        call[0].includes('UPDATE checkins SET image_urls')
+      );
+      expect(photoLookupIndex).toBeGreaterThan(-1);
+      expect(photoClearIndex).toBeGreaterThan(photoLookupIndex);
+
+      delete process.env.R2_PUBLIC_URL;
+      mockR2Service.isReady = false;
+    });
+
+    it('rolls back when a trusted R2 object cannot be deleted', async () => {
+      const userId = 'user-123';
+      const mockR2Service = r2Service as any;
+
+      process.env.R2_PUBLIC_URL = 'https://cdn.example.com';
+      mockR2Service.isReady = true;
+      mockR2Service.deleteObject.mockRejectedValue(new Error('R2 unavailable'));
+      mockDb.query.mockResolvedValueOnce({ rows: [{ id: userId, email: 'test@example.com' }] });
+      mockClient.query.mockImplementation(async (query: string) => {
+        if (query === 'BEGIN') return {};
+        if (query.includes('SELECT image_urls, photo_url')) {
+          return {
+            rows: [
+              {
+                image_urls: ['https://cdn.example.com/checkins/checkin-123/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.jpg'],
+                photo_url: null,
+              },
+            ],
+          };
+        }
+        if (query === 'ROLLBACK') return {};
+        return { rowCount: 0 };
+      });
+
+      await expect(dataRetentionService.executeAccountDeletion(userId)).rejects.toThrow(
+        'Failed to delete 1 check-in photo object(s)'
+      );
+      expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+      expect(mockClient.query).not.toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE checkins SET image_urls'),
+        expect.anything()
+      );
+
+      delete process.env.R2_PUBLIC_URL;
+      mockR2Service.isReady = false;
+    });
+
     it('should anonymize user data and delete related records using a transaction', async () => {
       const userId = 'user-123';
       const originalEmail = 'test@example.com';
