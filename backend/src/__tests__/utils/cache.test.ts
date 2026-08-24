@@ -200,6 +200,23 @@ describe('cache values and cache-aside behavior', () => {
     expect(redis.unlink).toHaveBeenNthCalledWith(2, 'cache:feed:two', 'cache:feed:three');
   });
 
+  it('matches Redis-style question marks and interior stars in memory fallback', async () => {
+    await cache.set('feed:a:one', 1);
+    await cache.set('feed:b:one', 2);
+    await cache.set('feed:ab:one', 3);
+    await cache.set('feed:a:two', 4);
+
+    await cache.delPattern('feed:?:one');
+
+    await expect(cache.get('feed:a:one')).resolves.toBeNull();
+    await expect(cache.get('feed:b:one')).resolves.toBeNull();
+    await expect(cache.get('feed:ab:one')).resolves.toBe(3);
+    await expect(cache.get('feed:a:two')).resolves.toBe(4);
+
+    await cache.delPattern('feed:*:two');
+    await expect(cache.get('feed:a:two')).resolves.toBeNull();
+  });
+
   it('falls back to memory for Redis value and pattern failures', async () => {
     const redis = {
       setex: jest.fn<() => Promise<string>>().mockRejectedValue(new Error('set failed')),
@@ -307,6 +324,33 @@ describe('transparent cache prefix and pattern safety', () => {
     expect(redis.get).toHaveBeenNthCalledWith(2, 'feed:x');
   });
 
+  it('disables legacy Redis reads after prefix-wide clear without scanning unprefixed keys', async () => {
+    let legacyReadsDisabled = false;
+    const redis = {
+      get: jest.fn<() => Promise<string | null>>().mockResolvedValue(null),
+      set: jest.fn<(key: string) => Promise<string>>().mockImplementation(async (key: string) => {
+        if (key === 'cache:legacy-read-disabled') legacyReadsDisabled = true;
+        return 'OK';
+      }),
+      exists: jest.fn<(key: string) => Promise<number>>().mockImplementation(async (key: string) =>
+        key === 'cache:legacy-read-disabled' && legacyReadsDisabled ? 1 : 0
+      ),
+      scan: jest
+        .fn<() => Promise<[string, string[]]>>()
+        .mockResolvedValue(['0', ['cache:feed:one']]),
+      unlink: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+    } as any;
+    mockedGetRedis.mockReturnValue(redis);
+
+    await cache.clear();
+    await expect(getCache('feed:one')).resolves.toBeNull();
+
+    expect(redis.scan).toHaveBeenCalledWith('0', 'MATCH', 'cache:*', 'COUNT', 100);
+    expect(redis.get).toHaveBeenCalledWith('cache:feed:one');
+    expect(redis.get).not.toHaveBeenCalledWith('feed:one');
+    expect(redis.scan).not.toHaveBeenCalledWith('0', 'MATCH', '*', 'COUNT', 100);
+  });
+
   it('rejects unbounded and protected patterns before SCAN', async () => {
     const redis = {
       scan: jest.fn<() => Promise<[string, string[]]>>(),
@@ -321,6 +365,7 @@ describe('transparent cache prefix and pattern safety', () => {
     await expect(cache.delPattern('rate_limit:*')).rejects.toBeInstanceOf(BadRequestError);
     await expect(cache.delPattern('bull:*')).rejects.toBeInstanceOf(BadRequestError);
     await expect(cache.delPattern('cache:*')).rejects.toBeInstanceOf(BadRequestError);
+    await expect(cache.delPattern('feed:[ab]*')).rejects.toBeInstanceOf(BadRequestError);
 
     for (const contract of Object.values(QueueContracts)) {
       await expect(cache.delPattern(`${contract.queueName}*`)).rejects.toBeInstanceOf(
@@ -332,6 +377,34 @@ describe('transparent cache prefix and pattern safety', () => {
     expect(redis.unlink).not.toHaveBeenCalled();
     expect(redis.flushdb).not.toHaveBeenCalled();
     expect(() => assertSafeCachePattern('feed:*')).not.toThrow();
+    expect(() => assertSafeCachePattern('rate_limitish:*')).not.toThrow();
+  });
+
+  it('disables legacy Redis reads after pattern clear without scanning unprefixed keys', async () => {
+    let legacyReadsDisabled = false;
+    const redis = {
+      get: jest.fn<() => Promise<string | null>>().mockResolvedValue(null),
+      set: jest.fn<(key: string) => Promise<string>>().mockImplementation(async (key: string) => {
+        if (key === 'cache:legacy-read-disabled') legacyReadsDisabled = true;
+        return 'OK';
+      }),
+      exists: jest.fn<(key: string) => Promise<number>>().mockImplementation(async (key: string) =>
+        key === 'cache:legacy-read-disabled' && legacyReadsDisabled ? 1 : 0
+      ),
+      scan: jest
+        .fn<() => Promise<[string, string[]]>>()
+        .mockResolvedValue(['0', ['cache:feed:one']]),
+      unlink: jest.fn<() => Promise<number>>().mockResolvedValue(1),
+    } as any;
+    mockedGetRedis.mockReturnValue(redis);
+
+    await cache.delPattern('feed:*');
+    await expect(getCache('feed:one')).resolves.toBeNull();
+
+    expect(redis.scan).toHaveBeenCalledWith('0', 'MATCH', 'cache:feed:*', 'COUNT', 100);
+    expect(redis.get).toHaveBeenCalledWith('cache:feed:one');
+    expect(redis.get).not.toHaveBeenCalledWith('feed:one');
+    expect(redis.scan).not.toHaveBeenCalledWith('0', 'MATCH', 'feed:*', 'COUNT', 100);
   });
 
   it('does not unlink BullMQ-shaped keys during prefix clear', async () => {

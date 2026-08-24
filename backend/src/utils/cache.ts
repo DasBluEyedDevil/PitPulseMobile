@@ -34,6 +34,8 @@ const CACHE_VERSION = process.env.CACHE_VERSION || 'v1';
 /** Redis namespace for application cache. Callers must not include this prefix. */
 export const CACHE_KEY_PREFIX = 'cache:';
 
+const LEGACY_CACHE_READ_DISABLED_KEY = `${CACHE_KEY_PREFIX}legacy-read-disabled`;
+
 const BULLMQ_QUEUE_NAMES = Object.values(QueueContracts).map((contract) => contract.queueName);
 
 type CacheRedis = NonNullable<ReturnType<typeof getRedis>>;
@@ -70,13 +72,12 @@ function isUnboundedCachePattern(pattern: string): boolean {
 
 function isProtectedCachePattern(pattern: string): boolean {
   const callerShaped = callerShapedPattern(pattern).toLowerCase();
-  if (callerShaped === 'rate_limit' || callerShaped.startsWith('rate_limit')) {
+  if (callerShaped.startsWith('rate_limit:')) {
     return true;
   }
   if (
     callerShaped === 'bull' ||
-    callerShaped.startsWith('bull:') ||
-    callerShaped.startsWith('bull*')
+    callerShaped.startsWith('bull:')
   ) {
     return true;
   }
@@ -97,21 +98,55 @@ export function assertSafeCachePattern(pattern: string): void {
   if (isUnboundedCachePattern(trimmed)) {
     throw new BadRequestError('Unbounded cache pattern is not allowed');
   }
+  const callerShaped = callerShapedPattern(trimmed);
+  if (callerShaped.includes('[') || callerShaped.includes(']') || callerShaped.includes('\\')) {
+    throw new BadRequestError('Unsupported cache pattern syntax');
+  }
   if (isProtectedCachePattern(trimmed)) {
     throw new BadRequestError('Protected cache pattern is not allowed');
   }
 }
 
-function matchesPrefixGlob(key: string, globPattern: string): boolean {
-  // Prefix-match only — do not compile admin input into RegExp (ReDoS).
-  if (!globPattern.includes('?') && !globPattern.includes('*')) {
-    return key === globPattern;
+function matchesGlob(key: string, globPattern: string): boolean {
+  // Match the Redis-supported `*` and `?` wildcards without compiling admin input into RegExp.
+  let keyIndex = 0;
+  let patternIndex = 0;
+  let starIndex = -1;
+  let starMatchIndex = 0;
+
+  while (keyIndex < key.length) {
+    const patternCharacter = globPattern[patternIndex];
+    if (
+      patternCharacter === '?' ||
+      patternCharacter === key[keyIndex]
+    ) {
+      keyIndex += 1;
+      patternIndex += 1;
+      continue;
+    }
+
+    if (patternCharacter === '*') {
+      starIndex = patternIndex;
+      starMatchIndex = keyIndex;
+      patternIndex += 1;
+      continue;
+    }
+
+    if (starIndex !== -1) {
+      patternIndex = starIndex + 1;
+      starMatchIndex += 1;
+      keyIndex = starMatchIndex;
+      continue;
+    }
+
+    return false;
   }
-  const star = globPattern.indexOf('*');
-  if (star === globPattern.length - 1 && !globPattern.includes('?')) {
-    return key.startsWith(globPattern.slice(0, -1));
+
+  while (globPattern[patternIndex] === '*') {
+    patternIndex += 1;
   }
-  return false;
+
+  return patternIndex === globPattern.length;
 }
 
 async function unlinkPrefixedMatches(redis: CacheRedis, match: string): Promise<number> {
@@ -120,7 +155,9 @@ async function unlinkPrefixedMatches(redis: CacheRedis, match: string): Promise<
   do {
     const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', match, 'COUNT', 100);
     cursor = nextCursor;
-    const safeKeys = keys.filter((key) => key.startsWith(CACHE_KEY_PREFIX));
+    const safeKeys = keys.filter(
+      (key) => key.startsWith(CACHE_KEY_PREFIX) && key !== LEGACY_CACHE_READ_DISABLED_KEY
+    );
     if (safeKeys.length > 0) {
       await redis.unlink(...safeKeys);
       deleted += safeKeys.length;
@@ -132,6 +169,40 @@ async function unlinkPrefixedMatches(redis: CacheRedis, match: string): Promise<
 // In-memory fallback cache
 const memoryCache = new Map<string, { value: any; expiresAt: number }>();
 const memoryCacheVersions = new Map<string, number>();
+let legacyCacheReadDisabled = false;
+
+async function disableLegacyCacheReads(redis?: CacheRedis): Promise<void> {
+  legacyCacheReadDisabled = true;
+  if (!redis || typeof redis.set !== 'function') return;
+
+  try {
+    await redis.set(LEGACY_CACHE_READ_DISABLED_KEY, '1');
+  } catch (error) {
+    logger.error('Redis legacy cache invalidation marker error', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+  }
+}
+
+async function canReadLegacyCache(redis?: CacheRedis): Promise<boolean> {
+  if (legacyCacheReadDisabled) return false;
+  if (!redis || typeof redis.exists !== 'function') return true;
+
+  try {
+    if ((await redis.exists(LEGACY_CACHE_READ_DISABLED_KEY)) > 0) {
+      legacyCacheReadDisabled = true;
+      return false;
+    }
+  } catch (error) {
+    logger.error('Redis legacy cache invalidation marker read error', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+  }
+
+  return true;
+}
 
 function getMemoryEntry(key: string): { value: any; expiresAt: number } | undefined {
   const entry = memoryCache.get(key);
@@ -213,7 +284,7 @@ export async function getCache<T>(key: string): Promise<T | null> {
     try {
       const value = await redis.get(prefixed);
       if (value) return JSON.parse(value);
-      if (prefixed !== key) {
+      if (prefixed !== key && (await canReadLegacyCache(redis))) {
         const legacy = await redis.get(key);
         return legacy ? JSON.parse(legacy) : null;
       }
@@ -227,7 +298,9 @@ export async function getCache<T>(key: string): Promise<T | null> {
     }
   }
 
-  const entry = getMemoryEntry(prefixed) ?? (prefixed !== key ? getMemoryEntry(key) : undefined);
+  const entry =
+    getMemoryEntry(prefixed) ??
+    (prefixed !== key && (await canReadLegacyCache()) ? getMemoryEntry(key) : undefined);
   return entry ? entry.value : null;
 }
 
@@ -338,7 +411,9 @@ class CacheService {
     if (redis) {
       try {
         if ((await redis.exists(prefixed)) > 0) return true;
-        if (prefixed !== key && (await redis.exists(key)) > 0) return true;
+        if (prefixed !== key && (await canReadLegacyCache(redis)) && (await redis.exists(key)) > 0) {
+          return true;
+        }
         return false;
       } catch (error) {
         logger.error('Redis exists error', {
@@ -359,6 +434,7 @@ class CacheService {
    */
   async clear(): Promise<void> {
     const redis = getRedis();
+    await disableLegacyCacheReads(redis ?? undefined);
 
     if (redis) {
       try {
@@ -377,6 +453,9 @@ class CacheService {
 
     memoryCache.clear();
     memoryCacheVersions.clear();
+    if (!redis) {
+      legacyCacheReadDisabled = false;
+    }
   }
 
   /**
@@ -404,30 +483,34 @@ class CacheService {
    */
   async delPattern(pattern: string): Promise<void> {
     assertSafeCachePattern(pattern);
-    const prefixedPattern = redisKey(pattern.trim());
+    const callerPattern = pattern.trim();
+    const prefixedPattern = redisKey(callerPattern);
     const redis = getRedis();
+    await disableLegacyCacheReads(redis ?? undefined);
 
     if (redis) {
       try {
         await unlinkPrefixedMatches(redis, prefixedPattern);
-        this.deleteMatchingMemoryKeys(prefixedPattern);
-        return;
       } catch (error) {
         logger.error('Redis del pattern error', {
           error: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined,
         });
       }
+      this.deleteMatchingMemoryKeys(prefixedPattern);
+      this.deleteMatchingMemoryKeys(callerPattern);
+      return;
     }
 
     this.deleteMatchingMemoryKeys(prefixedPattern);
+    this.deleteMatchingMemoryKeys(callerPattern);
   }
 
   private deleteMatchingMemoryKeys(prefixedPattern: string): void {
     const keysToDelete: string[] = [];
 
     Array.from(memoryCache.keys()).forEach((key) => {
-      if (matchesPrefixGlob(key, prefixedPattern)) {
+      if (matchesGlob(key, prefixedPattern)) {
         keysToDelete.push(key);
       }
     });
