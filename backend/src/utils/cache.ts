@@ -338,6 +338,67 @@ export async function setCache<T>(key: string, value: T, ttlSeconds: number): Pr
 }
 
 /**
+ * Set a cache value only when its generation is still current.
+ */
+export async function setCacheIfVersion<T>(
+  key: string,
+  value: T,
+  ttlSeconds: number,
+  scope: string,
+  expectedVersion: number
+): Promise<boolean> {
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+    return false;
+  }
+
+  const prefixed = redisKey(key);
+  const redis = getRedis();
+
+  if (redis) {
+    try {
+      const result = await redis.eval(
+        `
+          local current = redis.call('GET', KEYS[1])
+          if not current then current = '1' end
+          if current ~= ARGV[1] then return 0 end
+          redis.call('SETEX', KEYS[2], ARGV[3], ARGV[2])
+          if ARGV[4] ~= '' then redis.call('DEL', ARGV[4]) end
+          return 1
+        `,
+        2,
+        getCacheVersionKey(scope),
+        prefixed,
+        String(expectedVersion),
+        JSON.stringify(value),
+        String(ttlSeconds),
+        prefixed === key ? '' : key
+      );
+      return Number(result) === 1;
+    } catch (error) {
+      logger.error('Redis conditional cache set error', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        scope,
+      });
+      return false;
+    }
+  }
+
+  if ((memoryCacheVersions.get(scope) ?? 1) !== expectedVersion) {
+    return false;
+  }
+
+  memoryCache.set(prefixed, {
+    value,
+    expiresAt: Date.now() + ttlSeconds * 1000,
+  });
+  if (prefixed !== key) {
+    memoryCache.delete(key);
+  }
+  return true;
+}
+
+/**
  * Delete value from cache
  */
 export async function deleteCache(key: string): Promise<void> {

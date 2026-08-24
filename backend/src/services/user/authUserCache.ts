@@ -6,7 +6,14 @@
  */
 
 import Database from '../../config/database';
-import { CacheKeys, deleteCache, getCache, setCache } from '../../utils/cache';
+import {
+  CacheKeys,
+  deleteCache,
+  getCache,
+  getCacheVersion,
+  incrementCacheVersion,
+  setCacheIfVersion,
+} from '../../utils/cache';
 
 export const AUTH_USER_CACHE_DEFAULT_TTL_SEC = 45;
 export const AUTH_USER_CACHE_MAX_TTL_SEC = 60;
@@ -26,6 +33,10 @@ const AUTH_USER_SELECT = `
   FROM users
   WHERE id = $1
 `;
+
+function authUserCacheVersionScope(userId: string): string {
+  return `auth:user:${userId}`;
+}
 
 export function getAuthUserCacheTtlSec(): number {
   const raw = process.env.AUTH_USER_CACHE_TTL_SEC;
@@ -82,12 +93,18 @@ function authUserFromDbRow(row: Record<string, unknown> | undefined): AuthUser |
 export async function getAuthUser(userId: string): Promise<AuthUser | null> {
   const ttlSeconds = getAuthUserCacheTtlSec();
   const key = CacheKeys.user(userId);
+  const versionScope = authUserCacheVersionScope(userId);
+  let version: number | null = ttlSeconds > 0 ? await getCacheVersion(versionScope) : null;
 
   if (ttlSeconds > 0) {
     const cached = await getCache<unknown>(key);
     const projected = projectAuthUser(cached);
     if (projected) {
-      return projected;
+      const currentVersion = await getCacheVersion(versionScope);
+      if (currentVersion === version) {
+        return projected;
+      }
+      version = currentVersion;
     }
   }
 
@@ -97,13 +114,14 @@ export async function getAuthUser(userId: string): Promise<AuthUser | null> {
     return null;
   }
 
-  if (ttlSeconds > 0) {
-    await setCache(key, snapshot, ttlSeconds);
+  if (ttlSeconds > 0 && version !== null) {
+    await setCacheIfVersion(key, snapshot, ttlSeconds, versionScope, version);
   }
 
   return snapshot;
 }
 
 export async function invalidateAuthUserCache(userId: string): Promise<void> {
+  await incrementCacheVersion(authUserCacheVersionScope(userId));
   await deleteCache(CacheKeys.user(userId));
 }

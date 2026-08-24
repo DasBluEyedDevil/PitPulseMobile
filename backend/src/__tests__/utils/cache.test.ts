@@ -12,6 +12,7 @@ import {
   incrementCacheVersion,
   redisKey,
   setCache,
+  setCacheIfVersion,
 } from '../../utils/cache';
 import { BadRequestError } from '../../utils/errors';
 import { QueueContracts } from '../../jobs/queueContracts';
@@ -115,6 +116,18 @@ describe('cache values and cache-aside behavior', () => {
     await expect(cache.has('profile:user-1')).resolves.toBe(false);
   });
 
+  it('rejects stale conditional writes after a memory generation increment', async () => {
+    await expect(setCacheIfVersion('auth:user-1', { isActive: true }, 60, 'auth:user:1', 1)).resolves.toBe(
+      true
+    );
+
+    await expect(incrementCacheVersion('auth:user:1')).resolves.toBe(2);
+    await expect(
+      setCacheIfVersion('auth:user-1', { isActive: true }, 60, 'auth:user:1', 1)
+    ).resolves.toBe(false);
+    await expect(getCache('auth:user-1')).resolves.toEqual({ isActive: true });
+  });
+
   it('evicts expired memory entries on get and has', async () => {
     const now = jest.spyOn(Date, 'now').mockReturnValue(1_000);
     await cache.set('expired-on-get', 'value', 1);
@@ -180,6 +193,28 @@ describe('cache values and cache-aside behavior', () => {
     expect(redis.unlink).toHaveBeenCalledWith('cache:profile:user-2');
     expect(redis.unlink).not.toHaveBeenCalledWith('bull:badge-eval:1');
     expect(redis.flushdb).not.toHaveBeenCalled();
+  });
+
+  it('uses an atomic Redis generation check for conditional writes', async () => {
+    const redis = {
+      eval: jest.fn<(...args: unknown[]) => Promise<number>>().mockResolvedValue(1),
+    } as any;
+    mockedGetRedis.mockReturnValue(redis);
+
+    await expect(
+      setCacheIfVersion('auth:user-1', { isPremium: false }, 45, 'auth:user:1', 3)
+    ).resolves.toBe(true);
+
+    expect(redis.eval).toHaveBeenCalledWith(
+      expect.stringContaining("redis.call('GET', KEYS[1])"),
+      2,
+      'cache:version:auth:user:1',
+      'cache:auth:user-1',
+      '3',
+      JSON.stringify({ isPremium: false }),
+      '45',
+      'auth:user-1'
+    );
   });
 
   it('scans and unlinks Redis pattern matches across cursor pages', async () => {

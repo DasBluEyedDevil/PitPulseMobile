@@ -2,7 +2,11 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, jest } from '@je
 
 const mockQuery = jest.fn<(...args: unknown[]) => Promise<any>>();
 const mockGetCache = jest.fn<(key: string) => Promise<unknown>>();
-const mockSetCache = jest.fn<(key: string, value: unknown, ttl: number) => Promise<void>>();
+const mockGetCacheVersion = jest.fn<(scope: string) => Promise<number>>();
+const mockIncrementCacheVersion = jest.fn<(scope: string) => Promise<number>>();
+const mockSetCacheIfVersion = jest.fn<
+  (key: string, value: unknown, ttl: number, scope: string, version: number) => Promise<boolean>
+>();
 const mockDeleteCache = jest.fn<(key: string) => Promise<void>>();
 
 jest.mock('../../utils/redisRateLimiter', () => ({
@@ -23,7 +27,16 @@ jest.mock('../../utils/cache', () => {
   return {
     ...actual,
     getCache: (...args: unknown[]) => mockGetCache(args[0] as string),
-    setCache: (...args: unknown[]) => mockSetCache(args[0] as string, args[1], args[2] as number),
+    getCacheVersion: (...args: unknown[]) => mockGetCacheVersion(args[0] as string),
+    incrementCacheVersion: (...args: unknown[]) => mockIncrementCacheVersion(args[0] as string),
+    setCacheIfVersion: (...args: unknown[]) =>
+      mockSetCacheIfVersion(
+        args[0] as string,
+        args[1],
+        args[2] as number,
+        args[3] as string,
+        args[4] as number
+      ),
     deleteCache: (...args: unknown[]) => mockDeleteCache(args[0] as string),
   };
 });
@@ -67,7 +80,9 @@ describe('auth user cache', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetCache.mockResolvedValue(null);
-    mockSetCache.mockResolvedValue(undefined);
+    mockGetCacheVersion.mockResolvedValue(1);
+    mockIncrementCacheVersion.mockResolvedValue(2);
+    mockSetCacheIfVersion.mockResolvedValue(true);
     mockDeleteCache.mockResolvedValue(undefined);
     mockQuery.mockResolvedValue({ rows: [dbRow] });
     delete process.env.AUTH_USER_CACHE_TTL_SEC;
@@ -92,12 +107,14 @@ describe('auth user cache', () => {
     await getAuthUser(USER_ID);
 
     expect(mockGetCache).toHaveBeenCalledWith(`user:${USER_ID}`);
-    expect(mockSetCache).toHaveBeenCalledWith(
+    expect(mockSetCacheIfVersion).toHaveBeenCalledWith(
       `user:${USER_ID}`,
       snapshot,
-      AUTH_USER_CACHE_DEFAULT_TTL_SEC
+      AUTH_USER_CACHE_DEFAULT_TTL_SEC,
+      `auth:user:${USER_ID}`,
+      1
     );
-    expect(mockSetCache.mock.calls[0][0].startsWith('cache:')).toBe(false);
+    expect(mockSetCacheIfVersion.mock.calls[0][0].startsWith('cache:')).toBe(false);
     expect(mockQuery.mock.calls[0][0]).toContain(
       'SELECT id, username, is_active, is_admin, is_premium'
     );
@@ -106,7 +123,7 @@ describe('auth user cache', () => {
 
   it('does not cache email, names, DOB, or password hashes', async () => {
     const user = await getAuthUser(USER_ID);
-    const stored = mockSetCache.mock.calls[0][1] as Record<string, unknown>;
+    const stored = mockSetCacheIfVersion.mock.calls[0][1] as Record<string, unknown>;
 
     expect(user).toEqual(snapshot);
     expect(Object.keys(stored).sort()).toEqual([...AUTH_USER_ALLOWLIST].sort());
@@ -134,7 +151,7 @@ describe('auth user cache', () => {
     expect(user).not.toHaveProperty('email');
     expect(user).not.toHaveProperty('dateOfBirth');
     expect(mockQuery).not.toHaveBeenCalled();
-    expect(mockSetCache).not.toHaveBeenCalled();
+    expect(mockSetCacheIfVersion).not.toHaveBeenCalled();
   });
 
   it('projectAuthUser allowlists only authz fields', () => {
@@ -162,7 +179,7 @@ describe('auth user cache', () => {
 
     expect(user).toEqual(snapshot);
     expect(mockGetCache).not.toHaveBeenCalled();
-    expect(mockSetCache).not.toHaveBeenCalled();
+    expect(mockSetCacheIfVersion).not.toHaveBeenCalled();
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 
@@ -187,8 +204,117 @@ describe('auth user cache', () => {
   it('invalidates via deleteCache(CacheKeys.user(id))', async () => {
     await invalidateAuthUserCache(USER_ID);
 
+    expect(mockIncrementCacheVersion).toHaveBeenCalledWith(`auth:user:${USER_ID}`);
     expect(mockDeleteCache).toHaveBeenCalledWith(CacheKeys.user(USER_ID));
     expect(mockDeleteCache).toHaveBeenCalledWith(`user:${USER_ID}`);
     expect(mockDeleteCache.mock.calls[0][0].startsWith('cache:')).toBe(false);
+  });
+
+  it('does not repopulate a banned snapshot after invalidation wins the race', async () => {
+    let generation = 1;
+    mockGetCacheVersion.mockImplementation(async () => generation);
+    mockIncrementCacheVersion.mockImplementation(async () => ++generation);
+
+    const bannedSnapshot = { ...snapshot, isActive: false };
+    let releaseDbRead!: () => void;
+    let queryStarted!: () => void;
+    const dbReadStarted = new Promise<void>((resolve) => {
+      queryStarted = resolve;
+    });
+    const staleDbRead = new Promise<void>((resolve) => {
+      releaseDbRead = resolve;
+    });
+    mockQuery.mockImplementationOnce(async () => {
+      queryStarted();
+      await staleDbRead;
+      return { rows: [dbRow] };
+    });
+
+    const stored = new Map<string, unknown>();
+    mockSetCacheIfVersion.mockImplementation(async (key, value, _ttl, _scope, version) => {
+      if (version !== generation) return false;
+      stored.set(key, value);
+      return true;
+    });
+
+    const inFlight = getAuthUser(USER_ID);
+    await dbReadStarted;
+    await invalidateAuthUserCache(USER_ID);
+    releaseDbRead();
+    await inFlight;
+
+    expect(stored.has(`user:${USER_ID}`)).toBe(false);
+    expect(mockSetCacheIfVersion).toHaveBeenCalledWith(
+      `user:${USER_ID}`,
+      snapshot,
+      AUTH_USER_CACHE_DEFAULT_TTL_SEC,
+      `auth:user:${USER_ID}`,
+      1
+    );
+
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          ...dbRow,
+          is_active: false,
+        },
+      ],
+    });
+    await expect(getAuthUser(USER_ID)).resolves.toEqual(bannedSnapshot);
+    expect(stored.get(`user:${USER_ID}`)).toEqual(bannedSnapshot);
+  });
+
+  it('does not repopulate a premium snapshot after revocation wins the race', async () => {
+    let generation = 1;
+    mockGetCacheVersion.mockImplementation(async () => generation);
+    mockIncrementCacheVersion.mockImplementation(async () => ++generation);
+
+    const revokedSnapshot = { ...snapshot, isPremium: false };
+    let releaseDbRead!: () => void;
+    let queryStarted!: () => void;
+    const dbReadStarted = new Promise<void>((resolve) => {
+      queryStarted = resolve;
+    });
+    const staleDbRead = new Promise<void>((resolve) => {
+      releaseDbRead = resolve;
+    });
+    mockQuery.mockImplementationOnce(async () => {
+      queryStarted();
+      await staleDbRead;
+      return { rows: [dbRow] };
+    });
+
+    const stored = new Map<string, unknown>();
+    mockSetCacheIfVersion.mockImplementation(async (key, value, _ttl, _scope, version) => {
+      if (version !== generation) return false;
+      stored.set(key, value);
+      return true;
+    });
+
+    const inFlight = getAuthUser(USER_ID);
+    await dbReadStarted;
+    await invalidateAuthUserCache(USER_ID);
+    releaseDbRead();
+    await inFlight;
+
+    expect(stored.has(`user:${USER_ID}`)).toBe(false);
+    expect(mockSetCacheIfVersion).toHaveBeenCalledWith(
+      `user:${USER_ID}`,
+      snapshot,
+      AUTH_USER_CACHE_DEFAULT_TTL_SEC,
+      `auth:user:${USER_ID}`,
+      1
+    );
+
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        {
+          ...dbRow,
+          is_premium: false,
+        },
+      ],
+    });
+    await expect(getAuthUser(USER_ID)).resolves.toEqual(revokedSnapshot);
+    expect(stored.get(`user:${USER_ID}`)).toEqual(revokedSnapshot);
   });
 });
