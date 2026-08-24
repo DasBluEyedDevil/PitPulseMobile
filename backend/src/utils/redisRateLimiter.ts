@@ -16,6 +16,32 @@ import logger from './logger';
 let redis: Redis | null = null;
 
 const DEFAULT_REDIS_COMMAND_TIMEOUT_MS = 1000;
+const REDIS_DELETE_BATCH_SIZE = 100;
+
+type RedisPipelineResult = [Error | null, unknown];
+
+function assertSuccessfulPipelineResults(
+  results: RedisPipelineResult[] | null,
+  expectedCount: number,
+  operation: string
+): RedisPipelineResult[] {
+  if (!results) {
+    throw new Error(`Redis ${operation} pipeline returned no results`);
+  }
+  if (results.length < expectedCount) {
+    throw new Error(`Redis ${operation} pipeline returned incomplete results`);
+  }
+
+  for (const [index, [error]] of results.entries()) {
+    if (error) {
+      throw error instanceof Error
+        ? error
+        : new Error(`Redis ${operation} command ${index} failed`);
+    }
+  }
+
+  return results;
+}
 
 function redisCommandTimeoutMs(): number {
   const configured = parseInt(process.env.REDIS_COMMAND_TIMEOUT_MS || '', 10);
@@ -171,14 +197,12 @@ export async function checkRateLimit(
     pipeline.zadd(key, now, `${now}-${Math.random()}`);
     pipeline.pexpire(key, windowMs);
 
-    const results = await pipeline.exec();
-    if (!results) {
-      // Do not fail-open here. Auth/login must decide fail-closed vs in-memory
-      // tracking; swallowing the error would skip the login budget.
-      throw new Error('Redis rate limit pipeline returned no results');
-    }
+    const results = assertSuccessfulPipelineResults(
+      await pipeline.exec(),
+      4,
+      'rate limit'
+    );
 
-    // Results format: [[error, result], [error, result], ...]
     const currentCount = (results[1][1] as number) || 0;
 
     if (currentCount >= maxRequests) {
@@ -335,9 +359,8 @@ export class RedisRateLimiter {
       } while (cursor !== '0');
 
       const toDelete = [...keys];
-      const BATCH_SIZE = 100;
-      for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
-        const batch = toDelete.slice(i, i + BATCH_SIZE);
+      for (let i = 0; i < toDelete.length; i += REDIS_DELETE_BATCH_SIZE) {
+        const batch = toDelete.slice(i, i + REDIS_DELETE_BATCH_SIZE);
         if (batch.length > 0) {
           await client.unlink(...batch);
         }
@@ -430,15 +453,11 @@ export class EnumerationRateLimiter {
       pipeline.incr(captchaKey);
       pipeline.pexpire(captchaKey, this.windowMs);
 
-      const results = await pipeline.exec();
-      if (!results) {
-        return {
-          allowed: true,
-          remaining: this.maxRequests,
-          resetAt: now + this.windowMs,
-          requiresCaptcha: false,
-        };
-      }
+      const results = assertSuccessfulPipelineResults(
+        await pipeline.exec(),
+        7,
+        'enumeration rate limit'
+      );
 
       const currentCount = (results[1][1] as number) || 0;
       const captchaAttempts = parseInt((results[4][1] as string) || '0', 10);
@@ -502,9 +521,8 @@ export class EnumerationRateLimiter {
         } while (cursor !== '0');
 
         // Delete keys in batches to avoid blocking
-        const BATCH_SIZE = 100;
-        for (let i = 0; i < keysToDelete.length; i += BATCH_SIZE) {
-          const batch = keysToDelete.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < keysToDelete.length; i += REDIS_DELETE_BATCH_SIZE) {
+          const batch = keysToDelete.slice(i, i + REDIS_DELETE_BATCH_SIZE);
           if (batch.length > 0) {
             await client.unlink(...batch); // Use UNLINK (non-blocking) instead of DEL
           }

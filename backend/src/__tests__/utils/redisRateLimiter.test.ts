@@ -275,6 +275,18 @@ describe('sliding-window rate limiting', () => {
     await expect(checkRateLimit('rate:test', 5, 10_000)).rejects.toThrow('timeout');
   });
 
+  it('throws when a Redis pipeline tuple reports a command error', async () => {
+    const pipeline = createPipeline([
+      [null, 1],
+      [new Error('zcard failed'), 0],
+      [null, 1],
+      [null, 1],
+    ]);
+    initializeClient(createClient({ pipeline: jest.fn(() => pipeline) }));
+
+    await expect(checkRateLimit('rate:test', 5, 10_000)).rejects.toThrow('zcard failed');
+  });
+
   it('sets response headers and returns the canonical 429 envelope', async () => {
     const pipeline = createPipeline([
       [null, 1],

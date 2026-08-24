@@ -223,7 +223,7 @@ function checkInMemoryRateLimit(
           return { allowed: false, remaining: 0, resetAt: resetTime };
         }
         // Non-auth GET/browse: fail-open for memory safety (A-013 / KD-16)
-        return { allowed: true, remaining: maxRequests - 1, resetAt: resetTime };
+        return { allowed: true, remaining: maxRequests, resetAt: resetTime };
       }
     }
     inMemoryRateLimitStore.set(storeKey, {
@@ -332,12 +332,12 @@ export const rateLimit = (windowMs: number = 15 * 60 * 1000, maxRequests: number
   };
 };
 
-/** Test-only: empty the process-local IP limiter fallback store. */
+/** @internal Test-only: empty the process-local IP limiter fallback store. */
 export function resetInMemoryRateLimitStoreForTests(): void {
   inMemoryRateLimitStore.clear();
 }
 
-/** Test-only: fill the fallback store with `count` unexpired entries. */
+/** @internal Test-only: fill the fallback store with `count` unexpired entries. */
 export function seedInMemoryRateLimitStoreForTests(count: number): void {
   const resetTime = Date.now() + 60 * 60 * 1000;
   inMemoryRateLimitStore.clear();
@@ -346,6 +346,7 @@ export function seedInMemoryRateLimitStoreForTests(count: number): void {
   }
 }
 
+/** @internal Test-only: expose the fallback store capacity to unit tests. */
 export const IN_MEMORY_RATE_LIMIT_MAX_ENTRIES = MAX_RATE_LIMIT_ENTRIES;
 
 /**
