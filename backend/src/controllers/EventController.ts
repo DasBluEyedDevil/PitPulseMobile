@@ -15,6 +15,7 @@ import { ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
 import { NotFoundError, UnauthorizedError, BadRequestError, ForbiddenError } from '../utils/errors';
 import { parseBoundedFloat, parseBoundedInt } from '../utils/queryBounds';
+import { buildErrorResponseForStatus } from '../middleware/validate';
 
 export class EventController {
   private eventService = new EventService();
@@ -246,10 +247,14 @@ export class EventController {
 
     // Guard: if TICKETMASTER_API_KEY not configured, lookup is unavailable
     if (!process.env.TICKETMASTER_API_KEY) {
-      res.status(503).json({
-        success: false,
-        error: 'Event lookup not available: Ticketmaster API key not configured',
-      } as ApiResponse);
+      res
+        .status(503)
+        .json(
+          buildErrorResponseForStatus(
+            503,
+            'Event lookup not available: Ticketmaster API key not configured'
+          )
+        );
       return;
     }
 
@@ -258,10 +263,7 @@ export class EventController {
     try {
       adapter = new TicketmasterAdapter();
     } catch {
-      res.status(503).json({
-        success: false,
-        error: 'Event lookup not available',
-      } as ApiResponse);
+      res.status(503).json(buildErrorResponseForStatus(503, 'Event lookup not available'));
       return;
     }
 

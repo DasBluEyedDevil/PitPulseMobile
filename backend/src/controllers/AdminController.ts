@@ -6,6 +6,7 @@ import { getWebSocketStats } from '../utils/websocket';
 import { asyncHandler } from '../utils/asyncHandler';
 import { BadRequestError } from '../utils/errors';
 import { logInfo, logWarn } from '../utils/logger';
+import { buildErrorResponseForStatus } from '../middleware/validate';
 
 /**
  * Admin Controller - Dashboard and management utilities
@@ -105,11 +106,7 @@ export class AdminController {
     const userId = req.query.userId as string;
 
     if (!userId) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'userId is required',
-      };
-      res.status(400).json(response);
+      res.status(400).json(buildErrorResponseForStatus(400, 'userId is required'));
       return;
     }
 
@@ -121,11 +118,7 @@ export class AdminController {
     ]);
 
     if (!usersResult.rows || usersResult.rows.length === 0) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'User not found',
-      };
-      res.status(404).json(response);
+      res.status(404).json(buildErrorResponseForStatus(404, 'User not found'));
       return;
     }
 
@@ -230,11 +223,9 @@ export class AdminController {
     const { action, targetType, targetId, reason } = req.body;
 
     if (!action || !targetType || !targetId) {
-      const response: ApiResponse = {
-        success: false,
-        error: 'action, targetType, and targetId are required',
-      };
-      res.status(400).json(response);
+      res
+        .status(400)
+        .json(buildErrorResponseForStatus(400, 'action, targetType, and targetId are required'));
       return;
     }
 
@@ -252,11 +243,7 @@ export class AdminController {
         break;
 
       default: {
-        const response: ApiResponse = {
-          success: false,
-          error: 'Invalid action',
-        };
-        res.status(400).json(response);
+        res.status(400).json(buildErrorResponseForStatus(400, 'Invalid action'));
         return;
       }
     }
