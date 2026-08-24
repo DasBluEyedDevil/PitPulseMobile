@@ -23,8 +23,13 @@ jest.mock('../../utils/logger', () => ({
   logError: jest.fn(),
 }));
 
+jest.mock('../../services/user/authUserCache', () => ({
+  invalidateAuthUserCache: jest.fn().mockResolvedValue(undefined),
+}));
+
 // Import after mocking
 import Database from '../../config/database';
+import { invalidateAuthUserCache } from '../../services/user/authUserCache';
 
 const mockDb = {
   query: jest.fn(),
@@ -283,6 +288,7 @@ describe('PasswordResetService', () => {
       await passwordResetService.resetPassword(token, 'NewPassword123!');
 
       expect(authModule.revokeAllUserTokens).toHaveBeenCalledWith(userId);
+      expect(invalidateAuthUserCache).toHaveBeenCalledWith(userId);
     });
 
     it('should mark token as used after successful reset', async () => {

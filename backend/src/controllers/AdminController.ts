@@ -3,6 +3,7 @@ import { ApiResponse } from '../types';
 import Database from '../config/database';
 import { buildErrorResponseForStatus } from '../middleware/validate';
 import { realtimePublisher } from '../services/RealtimePublisher';
+import { invalidateAuthUserCache } from '../services/user/authUserCache';
 import { asyncHandler } from '../utils/asyncHandler';
 import { revokeAllUserTokens } from '../utils/auth';
 import { cache } from '../utils/cache';
@@ -235,6 +236,7 @@ export class AdminController {
 
     if (action === 'ban_user' && targetType === 'user') {
       await db.query('UPDATE users SET is_active = false WHERE id = $1', [targetId]);
+      await invalidateAuthUserCache(targetId);
       await revokeAllUserTokens(targetId);
       await realtimePublisher.publishToUser(targetId, WebSocketEvents.DISCONNECTED, {
         reason: 'account_banned',

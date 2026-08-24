@@ -4,15 +4,16 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { AuthUtils } from '../../utils/auth';
-import { UserService } from '../../services/UserService';
+import { getAuthUser } from '../../services/user/authUserCache';
 
-// Mock dependencies
-jest.mock('../../services/UserService');
 jest.mock('../../utils/auth', () => ({
   AuthUtils: {
     verifyToken: jest.fn(),
     extractTokenFromHeader: jest.fn(),
   },
+}));
+jest.mock('../../services/user/authUserCache', () => ({
+  getAuthUser: jest.fn(),
 }));
 
 /**
@@ -23,8 +24,8 @@ jest.mock('../../utils/auth', () => ({
  */
 describe('Uploads Route', () => {
   let app: express.Express;
-  let mockUserService: jest.Mocked<UserService>;
   const mockAuthUtils = AuthUtils as jest.Mocked<typeof AuthUtils>;
+  const mockGetAuthUser = getAuthUser as jest.MockedFunction<typeof getAuthUser>;
 
   const testUploadDir = path.join(__dirname, '../../../uploads/profiles');
   const testFilename = 'test-image.jpg';
@@ -32,14 +33,10 @@ describe('Uploads Route', () => {
 
   const mockUser = {
     id: 'user-123',
-    email: 'test@example.com',
     username: 'testuser',
-    firstName: 'Test',
-    lastName: 'User',
-    isVerified: true,
     isActive: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
+    isAdmin: false,
+    isPremium: false,
   };
 
   beforeEach(async () => {
@@ -60,9 +57,6 @@ describe('Uploads Route', () => {
     // Import and use the uploads route
     const uploadsRoutes = (await import('../../routes/uploadsRoutes')).default;
     app.use('/api/uploads', uploadsRoutes);
-
-    // Setup mock user service
-    mockUserService = new UserService() as jest.Mocked<UserService>;
   });
 
   afterEach(() => {
@@ -102,9 +96,7 @@ describe('Uploads Route', () => {
         username: 'testuser',
       });
 
-      // Mock UserService.findById
-      const userServiceMock = UserService as jest.MockedClass<typeof UserService>;
-      userServiceMock.prototype.findById.mockResolvedValue(mockUser as any);
+      mockGetAuthUser.mockResolvedValue(mockUser);
 
       const response = await request(app)
         .get(`/api/uploads/profiles/${testFilename}`)
@@ -124,8 +116,7 @@ describe('Uploads Route', () => {
         username: 'testuser',
       });
 
-      const userServiceMock = UserService as jest.MockedClass<typeof UserService>;
-      userServiceMock.prototype.findById.mockResolvedValue(mockUser as any);
+      mockGetAuthUser.mockResolvedValue(mockUser);
 
       const response = await request(app)
         .get('/api/uploads/profiles/non-existent.jpg')
@@ -143,8 +134,7 @@ describe('Uploads Route', () => {
         username: 'testuser',
       });
 
-      const userServiceMock = UserService as jest.MockedClass<typeof UserService>;
-      userServiceMock.prototype.findById.mockResolvedValue(mockUser as any);
+      mockGetAuthUser.mockResolvedValue(mockUser);
 
       // Attempt directory traversal
       const response = await request(app)
@@ -163,11 +153,10 @@ describe('Uploads Route', () => {
         username: 'testuser',
       });
 
-      const userServiceMock = UserService as jest.MockedClass<typeof UserService>;
-      userServiceMock.prototype.findById.mockResolvedValue({
+      mockGetAuthUser.mockResolvedValue({
         ...mockUser,
         isActive: false,
-      } as any);
+      });
 
       const response = await request(app)
         .get(`/api/uploads/profiles/${testFilename}`)

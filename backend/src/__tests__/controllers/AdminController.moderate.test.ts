@@ -7,6 +7,7 @@ const mockRevokeAllUserTokens = jest.fn<(userId: string) => Promise<void>>();
 const mockPublishToUser =
   jest.fn<(userId: string, type: string, payload: unknown) => Promise<boolean>>();
 const mockDisconnectUser = jest.fn<(userId: string, reason?: string) => number>();
+const mockInvalidateAuthUserCache = jest.fn<(userId: string) => Promise<void>>();
 
 jest.mock('../../config/database', () => ({
   __esModule: true,
@@ -36,6 +37,10 @@ jest.mock('../../utils/websocket', () => ({
 
 jest.mock('../../utils/cache', () => ({
   cache: { delPattern: jest.fn(), clear: jest.fn(), getStats: jest.fn() },
+}));
+
+jest.mock('../../services/user/authUserCache', () => ({
+  invalidateAuthUserCache: (...args: unknown[]) => mockInvalidateAuthUserCache(args[0] as string),
 }));
 
 import { validate } from '../../middleware/validate';
@@ -73,6 +78,7 @@ describe('Admin moderate', () => {
     mockRevokeAllUserTokens.mockResolvedValue(undefined);
     mockPublishToUser.mockResolvedValue(true);
     mockDisconnectUser.mockReturnValue(1);
+    mockInvalidateAuthUserCache.mockResolvedValue(undefined);
   });
 
   it('rejects missing fields, non-UUID targetId, and action/targetType mismatch', async () => {
@@ -117,6 +123,7 @@ describe('Admin moderate', () => {
     expect(mockDbQuery).toHaveBeenCalledWith('UPDATE users SET is_active = false WHERE id = $1', [
       USER_ID,
     ]);
+    expect(mockInvalidateAuthUserCache).toHaveBeenCalledWith(USER_ID);
     expect(mockRevokeAllUserTokens).toHaveBeenCalledWith(USER_ID);
     expect(mockPublishToUser).toHaveBeenCalledWith(USER_ID, 'disconnected', {
       reason: 'account_banned',
@@ -141,6 +148,7 @@ describe('Admin moderate', () => {
     expect(query).toContain('claimed_by_user_id = $2 OR $3::boolean');
     expect(params).toEqual([VENUE_ID, ADMIN_ID, true]);
     expect(mockRevokeAllUserTokens).not.toHaveBeenCalled();
+    expect(mockInvalidateAuthUserCache).not.toHaveBeenCalled();
   });
 
   it('returns 404 when ownership SQL matches no venue', async () => {

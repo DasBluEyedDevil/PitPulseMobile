@@ -3,6 +3,9 @@ import Database from '../../config/database';
 
 // Mock dependencies
 jest.mock('../../config/database');
+jest.mock('../../services/user/authUserCache', () => ({
+  invalidateAuthUserCache: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock('../../utils/logger', () => {
   const logger = {
@@ -28,7 +31,11 @@ const mockDb = {
 (Database.getInstance as jest.Mock).mockReturnValue(mockDb);
 
 import logger from '../../utils/logger';
+import { invalidateAuthUserCache } from '../../services/user/authUserCache';
 const mockLogger = logger as unknown as { info: jest.Mock; warn: jest.Mock; error: jest.Mock };
+const mockInvalidateAuthUserCache = invalidateAuthUserCache as jest.MockedFunction<
+  typeof invalidateAuthUserCache
+>;
 
 describe('SubscriptionService', () => {
   let subscriptionService: SubscriptionService;
@@ -346,6 +353,7 @@ describe('SubscriptionService', () => {
         'user-123',
         true,
       ]);
+      expect(mockInvalidateAuthUserCache).toHaveBeenCalledWith('user-123');
     });
 
     it('should revoke premium status', async () => {
@@ -357,6 +365,7 @@ describe('SubscriptionService', () => {
         'user-123',
         false,
       ]);
+      expect(mockInvalidateAuthUserCache).toHaveBeenCalledWith('user-123');
     });
   });
 

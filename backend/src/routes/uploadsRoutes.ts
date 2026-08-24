@@ -47,8 +47,9 @@ router.get('/profiles/:filename', authenticateToken, (req: Request, res: Respons
     return res.status(404).json(response);
   }
 
-  // Send the file
-  res.sendFile(resolvedPath);
+  // `root` confines the file and keeps send()'s dotfile check on the filename,
+  // not the absolute path (a hidden directory segment would otherwise 404).
+  res.sendFile(sanitizedFilename, { root: uploadsDir });
 });
 
 export default router;

@@ -7,6 +7,7 @@ const EVENT_ID = '33333333-3333-4333-8333-333333333333';
 const VENUE_ID = '44444444-4444-4444-8444-444444444444';
 const CHECKIN_ID = '55555555-5555-4555-8555-555555555555';
 const mockDbQuery = jest.fn<(...args: unknown[]) => Promise<any>>();
+const mockGetAuthUser = jest.fn<(userId: string) => Promise<any>>();
 
 jest.mock('../../utils/auth', () => ({
   AuthUtils: {
@@ -41,6 +42,10 @@ jest.mock('../../config/database', () => ({
   },
 }));
 
+jest.mock('../../services/user/authUserCache', () => ({
+  getAuthUser: (...args: unknown[]) => mockGetAuthUser(args[0] as string),
+}));
+
 import { websocket } from '../../utils/websocket';
 
 function createMockWs(sentMessages: any[] = []): any {
@@ -72,6 +77,7 @@ describe('WebSocket Authentication', () => {
 
     beforeEach(() => {
       mockDbQuery.mockReset();
+      mockGetAuthUser.mockReset();
     });
 
     afterEach(() => {
@@ -97,16 +103,21 @@ describe('WebSocket Authentication', () => {
         headers: { host: 'localhost', authorization: 'Bearer valid-token' },
       };
 
+      mockGetAuthUser.mockResolvedValueOnce({
+        id: USER_123,
+        username: 'testuser',
+        isActive: true,
+        isAdmin: false,
+        isPremium: false,
+      });
       mockDbQuery
-        .mockResolvedValueOnce({ rows: [{ is_active: true }] })
         .mockResolvedValueOnce({ rows: [{ is_active: true }] });
       await verifyClient({ req }, callback);
 
       expect(callback).toHaveBeenCalledWith(true);
       expect(req.userId).toBe(USER_123);
-      expect(mockDbQuery).toHaveBeenCalledWith('SELECT is_active FROM users WHERE id = $1', [
-        USER_123,
-      ]);
+      expect(mockGetAuthUser).toHaveBeenCalledWith(USER_123);
+      expect(mockDbQuery).not.toHaveBeenCalled();
 
       const sentMessages: any[] = [];
       const mockWs = createMockWs(sentMessages);
@@ -137,9 +148,14 @@ describe('WebSocket Authentication', () => {
       };
       const mockWs = createMockWs();
 
-      mockDbQuery
-        .mockResolvedValueOnce({ rows: [{ is_active: true }] })
-        .mockResolvedValueOnce({ rows: [{ is_active: false }] });
+      mockGetAuthUser.mockResolvedValueOnce({
+        id: USER_123,
+        username: 'testuser',
+        isActive: true,
+        isAdmin: false,
+        isPremium: false,
+      });
+      mockDbQuery.mockResolvedValueOnce({ rows: [{ is_active: false }] });
       await verifyClient({ req }, callback);
       wss.emit('connection', mockWs, req);
       await new Promise<void>((resolve) => setImmediate(resolve));
@@ -178,6 +194,7 @@ describe('WebSocket Authentication', () => {
       expect(missingCallback).toHaveBeenCalledWith(false, 401, 'Authentication required');
       expect(queryCallback).toHaveBeenCalledWith(false, 401, 'Authentication required');
       expect(invalidCallback).toHaveBeenCalledWith(false, 401, 'Invalid or expired token');
+      expect(mockGetAuthUser).not.toHaveBeenCalled();
       expect(mockDbQuery).not.toHaveBeenCalled();
     });
 
@@ -190,7 +207,13 @@ describe('WebSocket Authentication', () => {
       const inactiveCallback = jest.fn();
       const missingUserCallback = jest.fn();
 
-      mockDbQuery.mockResolvedValueOnce({ rows: [{ is_active: false }] });
+      mockGetAuthUser.mockResolvedValueOnce({
+        id: USER_123,
+        username: 'testuser',
+        isActive: false,
+        isAdmin: false,
+        isPremium: false,
+      });
       await verifyClient(
         {
           req: {
@@ -201,7 +224,7 @@ describe('WebSocket Authentication', () => {
         inactiveCallback
       );
 
-      mockDbQuery.mockResolvedValueOnce({ rows: [] });
+      mockGetAuthUser.mockResolvedValueOnce(null);
       await verifyClient(
         {
           req: {

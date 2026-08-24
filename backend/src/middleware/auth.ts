@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { AuthUtils } from '../utils/auth';
-import { UserService } from '../services/UserService';
-import { checkRateLimit, getRedis } from '../utils/redisRateLimiter';
+import { getAuthUser } from '../services/user/authUserCache';
 import { User } from '../types';
+import { AuthUtils } from '../utils/auth';
 import logger from '../utils/logger';
+import { checkRateLimit, getRedis } from '../utils/redisRateLimiter';
 import { setUser as sentrySetUser } from '../utils/sentry';
 import { buildErrorResponseForStatus } from './validate';
 
@@ -34,17 +34,14 @@ export const authenticateToken = async (
       return;
     }
 
-    // Verify user still exists and is active
-    const userService = new UserService();
-    const user = await userService.findById(payload.userId);
+    const user = await getAuthUser(payload.userId);
 
     if (!user || !user.isActive) {
       res.status(401).json(buildErrorResponseForStatus(401, 'User not found or inactive'));
       return;
     }
 
-    // Attach user info to request
-    req.user = user;
+    req.user = user as User;
     // Enrich Sentry error context with authenticated user
     sentrySetUser({ id: user.id, username: user.username });
 
@@ -73,11 +70,10 @@ export const optionalAuth = async (
     if (token) {
       const payload = AuthUtils.verifyToken(token);
       if (payload) {
-        const userService = new UserService();
-        const user = await userService.findById(payload.userId);
+        const user = await getAuthUser(payload.userId);
 
         if (user && user.isActive) {
-          req.user = user;
+          req.user = user as User;
           sentrySetUser({ id: user.id, username: user.username });
         }
       }

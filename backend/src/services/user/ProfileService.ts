@@ -12,6 +12,7 @@
 import Database from '../../config/database';
 import { User } from '../../types';
 import { mapDbUserToUser, camelToSnakeCase } from '../../utils/dbMappers';
+import { invalidateAuthUserCache } from './authUserCache';
 
 export interface SearchUserResult {
   id: string;
@@ -131,6 +132,7 @@ export class ProfileService {
     `;
 
     await this.db.query(query, [userId]);
+    await invalidateAuthUserCache(userId);
 
     // CFR-DI-008: Dismiss pending reports targeting this user (account deactivated)
     await this.db.query(
@@ -159,6 +161,7 @@ export class ProfileService {
       return null;
     }
 
+    await invalidateAuthUserCache(userId);
     return mapDbUserToUser(result.rows[0]);
   }
 
