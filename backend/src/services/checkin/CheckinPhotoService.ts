@@ -15,7 +15,6 @@ import {
   R2ObjectMetadata,
   r2Service,
 } from '../R2Service';
-import { ServiceUnavailableError } from '../../utils/errors';
 import logger from '../../utils/logger';
 
 export interface PhotoUploadUrl {
@@ -49,30 +48,61 @@ function expectedExtensionForObjectKey(objectKey: string): string | undefined {
   return extension || undefined;
 }
 
-function objectKeyFromPhotoUrl(photoUrl: string): string | undefined {
-  const base = (process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '');
-  if (base && photoUrl.startsWith(`${base}/`)) {
-    return photoUrl.slice(base.length + 1) || undefined;
-  }
+function configuredPublicUrlBases(): URL[] {
+  const configuredBases = [
+    process.env.R2_PUBLIC_URL,
+    process.env.R2_HISTORICAL_PUBLIC_URLS,
+    process.env.R2_TRUSTED_HISTORICAL_PUBLIC_URLS,
+  ]
+    .flatMap((value) => (value || '').split(','))
+    .map((value) => value.trim())
+    .filter(Boolean);
 
-  try {
-    const { pathname } = new URL(photoUrl);
-    return pathname.replace(/^\/+/, '') || undefined;
-  } catch {
-    const trimmed = photoUrl.replace(/^\/+/, '');
-    return trimmed || undefined;
-  }
+  return configuredBases.flatMap((value) => {
+    try {
+      return [new URL(value.replace(/\/+$/, ''))];
+    } catch {
+      return [];
+    }
+  });
 }
 
-function requireConfiguredPublicUrl(): void {
-  if (!r2Service.isReady) {
-    return;
+function objectKeyFromPhotoUrl(photoUrl: string): string | undefined {
+  try {
+    const parsedPhotoUrl = new URL(photoUrl);
+
+    for (const base of configuredPublicUrlBases()) {
+      if (parsedPhotoUrl.origin !== base.origin) {
+        continue;
+      }
+
+      const basePath = base.pathname.replace(/\/+$/, '');
+      if (
+        basePath &&
+        parsedPhotoUrl.pathname !== basePath &&
+        !parsedPhotoUrl.pathname.startsWith(`${basePath}/`)
+      ) {
+        continue;
+      }
+
+      const objectKey = basePath
+        ? parsedPhotoUrl.pathname.slice(basePath.length + 1)
+        : parsedPhotoUrl.pathname.replace(/^\/+/, '');
+      return objectKey || undefined;
+    }
+  } catch {
+    return undefined;
   }
 
-  const publicUrlBase = (process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '');
-  if (!publicUrlBase) {
-    throw new ServiceUnavailableError('Photo storage public URL is not configured');
-  }
+  return undefined;
+}
+
+function invalidPendingPhotoKeysError(): ServiceError {
+  const error: ServiceError = new Error(
+    'One or more photo keys are invalid or were not issued for this check-in'
+  );
+  error.statusCode = 400;
+  return error;
 }
 
 function validateUploadedPhotoMetadata(objectKey: string, metadata: R2ObjectMetadata): boolean {
@@ -214,63 +244,66 @@ export class CheckinPhotoService {
         throw err;
       }
 
+      if (new Set(photoKeys).size !== photoKeys.length) {
+        throw invalidPendingPhotoKeysError();
+      }
+
       const pendingResult = await this.db.query(
         `SELECT object_key FROM pending_photo_uploads
          WHERE checkin_id = $1 AND user_id = $2 AND object_key = ANY($3::text[])`,
         [checkinId, userId, photoKeys]
       );
-      if (pendingResult.rows.length !== photoKeys.length) {
-        const err = new Error(
-          'One or more photo keys are invalid or were not issued for this check-in'
-        );
-        (err as any).statusCode = 400;
-        throw err;
-      }
-
-      const headResults = await Promise.all(photoKeys.map((key) => r2Service.headObject(key)));
-      const missingPhotoKeys = photoKeys.filter((_, index) => !headResults[index].exists);
-
-      if (missingPhotoKeys.length > 0) {
-        logger.warn('[CheckinPhotoService] Photo confirmation rejected for missing R2 objects', {
-          checkinId,
-          userId,
-          missingCount: missingPhotoKeys.length,
-        });
-
-        const err: ServiceError = new Error(
-          'One or more photos have not finished uploading. Please retry confirmation after upload completes.'
-        );
-        err.statusCode = 409;
-        throw err;
-      }
-
-      const invalidPhotoKeys = photoKeys.filter(
-        (key, index) => !validateUploadedPhotoMetadata(key, headResults[index])
-      );
-
-      if (invalidPhotoKeys.length > 0) {
-        logger.warn('[CheckinPhotoService] Photo confirmation rejected for invalid R2 metadata', {
-          checkinId,
-          userId,
-          invalidCount: invalidPhotoKeys.length,
-        });
-
-        const err: ServiceError = new Error(
-          'One or more uploaded photos have an invalid type or size'
-        );
-        err.statusCode = 400;
-        throw err;
-      }
-
-      // Combine existing URLs with new ones, enforce max
       const existingUrls: string[] = checkinResult.rows[0].image_urls || [];
-      requireConfiguredPublicUrl();
       const newUrls = photoKeys.map((key) => r2Service.getPublicUrl(key));
-      const combinedUrls = [...existingUrls, ...newUrls];
+      const allAlreadyAttached = newUrls.every((url) => existingUrls.includes(url));
 
-      if (combinedUrls.length > this.MAX_PHOTOS_PER_CHECKIN) {
+      if (pendingResult.rows.length !== photoKeys.length && !allAlreadyAttached) {
+        throw invalidPendingPhotoKeysError();
+      }
+
+      if (!allAlreadyAttached) {
+        const headResults = await Promise.all(photoKeys.map((key) => r2Service.headObject(key)));
+        const missingPhotoKeys = photoKeys.filter((_, index) => !headResults[index].exists);
+
+        if (missingPhotoKeys.length > 0) {
+          logger.warn('[CheckinPhotoService] Photo confirmation rejected for missing R2 objects', {
+            checkinId,
+            userId,
+            missingCount: missingPhotoKeys.length,
+          });
+
+          const err: ServiceError = new Error(
+            'One or more photos have not finished uploading. Please retry confirmation after upload completes.'
+          );
+          err.statusCode = 409;
+          throw err;
+        }
+
+        const invalidPhotoKeys = photoKeys.filter(
+          (key, index) => !validateUploadedPhotoMetadata(key, headResults[index])
+        );
+
+        if (invalidPhotoKeys.length > 0) {
+          logger.warn('[CheckinPhotoService] Photo confirmation rejected for invalid R2 metadata', {
+            checkinId,
+            userId,
+            invalidCount: invalidPhotoKeys.length,
+          });
+
+          const err: ServiceError = new Error(
+            'One or more uploaded photos have an invalid type or size'
+          );
+          err.statusCode = 400;
+          throw err;
+        }
+      }
+
+      if (
+        !allAlreadyAttached &&
+        existingUrls.length + newUrls.length > this.MAX_PHOTOS_PER_CHECKIN
+      ) {
         const err = new Error(
-          `Maximum ${this.MAX_PHOTOS_PER_CHECKIN} photos per check-in. Would have ${combinedUrls.length}.`
+          `Maximum ${this.MAX_PHOTOS_PER_CHECKIN} photos per check-in. Would have ${existingUrls.length + newUrls.length}.`
         );
         (err as any).statusCode = 400;
         throw err;
@@ -319,7 +352,48 @@ export class CheckinPhotoService {
       }
 
       const lockedUrls: string[] = lockedResult.rows[0].image_urls || [];
-      const combinedUrls = [...lockedUrls, ...newUrls];
+      const pendingResult = await client.query(
+        `SELECT object_key FROM pending_photo_uploads
+         WHERE checkin_id = $1 AND user_id = $2 AND object_key = ANY($3::text[])
+         FOR UPDATE`,
+        [checkinId, userId, photoKeys]
+      );
+      const pendingKeys = new Set(
+        pendingResult.rows.map((row: { object_key: string }) => row.object_key)
+      );
+      const keysToConsume = photoKeys.filter((key) => pendingKeys.has(key));
+      const urlsToAppend = photoKeys
+        .map((key, index) =>
+          pendingKeys.has(key) && !lockedUrls.includes(newUrls[index]) ? newUrls[index] : undefined
+        )
+        .filter((url): url is string => Boolean(url));
+      const missingKeys = photoKeys.filter(
+        (key, index) => !pendingKeys.has(key) && !lockedUrls.includes(newUrls[index])
+      );
+
+      if (missingKeys.length > 0 || pendingResult.rows.length > photoKeys.length) {
+        throw invalidPendingPhotoKeysError();
+      }
+
+      if (urlsToAppend.length === 0) {
+        if (keysToConsume.length > 0) {
+          const consumedResult = await client.query(
+            `DELETE FROM pending_photo_uploads
+             WHERE checkin_id = $1 AND user_id = $2 AND object_key = ANY($3::text[])
+             RETURNING object_key`,
+            [checkinId, userId, keysToConsume]
+          );
+
+          if (consumedResult.rowCount !== keysToConsume.length) {
+            throw invalidPendingPhotoKeysError();
+          }
+        }
+
+        await client.query('COMMIT');
+        return lockedUrls;
+      }
+
+      const combinedUrls = [...lockedUrls, ...urlsToAppend];
 
       if (combinedUrls.length > this.MAX_PHOTOS_PER_CHECKIN) {
         const err: ServiceError = new Error(
@@ -335,7 +409,7 @@ export class CheckinPhotoService {
          WHERE id = $2
            AND cardinality(COALESCE(image_urls, '{}'::text[])) + $3 <= $4
          RETURNING image_urls`,
-        [combinedUrls, checkinId, newUrls.length, this.MAX_PHOTOS_PER_CHECKIN]
+        [combinedUrls, checkinId, urlsToAppend.length, this.MAX_PHOTOS_PER_CHECKIN]
       );
 
       if (updateResult.rowCount !== 1) {
@@ -346,10 +420,16 @@ export class CheckinPhotoService {
         throw err;
       }
 
-      await client.query(
-        `DELETE FROM pending_photo_uploads WHERE checkin_id = $1 AND object_key = ANY($2::text[])`,
-        [checkinId, photoKeys]
+      const consumedResult = await client.query(
+        `DELETE FROM pending_photo_uploads
+         WHERE checkin_id = $1 AND user_id = $2 AND object_key = ANY($3::text[])
+         RETURNING object_key`,
+        [checkinId, userId, keysToConsume]
       );
+
+      if (consumedResult.rowCount !== keysToConsume.length) {
+        throw invalidPendingPhotoKeysError();
+      }
 
       await client.query('COMMIT');
       return (updateResult.rows[0]?.image_urls as string[]) || combinedUrls;
