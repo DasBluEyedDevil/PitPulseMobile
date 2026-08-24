@@ -46,8 +46,12 @@ describe('CheckinPhotoService', () => {
   let service: CheckinPhotoService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     process.env.R2_PUBLIC_URL = 'https://cdn.example.com';
+    delete process.env.R2_HISTORICAL_PUBLIC_URLS;
+    delete process.env.R2_TRUSTED_HISTORICAL_PUBLIC_URLS;
+    (Database.getInstance as jest.Mock).mockReturnValue(mockDb);
+    mockDb.query.mockResolvedValue({ rows: [], rowCount: 0 });
     mockDb.getClient.mockResolvedValue({
       query: mockClientQuery,
       release: mockClientRelease,
@@ -72,10 +76,18 @@ describe('CheckinPhotoService', () => {
     updateRowCount?: number;
     updatedUrls?: string[];
   }) {
-    mockClientQuery.mockImplementation(async (sql: unknown) => {
+    mockClientQuery.mockImplementation(async (sql: unknown, values?: unknown) => {
       const text = String(sql);
       if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') {
         return { rows: [], rowCount: 0 };
+      }
+      if (text.includes('FROM pending_photo_uploads') && text.includes('FOR UPDATE')) {
+        const params = Array.isArray(values) ? values : undefined;
+        const requestedKeys = Array.isArray(params?.[2]) ? (params[2] as string[]) : photoKeys;
+        return {
+          rows: requestedKeys.map((object_key) => ({ object_key })),
+          rowCount: requestedKeys.length,
+        };
       }
       if (text.includes('FOR UPDATE')) {
         return {
@@ -94,7 +106,12 @@ describe('CheckinPhotoService', () => {
         };
       }
       if (text.includes('DELETE FROM pending_photo_uploads')) {
-        return { rowCount: 1 };
+        const params = Array.isArray(values) ? values : undefined;
+        const keysToConsume = Array.isArray(params?.[2]) ? (params[2] as string[]) : photoKeys;
+        return {
+          rows: keysToConsume.map((object_key) => ({ object_key })),
+          rowCount: keysToConsume.length,
+        };
       }
       return { rows: [], rowCount: 0 };
     });
@@ -214,11 +231,163 @@ describe('CheckinPhotoService', () => {
       [combinedUrls, checkinId, photoKeys.length, service.MAX_PHOTOS_PER_CHECKIN]
     );
     expect(mockClientQuery).toHaveBeenCalledWith(
-      `DELETE FROM pending_photo_uploads WHERE checkin_id = $1 AND object_key = ANY($2::text[])`,
-      [checkinId, photoKeys]
+      expect.stringContaining('DELETE FROM pending_photo_uploads'),
+      [checkinId, userId, photoKeys]
     );
     expect(mockClientQuery).toHaveBeenCalledWith('COMMIT');
     expect(mockClientRelease).toHaveBeenCalled();
+  });
+
+  it('returns the same stored URLs when a consumed confirmation is retried', async () => {
+    const confirmedUrl = `https://cdn.example.com/${photoKeys[0]}`;
+    let imageUrls: string[] = [];
+    let pendingAvailable = true;
+    let updateCount = 0;
+    let deleteCount = 0;
+
+    mockDb.query.mockImplementation(async (sql: unknown) => {
+      const text = String(sql);
+      if (text.includes('SELECT user_id, image_urls FROM checkins')) {
+        return { rows: [{ user_id: userId, image_urls: [...imageUrls] }] };
+      }
+      if (text.includes('FROM pending_photo_uploads')) {
+        return { rows: pendingAvailable ? [{ object_key: photoKeys[0] }] : [] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    mockR2Service.headObject.mockResolvedValueOnce({
+      exists: true,
+      contentLength: 100,
+      contentType: 'image/jpeg',
+    });
+    mockClientQuery.mockImplementation(async (sql: unknown, values?: unknown) => {
+      const text = String(sql);
+      if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') {
+        return { rows: [], rowCount: 0 };
+      }
+      if (text.includes('SELECT user_id, image_urls FROM checkins')) {
+        return { rows: [{ user_id: userId, image_urls: [...imageUrls] }] };
+      }
+      if (text.includes('FROM pending_photo_uploads') && text.includes('FOR UPDATE')) {
+        return {
+          rows: pendingAvailable ? [{ object_key: photoKeys[0] }] : [],
+          rowCount: pendingAvailable ? 1 : 0,
+        };
+      }
+      if (text.includes('UPDATE checkins')) {
+        const updatedUrls = (values as unknown[])[0] as string[];
+        imageUrls = [...updatedUrls];
+        updateCount += 1;
+        return { rows: [{ image_urls: [...imageUrls] }], rowCount: 1 };
+      }
+      if (text.includes('DELETE FROM pending_photo_uploads')) {
+        pendingAvailable = false;
+        deleteCount += 1;
+        return { rows: [{ object_key: photoKeys[0] }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    await expect(service.addPhotos(checkinId, userId, [photoKeys[0]])).resolves.toEqual([
+      confirmedUrl,
+    ]);
+    await expect(service.addPhotos(checkinId, userId, [photoKeys[0]])).resolves.toEqual([
+      confirmedUrl,
+    ]);
+
+    expect(imageUrls).toEqual([confirmedUrl]);
+    expect(updateCount).toBe(1);
+    expect(deleteCount).toBe(1);
+  });
+
+  it('serializes concurrent confirmations and appends a shared key only once', async () => {
+    const confirmedUrl = `https://cdn.example.com/${photoKeys[0]}`;
+    let imageUrls: string[] = [];
+    let pendingAvailable = true;
+    let preflightCount = 0;
+    let releasePreflight!: () => void;
+    const preflightBarrier = new Promise<void>((resolve) => {
+      releasePreflight = resolve;
+    });
+    let firstLockAvailable = true;
+    let releaseFirstCommit!: () => void;
+    const firstCommit = new Promise<void>((resolve) => {
+      releaseFirstCommit = resolve;
+    });
+    let updateCount = 0;
+    let deleteCount = 0;
+
+    mockDb.query.mockImplementation(async (sql: unknown) => {
+      const text = String(sql);
+      if (text.includes('SELECT user_id, image_urls FROM checkins')) {
+        return { rows: [{ user_id: userId, image_urls: [...imageUrls] }] };
+      }
+      if (text.includes('FROM pending_photo_uploads')) {
+        preflightCount += 1;
+        if (preflightCount === 2) {
+          releasePreflight();
+        }
+        await preflightBarrier;
+        return { rows: pendingAvailable ? [{ object_key: photoKeys[0] }] : [] };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    mockR2Service.headObject.mockResolvedValue({
+      exists: true,
+      contentLength: 100,
+      contentType: 'image/jpeg',
+    });
+    mockDb.getClient.mockImplementation(async () => ({
+      query: async (sql: unknown, values?: unknown) => {
+        const text = String(sql);
+        if (text === 'BEGIN' || text === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (text === 'COMMIT') {
+          releaseFirstCommit();
+          return { rows: [], rowCount: 0 };
+        }
+        if (text.includes('SELECT user_id, image_urls FROM checkins')) {
+          if (!firstLockAvailable) {
+            await firstCommit;
+          }
+          firstLockAvailable = false;
+          return { rows: [{ user_id: userId, image_urls: [...imageUrls] }] };
+        }
+        if (text.includes('FROM pending_photo_uploads') && text.includes('FOR UPDATE')) {
+          return {
+            rows: pendingAvailable ? [{ object_key: photoKeys[0] }] : [],
+            rowCount: pendingAvailable ? 1 : 0,
+          };
+        }
+        if (text.includes('UPDATE checkins')) {
+          const updatedUrls = (values as unknown[])[0] as string[];
+          imageUrls = [...updatedUrls];
+          updateCount += 1;
+          return { rows: [{ image_urls: [...imageUrls] }], rowCount: 1 };
+        }
+        if (text.includes('DELETE FROM pending_photo_uploads')) {
+          pendingAvailable = false;
+          deleteCount += 1;
+          return { rows: [{ object_key: photoKeys[0] }], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 0 };
+      },
+      release: mockClientRelease,
+    }));
+
+    const outcomes = await Promise.allSettled([
+      service.addPhotos(checkinId, userId, [photoKeys[0]]),
+      service.addPhotos(checkinId, userId, [photoKeys[0]]),
+    ]);
+
+    expect(outcomes.every((outcome) => outcome.status === 'fulfilled')).toBe(true);
+    expect(
+      outcomes.map((outcome) => (outcome.status === 'fulfilled' ? outcome.value : null))
+    ).toEqual([[confirmedUrl], [confirmedUrl]]);
+    expect(imageUrls).toEqual([confirmedUrl]);
+    expect(updateCount).toBe(1);
+    expect(deleteCount).toBe(1);
   });
 
   it('rejects missing R2 objects without updating image URLs or deleting pending rows', async () => {
@@ -419,6 +588,11 @@ describe('CheckinPhotoService', () => {
 
   it('fails closed with 503 when R2 is ready but R2_PUBLIC_URL is empty', async () => {
     process.env.R2_PUBLIC_URL = '';
+    mockR2Service.getPublicUrl.mockImplementationOnce(() => {
+      throw Object.assign(new Error('Photo storage public URL is not configured'), {
+        statusCode: 503,
+      });
+    });
     mockDb.query
       .mockResolvedValueOnce({ rows: [{ user_id: userId, image_urls: [] }] })
       .mockResolvedValueOnce({ rows: [{ object_key: photoKeys[0] }] });
@@ -429,10 +603,11 @@ describe('CheckinPhotoService', () => {
     });
 
     await expect(service.addPhotos(checkinId, userId, [photoKeys[0]])).rejects.toMatchObject({
+      message: 'Photo storage public URL is not configured',
       statusCode: 503,
     });
 
-    expect(mockR2Service.getPublicUrl).not.toHaveBeenCalled();
+    expect(mockR2Service.getPublicUrl).toHaveBeenCalledWith(photoKeys[0]);
     expect(mockDb.getClient).not.toHaveBeenCalled();
   });
 
@@ -481,6 +656,41 @@ describe('CheckinPhotoService', () => {
     );
     expect(mockR2Service.deleteObject).toHaveBeenCalledTimes(1);
     expect(mockR2Service.deleteObject).toHaveBeenCalledWith('remove.jpg');
+  });
+
+  it('skips R2 deletion for external or unknown photo URL origins', async () => {
+    process.env.R2_PUBLIC_URL = 'https://cdn.example.com/photos';
+    const keepUrl = 'https://cdn.example.com/keep.jpg';
+    const externalUrl = 'https://untrusted.example.com/remove.jpg';
+    const unknownPathUrl = 'https://cdn.example.com/other-bucket/remove.jpg';
+    mockDb.query
+      .mockResolvedValueOnce({
+        rows: [{ user_id: userId, image_urls: [keepUrl, externalUrl, unknownPathUrl] }],
+      })
+      .mockResolvedValueOnce({ rowCount: 1 });
+
+    await expect(
+      service.deletePhotos(checkinId, userId, [externalUrl, unknownPathUrl])
+    ).resolves.toEqual([keepUrl]);
+
+    expect(mockR2Service.deleteObject).not.toHaveBeenCalled();
+  });
+
+  it('deletes objects from explicitly trusted historical R2 public URL bases', async () => {
+    process.env.R2_HISTORICAL_PUBLIC_URLS = 'https://legacy-cdn.example.com/photos';
+    const keepUrl = 'https://cdn.example.com/keep.jpg';
+    const historicalUrl = 'https://legacy-cdn.example.com/photos/checkins/old.jpg';
+    mockDb.query
+      .mockResolvedValueOnce({
+        rows: [{ user_id: userId, image_urls: [keepUrl, historicalUrl] }],
+      })
+      .mockResolvedValueOnce({ rowCount: 1 });
+
+    await expect(service.deletePhotos(checkinId, userId, [historicalUrl])).resolves.toEqual([
+      keepUrl,
+    ]);
+
+    expect(mockR2Service.deleteObject).toHaveBeenCalledWith('checkins/old.jpg');
   });
 
   it('still removes check-in URLs when R2 object delete fails', async () => {
