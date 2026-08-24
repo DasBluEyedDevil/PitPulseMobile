@@ -465,11 +465,13 @@ export class EventController {
       throw new ForbiddenError('Only admins or event creators can delete this event');
     }
 
-    await this.eventService.deleteEvent(id);
+    const actor = { id: req.user.id, isAdmin };
+    const outcome = await this.eventService.deleteEvent(id, actor);
 
     const response: ApiResponse = {
       success: true,
-      message: 'Event deleted successfully',
+      data: outcome,
+      message: outcome.cancelled ? 'Event cancelled' : 'Event deleted successfully',
     };
 
     res.status(200).json(response);

@@ -4,6 +4,7 @@ import Database from '../config/database';
 import { cache } from '../utils/cache';
 import { getWebSocketStats } from '../utils/websocket';
 import { asyncHandler } from '../utils/asyncHandler';
+import { BadRequestError } from '../utils/errors';
 import { logInfo, logWarn } from '../utils/logger';
 
 /**
@@ -174,24 +175,28 @@ export class AdminController {
   });
 
   /**
-   * Clear cache
+   * Clear application cache keys only (`cache:*`). Never FLUSHDB.
    * POST /api/admin/cache/clear
    */
   clearCache = asyncHandler(async (req: Request, res: Response): Promise<void> => {
     const pattern = req.body.pattern as string | undefined;
+    const confirm = req.body.confirm;
 
     if (pattern) {
       await cache.delPattern(pattern);
-      logInfo(`Admin cleared cache pattern: ${pattern}`);
+      logInfo('Admin cleared cache pattern', { pattern });
     } else {
+      if (confirm !== true) {
+        throw new BadRequestError('Prefix-wide cache clear requires confirm: true');
+      }
       await cache.clear();
-      logInfo('Admin cleared all cache');
+      logInfo('Admin cleared cache prefix');
     }
 
     const response: ApiResponse = {
       success: true,
       data: {
-        message: pattern ? `Cache cleared for pattern: ${pattern}` : 'All cache cleared',
+        message: pattern ? `Cache cleared for pattern: ${pattern}` : 'Cache prefix cleared',
       },
     };
 

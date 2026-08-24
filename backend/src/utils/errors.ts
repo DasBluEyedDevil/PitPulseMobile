@@ -122,3 +122,12 @@ export function isOperationalError(error: Error): boolean {
   }
   return false;
 }
+
+export function isPgErrorCode(error: unknown, code: string): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code: unknown }).code === code
+  );
+}

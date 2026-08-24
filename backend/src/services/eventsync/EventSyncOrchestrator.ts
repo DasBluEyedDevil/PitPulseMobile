@@ -26,6 +26,7 @@ import { SyncLogService, SyncCounters, SyncRegion } from './SyncLogService';
 import { RegionSyncService, RegionSyncResult } from './RegionSyncService';
 import { NormalizedEvent } from '../../types/ticketmaster';
 import Database from '../../config/database';
+import { isPgErrorCode } from '../../utils/errors';
 
 export interface SyncResult {
   success: boolean;
@@ -218,36 +219,54 @@ export class EventSyncOrchestrator {
       event.date
     );
     if (existingUserEvent) {
-      await this.eventService.mergeTicketmasterIntoUserEvent(existingUserEvent, {
-        externalId: event.externalId,
-        eventName: event.name,
-        ticketUrl: event.ticketUrl,
-        priceMin: event.priceMin,
-        priceMax: event.priceMax,
-        status: event.status,
-      });
+      let merged = false;
+      try {
+        merged = await this.eventService.mergeTicketmasterIntoUserEvent(existingUserEvent, {
+          externalId: event.externalId,
+          eventName: event.name,
+          ticketUrl: event.ticketUrl,
+          priceMin: event.priceMin,
+          priceMax: event.priceMax,
+          status: event.status,
+        });
+      } catch (mergeErr: unknown) {
+        if (isPgErrorCode(mergeErr, '23505')) {
+          logger.warn('[EventSyncOrchestrator] Merge unique violation; falling through to upsert', {
+            userEventId: existingUserEvent,
+            externalId: event.externalId,
+            error: mergeErr instanceof Error ? mergeErr.message : String(mergeErr),
+          });
+        } else {
+          throw mergeErr;
+        }
+      }
 
-      // Upsert lineup entries for the merged event
-      for (let i = 0; i < bandIds.length; i++) {
-        await this.db.query(
-          `INSERT INTO event_lineup (event_id, band_id, set_order, is_headliner)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (event_id, band_id) DO NOTHING`,
-          [existingUserEvent, bandIds[i].bandId, i, i === 0]
+      if (merged) {
+        // Upsert lineup entries for the merged event
+        for (let i = 0; i < bandIds.length; i++) {
+          await this.db.query(
+            `INSERT INTO event_lineup (event_id, band_id, set_order, is_headliner)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (event_id, band_id) DO NOTHING`,
+            [existingUserEvent, bandIds[i].bandId, i, i === 0]
+          );
+        }
+
+        if (counters) {
+          counters.events_updated++;
+        }
+
+        logger.info(
+          '[EventSyncOrchestrator] Auto-merged Ticketmaster data into user-created event',
+          {
+            userEventId: existingUserEvent,
+            externalId: event.externalId,
+            eventName: event.name,
+          }
         );
+
+        return existingUserEvent;
       }
-
-      if (counters) {
-        counters.events_updated++;
-      }
-
-      logger.info('[EventSyncOrchestrator] Auto-merged Ticketmaster data into user-created event', {
-        userEventId: existingUserEvent,
-        externalId: event.externalId,
-        eventName: event.name,
-      });
-
-      return existingUserEvent;
     }
 
     // Step 4: Check existing event status before upsert (for status change detection)
@@ -270,9 +289,14 @@ export class EventSyncOrchestrator {
         ticket_url = EXCLUDED.ticket_url,
         ticket_price_min = EXCLUDED.ticket_price_min,
         ticket_price_max = EXCLUDED.ticket_price_max,
-        status = EXCLUDED.status,
+        status = CASE
+          WHEN events.status = 'cancelled'
+           AND EXISTS (SELECT 1 FROM checkins c WHERE c.event_id = events.id)
+          THEN events.status
+          ELSE EXCLUDED.status
+        END,
         updated_at = CURRENT_TIMESTAMP
-      RETURNING id, (xmax = 0) AS is_new`,
+      RETURNING id, status, (xmax = 0) AS is_new`,
       [
         venueResult.venueId,
         event.date,
@@ -287,6 +311,7 @@ export class EventSyncOrchestrator {
     );
 
     const eventId = upsertResult.rows[0].id;
+    const persistedStatus = upsertResult.rows[0].status;
     const isNew = upsertResult.rows[0].is_new;
 
     if (counters) {
@@ -308,8 +333,8 @@ export class EventSyncOrchestrator {
     }
 
     // Step 7: Detect status changes and notify users
-    if (oldStatus && oldStatus !== event.status) {
-      await this.handleStatusChange(eventId, event.status, oldStatus);
+    if (oldStatus && oldStatus !== persistedStatus) {
+      await this.handleStatusChange(eventId, persistedStatus, oldStatus);
     }
 
     return eventId;
