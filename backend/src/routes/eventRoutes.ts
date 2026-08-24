@@ -8,9 +8,11 @@ import { validate } from '../middleware/validate';
 const router = Router();
 const eventController = new EventController();
 
-const eventIdParamSchema = z.object({
+const eventIdParam = z.string().uuid('Event ID must be a valid UUID');
+
+export const eventIdParamSchema = z.object({
   params: z.object({
-    id: z.string().uuid('Event ID must be a valid UUID'),
+    id: eventIdParam,
   }),
 });
 
@@ -20,7 +22,7 @@ const ticketmasterIdParamSchema = z.object({
   }),
 });
 
-const genreParamSchema = z.object({
+export const genreParamSchema = z.object({
   params: z.object({
     genre: z.string().min(1, 'genre parameter is required').max(100),
   }),
@@ -45,7 +47,7 @@ const optionalGeoQuerySchema = z.object({
   }),
 });
 
-const nearbyQuerySchema = z.object({
+export const nearbyQuerySchema = z.object({
   query: z.object({
     lat: z.string().min(1, 'lat query parameter is required'),
     lng: z.string().min(1, 'lng query parameter is required'),
@@ -54,7 +56,7 @@ const nearbyQuerySchema = z.object({
   }),
 });
 
-const discoverQuerySchema = z.object({
+export const discoverQuerySchema = z.object({
   query: z.object({
     lat: z.string().min(1, 'lat query parameter is required'),
     lon: z.string().min(1, 'lon query parameter is required'),
@@ -64,14 +66,14 @@ const discoverQuerySchema = z.object({
   }),
 });
 
-const searchQuerySchema = z.object({
+export const searchQuerySchema = z.object({
   query: z.object({
-    q: z.string().min(1, 'q query parameter is required'),
+    q: z.string().trim().min(1, 'q query parameter is required'),
     limit: z.string().optional(),
   }),
 });
 
-const createEventSchema = z.object({
+export const createEventSchema = z.object({
   body: z
     .object({
       venueId: z.string().uuid('venueId must be a valid UUID'),
