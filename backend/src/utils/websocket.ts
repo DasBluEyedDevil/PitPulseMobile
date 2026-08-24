@@ -68,7 +68,7 @@ class WebSocketServer {
 
     this.wss = new WsServer({
       server,
-      verifyClient: (info: any, callback: any) => {
+      verifyClient: async (info: any, callback: any) => {
         try {
           const token = AuthUtils.extractTokenFromHeader(info.req.headers.authorization);
 
@@ -80,6 +80,14 @@ class WebSocketServer {
           const payload = AuthUtils.verifyToken(token);
           if (!payload) {
             callback(false, 401, 'Invalid or expired token');
+            return;
+          }
+
+          const result = await this.db.query('SELECT is_active FROM users WHERE id = $1', [
+            payload.userId,
+          ]);
+          if (!result.rows[0] || result.rows[0].is_active !== true) {
+            callback(false, 401, 'User not found or inactive');
             return;
           }
 
@@ -159,6 +167,7 @@ class WebSocketServer {
       this.send(clientId, 'connected', { clientId });
       if (userId) {
         this.send(clientId, 'authenticated', { userId });
+        void this.revalidateClientIsActive(clientId, userId);
       }
     });
 
@@ -252,6 +261,16 @@ class WebSocketServer {
     }
 
     if (envelope.target === 'user') {
+      if (envelope.type === WebSocketEvents.DISCONNECTED) {
+        const delivered = this.disconnectUser(envelope.userId, envelope.payload?.reason);
+        winstonLogger.debug('Disconnected user clients from realtime envelope', {
+          target: 'user',
+          type: envelope.type,
+          delivered,
+        });
+        return delivered;
+      }
+
       const delivered = this.sendToUser(envelope.userId, envelope.type, envelope.payload);
       winstonLogger.debug('Delivered realtime envelope to user clients', {
         target: 'user',
@@ -547,6 +566,29 @@ class WebSocketServer {
     winstonLogger.info(`WebSocket client disconnected: ${clientId}`);
   }
 
+  private async revalidateClientIsActive(clientId: string, userId: string): Promise<void> {
+    try {
+      const result = await this.db.query('SELECT is_active FROM users WHERE id = $1', [userId]);
+      if (!this.clients.has(clientId)) return;
+
+      if (!result.rows[0] || result.rows[0].is_active !== true) {
+        this.disconnectUser(userId, 'account_banned');
+      }
+    } catch (error) {
+      winstonLogger.error('WebSocket active-state revalidation failed', {
+        clientId,
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      if (this.clients.has(clientId)) {
+        const client = this.clients.get(clientId);
+        client?.ws.close(1011, 'Authentication check failed');
+        this.handleDisconnect(clientId);
+      }
+    }
+  }
+
   /**
    * Send message to specific client
    */
@@ -572,6 +614,27 @@ class WebSocketServer {
       delivered++;
     }
     return delivered;
+  }
+
+  /**
+   * Force-close every live socket for a user (ban / deactivate).
+   */
+  disconnectUser(userId: string, reason: string = 'account_banned'): number {
+    const clientIds = this.userClients.get(userId);
+    if (!clientIds || clientIds.size === 0) return 0;
+
+    const ids = Array.from(clientIds);
+    let closed = 0;
+    for (const clientId of ids) {
+      this.send(clientId, WebSocketEvents.DISCONNECTED, { reason });
+      const client = this.clients.get(clientId);
+      if (client) {
+        client.ws.close(4003, reason);
+      }
+      this.handleDisconnect(clientId);
+      closed++;
+    }
+    return closed;
   }
 
   /**
@@ -689,6 +752,8 @@ export const initWebSocket = (server: Server) => websocket.init(server);
 export const broadcast = (type: string, payload: any) => websocket.broadcast(type, payload);
 export const sendToUser = (userId: string, type: string, payload: any) =>
   websocket.sendToUser(userId, type, payload);
+export const disconnectUser = (userId: string, reason?: string) =>
+  websocket.disconnectUser(userId, reason);
 export const broadcastToRoom = (room: string, type: string, payload: any) =>
   websocket.broadcastToRoom(room, type, payload);
 export const getRoomUsers = (room: string) => websocket.getRoomUsers(room);

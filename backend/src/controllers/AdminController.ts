@@ -1,12 +1,14 @@
 import { Request, Response } from 'express';
 import { ApiResponse } from '../types';
 import Database from '../config/database';
-import { cache } from '../utils/cache';
-import { getWebSocketStats } from '../utils/websocket';
+import { buildErrorResponseForStatus } from '../middleware/validate';
+import { realtimePublisher } from '../services/RealtimePublisher';
 import { asyncHandler } from '../utils/asyncHandler';
+import { revokeAllUserTokens } from '../utils/auth';
+import { cache } from '../utils/cache';
 import { BadRequestError } from '../utils/errors';
 import { logInfo, logWarn } from '../utils/logger';
-import { buildErrorResponseForStatus } from '../middleware/validate';
+import { disconnectUser, getWebSocketStats, WebSocketEvents } from '../utils/websocket';
 
 /**
  * Admin Controller - Dashboard and management utilities
@@ -231,21 +233,28 @@ export class AdminController {
 
     const db = Database.getInstance();
 
-    switch (action) {
-      case 'ban_user':
-        await db.query('UPDATE users SET is_active = false WHERE id = $1', [targetId]);
-        logWarn(`Admin banned user: ${targetId}. Reason: ${reason || 'Not specified'}`);
-        break;
+    if (action === 'ban_user' && targetType === 'user') {
+      await db.query('UPDATE users SET is_active = false WHERE id = $1', [targetId]);
+      await revokeAllUserTokens(targetId);
+      await realtimePublisher.publishToUser(targetId, WebSocketEvents.DISCONNECTED, {
+        reason: 'account_banned',
+      });
+      disconnectUser(targetId, 'account_banned');
+      logWarn(`Admin banned user: ${targetId}. Reason: ${reason || 'Not specified'}`);
+    } else if (action === 'delete_venue' && targetType === 'venue') {
+      const result = await db.query(
+        `UPDATE venues
+         SET is_active = false, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1 AND (claimed_by_user_id = $2 OR $3::boolean)`,
+        [targetId, req.user!.id, !!req.user!.isAdmin]
+      );
 
-      case 'delete_venue':
-        await db.query('UPDATE venues SET is_active = false WHERE id = $1', [targetId]);
-        logWarn(`Admin deleted venue: ${targetId}. Reason: ${reason || 'Not specified'}`);
-        break;
-
-      default: {
-        res.status(400).json(buildErrorResponseForStatus(400, 'Invalid action'));
+      if (!result.rowCount) {
+        res.status(404).json(buildErrorResponseForStatus(404, 'Venue not found'));
         return;
       }
+
+      logWarn(`Admin deleted venue: ${targetId}. Reason: ${reason || 'Not specified'}`);
     }
 
     const response: ApiResponse = {
