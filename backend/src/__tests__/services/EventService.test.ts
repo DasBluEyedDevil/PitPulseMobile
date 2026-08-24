@@ -1,6 +1,7 @@
 import { EventService } from '../../services/EventService';
 import Database from '../../config/database';
 import { cache } from '../../utils/cache';
+import logger from '../../utils/logger';
 
 // Mock dependencies
 jest.mock('../../config/database');
@@ -25,16 +26,21 @@ const mockClient = {
   release: jest.fn(),
 };
 
+const mockNotificationService = {
+  createNotification: jest.fn(),
+};
+
 (Database.getInstance as jest.Mock).mockReturnValue(mockDb);
 
 describe('EventService', () => {
   let eventService: EventService;
 
   beforeEach(() => {
-    eventService = new EventService();
+    eventService = new EventService(mockNotificationService as any);
     jest.clearAllMocks();
     mockDb.query.mockReset();
     mockClient.query.mockReset();
+    mockNotificationService.createNotification.mockReset();
     (cache.getOrSet as jest.Mock).mockImplementation(async (_key, fn) => fn());
   });
 
@@ -548,8 +554,6 @@ describe('EventService', () => {
       expect(result).toEqual({ deleted: true, cancelled: false });
       expect(mockClient.query).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM events'), [
         'event-123',
-        'user-a',
-        false,
       ]);
       expect(mockClient.query).toHaveBeenCalledWith(expect.stringContaining('FOR UPDATE'), [
         'event-123',
@@ -558,6 +562,8 @@ describe('EventService', () => {
 
     it('cancels when user B has checked in and does not delete the event', async () => {
       const sqls: string[] = [];
+      mockDb.query.mockResolvedValue({ rows: [{ user_id: 'user-b' }] });
+      mockNotificationService.createNotification.mockResolvedValue({ id: 'notification-1' });
       setupClient(async (sql: string) => {
         sqls.push(sql);
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -580,7 +586,14 @@ describe('EventService', () => {
       expect(result).toEqual({ deleted: false, cancelled: true });
       expect(sqls.some((sql) => sql.includes('DELETE FROM events'))).toBe(false);
       expect(sqls.some((sql) => sql.includes("status = 'cancelled'"))).toBe(true);
-      expect(sqls.some((sql) => sql.includes('#cancelled#'))).toBe(true);
+      expect(sqls.some((sql) => sql.includes('external_id'))).toBe(false);
+      expect(mockNotificationService.createNotification).toHaveBeenCalledWith({
+        userId: 'user-b',
+        type: 'event_cancelled',
+        title: 'Event cancelled',
+        message: 'An event you checked in to has been cancelled.',
+        eventId: 'event-123',
+      });
     });
 
     it('cancels in the same request when RESTRICT races a check-in insert', async () => {
@@ -639,6 +652,10 @@ describe('EventService', () => {
         message: 'Event could not be deleted or cancelled',
         statusCode: 409,
       });
+      expect(logger.error).toHaveBeenCalledWith(
+        'Failed to cancel event after delete conflict',
+        expect.objectContaining({ eventId: 'event-123', error: 'cancel failed' })
+      );
     });
 
     it('forbids delete by a non-creator non-admin', async () => {

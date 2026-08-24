@@ -3,8 +3,15 @@ import { PoolClient } from 'pg';
 import Database from '../config/database';
 import { Event, EventLineupEntry } from '../types';
 import { cache, CacheKeys, CacheTTL } from '../utils/cache';
-import { AppError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors';
+import {
+  AppError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  isPgErrorCode,
+} from '../utils/errors';
 import logger from '../utils/logger';
+import { NotificationService } from './NotificationService';
 
 interface DeleteEventActor {
   id: string;
@@ -35,6 +42,8 @@ interface CreateEventRequest {
 
 export class EventService {
   private db = Database.getInstance();
+
+  constructor(private notificationService: NotificationService = new NotificationService()) {}
 
   /**
    * Create a new event with lineup entries, or return existing one.
@@ -393,25 +402,28 @@ export class EventService {
         if (checkinExists.rows.length > 0) {
           await this.cancelEventPreservingCheckins(client, eventId, actor);
           await client.query('COMMIT');
+          await this.notifyEventCheckinUsers(eventId);
           return { deleted: false, cancelled: true };
         }
 
         await client.query('SAVEPOINT event_delete');
         try {
-          await client.query(
-            `DELETE FROM events
-              WHERE id = $1 AND (created_by_user_id = $2 OR $3::boolean)`,
-            [eventId, actor.id, actor.isAdmin]
-          );
+          await client.query('DELETE FROM events WHERE id = $1', [eventId]);
         } catch (deleteErr: unknown) {
           if (isPgErrorCode(deleteErr, '23503')) {
             await client.query('ROLLBACK TO SAVEPOINT event_delete');
             try {
               await this.cancelEventPreservingCheckins(client, eventId, actor);
-            } catch {
+            } catch (cancelErr) {
+              logger.error('Failed to cancel event after delete conflict', {
+                eventId,
+                error: cancelErr instanceof Error ? cancelErr.message : String(cancelErr),
+                stack: cancelErr instanceof Error ? cancelErr.stack : undefined,
+              });
               throw new ConflictError('Event could not be deleted or cancelled');
             }
             await client.query('COMMIT');
+            await this.notifyEventCheckinUsers(eventId);
             return { deleted: false, cancelled: true };
           }
           throw deleteErr;
@@ -445,18 +457,47 @@ export class EventService {
     const result = await client.query(
       `UPDATE events SET
         status = 'cancelled',
-        updated_at = CURRENT_TIMESTAMP,
-        external_id = CASE
-          WHEN external_id IS NOT NULL
-           AND position('#cancelled#' in external_id) = 0
-          THEN external_id || '#cancelled#' || id::text
-          ELSE external_id
-        END
-       WHERE id = $1 AND (created_by_user_id = $2 OR $3::boolean)`,
-      [eventId, actor.id, actor.isAdmin]
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [eventId]
     );
     if ((result.rowCount ?? 0) === 0) {
       throw new ConflictError('Event could not be cancelled');
+    }
+  }
+
+  private async notifyEventCheckinUsers(eventId: string): Promise<void> {
+    try {
+      const checkinUsers = await this.db.query(
+        `SELECT DISTINCT user_id FROM checkins WHERE event_id = $1`,
+        [eventId]
+      );
+
+      for (const row of checkinUsers.rows) {
+        try {
+          await this.notificationService.createNotification({
+            userId: row.user_id,
+            type: 'event_cancelled',
+            title: 'Event cancelled',
+            message: 'An event you checked in to has been cancelled.',
+            eventId,
+          });
+        } catch (notificationError) {
+          logger.error('Failed to create event cancellation notification', {
+            userId: row.user_id,
+            eventId,
+            error:
+              notificationError instanceof Error
+                ? notificationError.message
+                : String(notificationError),
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to notify event attendees of cancellation', {
+        eventId,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -1074,13 +1115,4 @@ export class EventService {
       showDate: row.event_date,
     };
   }
-}
-
-function isPgErrorCode(error: unknown, code: string): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code: unknown }).code === code
-  );
 }
