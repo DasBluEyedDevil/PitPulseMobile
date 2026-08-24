@@ -50,6 +50,9 @@ interface FeedCursor {
   id: string; // UUID
 }
 
+// Canonical photo is image_urls; photo_url is legacy fallback only. Postgres arrays are 1-indexed.
+const CHECKIN_FEED_PHOTO_SQL = "COALESCE(NULLIF(c.image_urls[1], ''), c.photo_url) AS photo_url";
+
 // ============================================
 // Cursor helpers (module-level exports)
 // ============================================
@@ -114,7 +117,7 @@ export class FeedService {
         c.user_id,
         c.event_id,
         c.created_at,
-        c.photo_url,
+        ${CHECKIN_FEED_PHOTO_SQL},
         u.username,
         u.profile_image_url AS user_avatar_url,
         e.event_name,
@@ -216,7 +219,7 @@ export class FeedService {
         c.user_id,
         c.event_id,
         c.created_at,
-        c.photo_url,
+        ${CHECKIN_FEED_PHOTO_SQL},
         u.username,
         u.profile_image_url AS user_avatar_url,
         e.event_name,
@@ -299,7 +302,7 @@ export class FeedService {
         c.user_id,
         c.event_id,
         c.created_at,
-        c.photo_url,
+        ${CHECKIN_FEED_PHOTO_SQL},
         u.username,
         u.profile_image_url AS user_avatar_url,
         e.event_name,

@@ -1,5 +1,6 @@
 import Database from '../config/database';
 import crypto from 'crypto';
+import { r2Service } from './R2Service';
 import logger from '../utils/logger';
 
 /**
@@ -214,6 +215,11 @@ export class DataRetentionService {
       await client.query('DELETE FROM audit_logs WHERE user_id = $1', [userId]);
       await client.query('DELETE FROM pending_photo_uploads WHERE user_id = $1', [userId]);
 
+      const photoKeys = r2Service.isReady
+        ? await this.getCheckinPhotoObjectKeys(client, userId)
+        : [];
+      await this.deleteCheckinPhotoObjects(userId, photoKeys);
+
       // 4. Revoke all refresh tokens
       const tokenResult = await client.query(
         `UPDATE refresh_tokens
@@ -225,7 +231,7 @@ export class DataRetentionService {
 
       // 5. Anonymize check-in photos
       const checkinPhotoResult = await client.query(
-        'UPDATE checkins SET photo_url = NULL WHERE user_id = $1',
+        'UPDATE checkins SET image_urls = NULL, photo_url = NULL WHERE user_id = $1',
         [userId]
       );
       anonymizedCheckinPhotos = checkinPhotoResult.rowCount || 0;
@@ -274,6 +280,51 @@ export class DataRetentionService {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  private async getCheckinPhotoObjectKeys(client: {
+    query: (text: string, values?: unknown[]) => Promise<{ rows?: unknown[] }>;
+  }, userId: string): Promise<string[]> {
+    const result = await client.query(
+      `SELECT image_urls, photo_url
+       FROM checkins
+       WHERE user_id = $1
+       FOR UPDATE`,
+      [userId]
+    );
+
+    const keys = (result.rows || []).flatMap((row) => {
+      const record = row as { image_urls?: unknown; photo_url?: unknown };
+      const urls = Array.isArray(record.image_urls) ? record.image_urls : [];
+      return [...urls, record.photo_url]
+        .map((url) => trustedR2ObjectKey(url))
+        .filter((key): key is string => key !== null);
+    });
+
+    return [...new Set(keys)];
+  }
+
+  private async deleteCheckinPhotoObjects(userId: string, objectKeys: string[]): Promise<void> {
+    if (objectKeys.length === 0) {
+      return;
+    }
+
+    const results = await Promise.allSettled(
+      objectKeys.map((objectKey) => r2Service.deleteObject(objectKey))
+    );
+    const failures = results.filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected'
+    );
+
+    if (failures.length > 0) {
+      logger.error('R2 check-in photo deletion failed; preserving account data', {
+        userId,
+        objectCount: objectKeys.length,
+        failedCount: failures.length,
+        error: failures[0].reason instanceof Error ? failures[0].reason.message : String(failures[0].reason),
+      });
+      throw new Error(`Failed to delete ${failures.length} check-in photo object(s)`);
     }
   }
 
@@ -444,4 +495,27 @@ export class DataRetentionService {
       cancelledAt: row.cancelled_at || undefined,
     };
   }
+}
+
+function trustedR2ObjectKey(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length === 0) {
+    return null;
+  }
+
+  const publicUrl = (process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '');
+  if (!publicUrl || !value.startsWith(`${publicUrl}/`)) {
+    return null;
+  }
+
+  const objectKey = value.slice(publicUrl.length + 1).split(/[?#]/, 1)[0];
+  if (
+    !objectKey.startsWith('checkins/') ||
+    objectKey.includes('..') ||
+    objectKey.includes('\\') ||
+    objectKey.length > 500
+  ) {
+    return null;
+  }
+
+  return objectKey;
 }

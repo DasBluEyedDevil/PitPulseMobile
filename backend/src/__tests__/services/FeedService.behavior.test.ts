@@ -113,6 +113,10 @@ describe('FeedService behavior', () => {
 
     const page = await new FeedService().getFriendsFeed(userId, undefined, 2);
 
+    expect(mockDb.query).toHaveBeenCalledWith(
+      expect.stringContaining("COALESCE(NULLIF(c.image_urls[1], ''), c.photo_url) AS photo_url"),
+      [userId, 3]
+    );
     expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('JOIN user_followers'), [
       userId,
       3,
@@ -156,6 +160,10 @@ describe('FeedService behavior', () => {
     const page = await new FeedService().getEventFeed(eventId, userId, cursor, 7);
 
     expect(mockedGetCache).toHaveBeenCalledWith(`feed:event:${eventId}:v4:${userId}:${cursor}`);
+    expect(mockDb.query).toHaveBeenCalledWith(
+      expect.stringContaining("COALESCE(NULLIF(c.image_urls[1], ''), c.photo_url) AS photo_url"),
+      [eventId, 8, '2026-07-26T12:00:00.000Z', '33333333-3333-4333-8333-333333333333', userId]
+    );
     expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('$5::uuid'), [
       eventId,
       8,
@@ -164,6 +172,21 @@ describe('FeedService behavior', () => {
       userId,
     ]);
     expect(page).toEqual({ items: [], nextCursor: null, hasMore: false });
+  });
+
+  it('selects image_urls with photo_url fallback on friends, event, and global feeds', async () => {
+    mockDb.query.mockResolvedValue({ rows: [] });
+    const service = new FeedService();
+
+    await service.getFriendsFeed(userId);
+    await service.getEventFeed(eventId, userId);
+    await service.getGlobalFeed(userId);
+
+    expect(mockDb.query).toHaveBeenCalledTimes(3);
+    for (const [sql] of mockDb.query.mock.calls) {
+      expect(sql).toContain("COALESCE(NULLIF(c.image_urls[1], ''), c.photo_url) AS photo_url");
+      expect(sql).not.toMatch(/^\s*c\.photo_url,?$/m);
+    }
   });
 
   it('maps happening-now groups and uses the shorter live-data cache lifetime', async () => {
