@@ -1,5 +1,11 @@
 import Database from '../config/database';
 import { Venue, CreateVenueRequest, SearchQuery } from '../types';
+import { ForbiddenError, NotFoundError } from '../utils/errors';
+
+interface CatalogActor {
+  id: string;
+  isAdmin: boolean;
+}
 
 export class VenueService {
   private db = Database.getInstance();
@@ -187,9 +193,13 @@ export class VenueService {
   }
 
   /**
-   * Update venue
+   * Update venue. Actor is enforced in SQL (claimed owner or admin).
    */
-  async updateVenue(venueId: string, updateData: Partial<CreateVenueRequest>): Promise<Venue> {
+  async updateVenue(
+    venueId: string,
+    updateData: Partial<CreateVenueRequest>,
+    actor: CatalogActor
+  ): Promise<Venue> {
     const allowedFields = [
       'name',
       'description',
@@ -225,11 +235,13 @@ export class VenueService {
       throw new Error('No valid fields to update');
     }
 
-    values.push(venueId);
+    values.push(venueId, actor.id, actor.isAdmin);
     const query = `
       UPDATE venues 
       SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $${paramCount} AND is_active = true
+      WHERE id = $${paramCount}
+        AND is_active = true
+        AND (claimed_by_user_id = $${paramCount + 1} OR $${paramCount + 2}::boolean)
       RETURNING id, name, description, address, city, state, country, postal_code,
                 latitude, longitude, website_url, phone, email, capacity, venue_type,
                 image_url, average_rating, total_checkins, is_active, claimed_by_user_id,
@@ -239,26 +251,50 @@ export class VenueService {
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new Error('Venue not found or inactive');
+      const stateResult = await this.db.query('SELECT is_active FROM venues WHERE id = $1', [venueId]);
+
+      if (stateResult.rows.length === 0 || !stateResult.rows[0].is_active) {
+        throw new NotFoundError('Venue not found or inactive');
+      }
+
+      throw new ForbiddenError('Only admins or claimed owners can update this venue');
     }
 
     return this.mapDbVenueToVenue(result.rows[0]);
   }
 
   /**
-   * Delete venue (soft delete).
+   * Delete venue (soft delete). Actor is enforced in SQL (claimed owner or admin).
    * Also invalidates pending verification claims and resolves pending reports (CFR-DI-007, CFR-DI-008).
    */
-  async deleteVenue(venueId: string): Promise<void> {
+  async deleteVenue(venueId: string, actor: CatalogActor): Promise<void> {
     const query = `
       UPDATE venues
       SET is_active = false, updated_at = CURRENT_TIMESTAMP
       WHERE id = $1
+        AND is_active = true
+        AND (claimed_by_user_id = $2 OR $3::boolean)
     `;
 
-    await this.db.query(query, [venueId]);
+    const result = await this.db.query(query, [venueId, actor.id, actor.isAdmin]);
+    if ((result.rowCount ?? 0) === 0) {
+      if (actor.isAdmin) {
+        await this.denyPendingVerificationClaims(venueId);
+        return;
+      }
 
-    // CFR-DI-007: Deny pending verification claims for this venue (entity deleted)
+      const stateResult = await this.db.query('SELECT is_active FROM venues WHERE id = $1', [venueId]);
+      if (stateResult.rows.length === 0 || !stateResult.rows[0].is_active) {
+        throw new NotFoundError('Venue not found or inactive');
+      }
+
+      throw new ForbiddenError('Only admins or claimed owners can delete this venue');
+    }
+
+    await this.denyPendingVerificationClaims(venueId);
+  }
+
+  private async denyPendingVerificationClaims(venueId: string): Promise<void> {
     await this.db.query(
       `UPDATE verification_claims SET status = 'denied', review_notes = 'entity_deleted', updated_at = CURRENT_TIMESTAMP
        WHERE entity_type = 'venue' AND entity_id = $1 AND status = 'pending'`,

@@ -12,7 +12,7 @@ import { DiscoveryService } from '../services/DiscoveryService';
 import { EventService } from '../services/EventService';
 import { CreateBandRequest, SearchQuery, ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
-import { UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError } from '../utils/errors';
+import { UnauthorizedError, NotFoundError, BadRequestError } from '../utils/errors';
 import { parseBoundedInt } from '../utils/queryBounds';
 
 export class BandController {
@@ -108,16 +108,10 @@ export class BandController {
 
     const { id } = routeParams(req);
 
-    // Authorization: admin or claimed owner
     const isAdmin = !!req.user.isAdmin;
-    const isOwner = await this.bandService.isClaimedOwner(id, req.user.id);
-
-    if (!isAdmin && !isOwner) {
-      throw new ForbiddenError('Only admins or claimed owners can update this band');
-    }
-
     const updateData = req.body;
-    const band = await this.bandService.updateBand(id, updateData);
+    const actor = { id: req.user.id, isAdmin };
+    const band = await this.bandService.updateBand(id, updateData, actor);
 
     const response: ApiResponse = {
       success: true,
@@ -140,15 +134,9 @@ export class BandController {
 
     const { id } = routeParams(req);
 
-    // Authorization: admin or claimed owner
     const isAdmin = !!req.user.isAdmin;
-    const isOwner = await this.bandService.isClaimedOwner(id, req.user.id);
-
-    if (!isAdmin && !isOwner) {
-      throw new ForbiddenError('Only admins or claimed owners can delete this band');
-    }
-
-    await this.bandService.deleteBand(id);
+    const actor = { id: req.user.id, isAdmin };
+    await this.bandService.deleteBand(id, actor);
 
     const response: ApiResponse = {
       success: true,

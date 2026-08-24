@@ -13,6 +13,9 @@ const mockDb = {
 
 describe('VenueService', () => {
   let venueService: VenueService;
+  const owner = { id: 'user-owner', isAdmin: false };
+  const admin = { id: 'user-admin', isAdmin: true };
+  const stranger = { id: 'user-stranger', isAdmin: false };
 
   beforeEach(() => {
     venueService = new VenueService();
@@ -395,28 +398,55 @@ describe('VenueService', () => {
 
       mockDb.query.mockResolvedValueOnce({ rows: [mockUpdatedVenue] });
 
-      const result = await venueService.updateVenue('venue-123', updateData);
+      const result = await venueService.updateVenue('venue-123', updateData, owner);
 
       expect(result.description).toBe('Updated description');
       expect(result.capacity).toBe(2000);
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE venues'),
-        expect.arrayContaining(['Updated description', 2000, 'venue-123'])
+        ['Updated description', 2000, 'venue-123', owner.id, false]
       );
+      const [query] = mockDb.query.mock.calls[0];
+      expect(query).toContain('claimed_by_user_id = $4 OR $5::boolean');
     });
 
     it('should throw error when no valid fields to update', async () => {
-      await expect(venueService.updateVenue('venue-123', {})).rejects.toThrow(
+      await expect(venueService.updateVenue('venue-123', {}, owner)).rejects.toThrow(
         'No valid fields to update'
       );
     });
 
     it('should throw error when venue not found', async () => {
-      mockDb.query.mockResolvedValueOnce({ rows: [] });
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
 
-      await expect(venueService.updateVenue('non-existent', { name: 'New Name' })).rejects.toThrow(
-        'Venue not found or inactive'
-      );
+      await expect(
+        venueService.updateVenue('non-existent', { name: 'New Name' }, owner)
+      ).rejects.toMatchObject({ statusCode: 404, message: 'Venue not found or inactive' });
+    });
+
+    it('should return forbidden when ownership is lost during update', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ is_active: true, claimed_by_user_id: 'user-other' }] });
+
+      await expect(
+        venueService.updateVenue('venue-123', { name: 'New Name' }, owner)
+      ).rejects.toMatchObject({
+        statusCode: 403,
+        message: 'Only admins or claimed owners can update this venue',
+      });
+    });
+
+    it('should return not found when venue is inactive during update', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ is_active: false }] });
+
+      await expect(
+        venueService.updateVenue('venue-123', { name: 'New Name' }, owner)
+      ).rejects.toMatchObject({ statusCode: 404, message: 'Venue not found or inactive' });
     });
 
     it('should ignore undefined values in update data', async () => {
@@ -453,12 +483,49 @@ describe('VenueService', () => {
 
       mockDb.query.mockResolvedValueOnce({ rows: [mockUpdatedVenue] });
 
-      await venueService.updateVenue('venue-123', updateData);
+      await venueService.updateVenue('venue-123', updateData, owner);
 
       // Should only include 'name' in the update, not description or capacity
       const [query] = mockDb.query.mock.calls[0];
       expect(query).toContain('name = $1');
       expect(query).not.toContain('description = $2');
+    });
+
+    it('binds admin actor so unclaimed venues can be updated', async () => {
+      mockDb.query.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'venue-123',
+            name: 'Admin Updated',
+            description: null,
+            address: null,
+            city: null,
+            state: null,
+            country: null,
+            postal_code: null,
+            latitude: null,
+            longitude: null,
+            website_url: null,
+            phone: null,
+            email: null,
+            capacity: null,
+            venue_type: null,
+            image_url: null,
+            average_rating: '0',
+            total_checkins: '0',
+            is_active: true,
+            claimed_by_user_id: null,
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-25T00:00:00Z',
+          },
+        ],
+      });
+
+      await venueService.updateVenue('venue-123', { name: 'Admin Updated' }, admin);
+
+      const [query, params] = mockDb.query.mock.calls[0];
+      expect(query).toContain('claimed_by_user_id = $3 OR $4::boolean');
+      expect(params).toEqual(['Admin Updated', 'venue-123', admin.id, true]);
     });
   });
 
@@ -467,32 +534,75 @@ describe('VenueService', () => {
       mockDb.query.mockResolvedValueOnce({ rowCount: 1 });
       mockDb.query.mockResolvedValueOnce({ rowCount: 0 }); // verification claims update
 
-      await venueService.deleteVenue('venue-123');
+      await venueService.deleteVenue('venue-123', owner);
 
       expect(mockDb.query).toHaveBeenCalledTimes(2);
       const [deleteQuery, deleteParams] = mockDb.query.mock.calls[0];
       expect(deleteQuery).toContain('UPDATE venues');
       expect(deleteQuery).toContain('is_active = false');
-      expect(deleteParams).toEqual(['venue-123']);
+      expect(deleteQuery).toContain('claimed_by_user_id = $2 OR $3::boolean');
+      expect(deleteParams).toEqual(['venue-123', owner.id, false]);
     });
 
     it('should deny pending verification claims on delete', async () => {
       mockDb.query.mockResolvedValueOnce({ rowCount: 1 });
       mockDb.query.mockResolvedValueOnce({ rowCount: 2 }); // 2 claims denied
 
-      await venueService.deleteVenue('venue-123');
+      await venueService.deleteVenue('venue-123', admin);
 
       expect(mockDb.query).toHaveBeenNthCalledWith(
         2,
         expect.stringContaining('UPDATE verification_claims'),
         ['venue-123']
       );
+      expect(mockDb.query.mock.calls[0][1]).toEqual(['venue-123', admin.id, true]);
+    });
+
+    it('does not deny claims when the actor is not the owner or admin', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ is_active: true, claimed_by_user_id: 'user-other' }] });
+
+      await expect(venueService.deleteVenue('venue-123', stranger)).rejects.toThrow(
+        'Only admins or claimed owners can delete this venue'
+      );
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
+      expect(mockDb.query.mock.calls[0][1]).toEqual(['venue-123', stranger.id, false]);
+    });
+
+    it('should return not found when deleting a missing venue', async () => {
+      mockDb.query.mockResolvedValueOnce({ rowCount: 0 }).mockResolvedValueOnce({ rows: [] });
+
+      await expect(venueService.deleteVenue('missing', stranger)).rejects.toMatchObject({
+        statusCode: 404,
+        message: 'Venue not found or inactive',
+      });
+    });
+
+    it('should return not found when deleting an inactive venue', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ is_active: false }] });
+
+      await expect(venueService.deleteVenue('venue-123', stranger)).rejects.toMatchObject({
+        statusCode: 404,
+        message: 'Venue not found or inactive',
+      });
+    });
+
+    it('should preserve idempotent admin deletes for missing venues', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rowCount: 0 })
+        .mockResolvedValueOnce({ rowCount: 0 });
+
+      await expect(venueService.deleteVenue('missing', admin)).resolves.toBeUndefined();
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
     });
 
     it('should handle database errors during deletion', async () => {
       mockDb.query.mockRejectedValueOnce(new Error('Delete failed'));
 
-      await expect(venueService.deleteVenue('venue-123')).rejects.toThrow('Delete failed');
+      await expect(venueService.deleteVenue('venue-123', owner)).rejects.toThrow('Delete failed');
     });
   });
 

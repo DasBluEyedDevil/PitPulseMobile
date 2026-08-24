@@ -12,7 +12,7 @@ import { DiscoveryService } from '../services/DiscoveryService';
 import { EventService } from '../services/EventService';
 import { CreateVenueRequest, SearchQuery, ApiResponse } from '../types';
 import { asyncHandler } from '../utils/asyncHandler';
-import { UnauthorizedError, ForbiddenError, NotFoundError, BadRequestError } from '../utils/errors';
+import { UnauthorizedError, NotFoundError, BadRequestError } from '../utils/errors';
 import { parseBoundedFloat, parseBoundedInt } from '../utils/queryBounds';
 
 export class VenueController {
@@ -109,16 +109,10 @@ export class VenueController {
 
     const { id } = routeParams(req);
 
-    // Authorization: admin or claimed owner
     const isAdmin = !!req.user.isAdmin;
-    const isOwner = await this.venueService.isClaimedOwner(id, req.user.id);
-
-    if (!isAdmin && !isOwner) {
-      throw new ForbiddenError('Only admins or claimed owners can update this venue');
-    }
-
     const updateData = req.body;
-    const venue = await this.venueService.updateVenue(id, updateData);
+    const actor = { id: req.user.id, isAdmin };
+    const venue = await this.venueService.updateVenue(id, updateData, actor);
 
     const response: ApiResponse = {
       success: true,
@@ -141,15 +135,9 @@ export class VenueController {
 
     const { id } = routeParams(req);
 
-    // Authorization: admin or claimed owner
     const isAdmin = !!req.user.isAdmin;
-    const isOwner = await this.venueService.isClaimedOwner(id, req.user.id);
-
-    if (!isAdmin && !isOwner) {
-      throw new ForbiddenError('Only admins or claimed owners can delete this venue');
-    }
-
-    await this.venueService.deleteVenue(id);
+    const actor = { id: req.user.id, isAdmin };
+    await this.venueService.deleteVenue(id, actor);
 
     const response: ApiResponse = {
       success: true,
