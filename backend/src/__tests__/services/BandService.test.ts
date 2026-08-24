@@ -353,11 +353,36 @@ describe('BandService', () => {
     });
 
     it('should throw error when band not found', async () => {
-      mockDb.query.mockResolvedValueOnce({ rows: [] });
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
 
       await expect(
         bandService.updateBand('non-existent', { name: 'New Name' }, owner)
-      ).rejects.toThrow('Band not found or inactive');
+      ).rejects.toMatchObject({ statusCode: 404, message: 'Band not found or inactive' });
+    });
+
+    it('should return forbidden when ownership is lost during update', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ is_active: true, claimed_by_user_id: 'user-other' }] });
+
+      await expect(
+        bandService.updateBand('band-123', { name: 'New Name' }, owner)
+      ).rejects.toMatchObject({
+        statusCode: 403,
+        message: 'Only admins or claimed owners can update this band',
+      });
+    });
+
+    it('should return not found when band is inactive during update', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ is_active: false }] });
+
+      await expect(
+        bandService.updateBand('band-123', { name: 'New Name' }, owner)
+      ).rejects.toMatchObject({ statusCode: 404, message: 'Band not found or inactive' });
     });
 
     it('should ignore undefined values in update data', async () => {
@@ -460,13 +485,44 @@ describe('BandService', () => {
     });
 
     it('does not deny claims when the actor is not the owner or admin', async () => {
-      mockDb.query.mockResolvedValueOnce({ rowCount: 0 });
+      mockDb.query
+        .mockResolvedValueOnce({ rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ is_active: true, claimed_by_user_id: 'user-other' }] });
 
       await expect(bandService.deleteBand('band-123', stranger)).rejects.toThrow(
         'Only admins or claimed owners can delete this band'
       );
-      expect(mockDb.query).toHaveBeenCalledTimes(1);
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
       expect(mockDb.query.mock.calls[0][1]).toEqual(['band-123', stranger.id, false]);
+    });
+
+    it('should return not found when deleting a missing band', async () => {
+      mockDb.query.mockResolvedValueOnce({ rowCount: 0 }).mockResolvedValueOnce({ rows: [] });
+
+      await expect(bandService.deleteBand('missing', stranger)).rejects.toMatchObject({
+        statusCode: 404,
+        message: 'Band not found or inactive',
+      });
+    });
+
+    it('should return not found when deleting an inactive band', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ is_active: false }] });
+
+      await expect(bandService.deleteBand('band-123', stranger)).rejects.toMatchObject({
+        statusCode: 404,
+        message: 'Band not found or inactive',
+      });
+    });
+
+    it('should preserve idempotent admin deletes for missing bands', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rowCount: 0 })
+        .mockResolvedValueOnce({ rowCount: 0 });
+
+      await expect(bandService.deleteBand('missing', admin)).resolves.toBeUndefined();
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
     });
 
     it('should handle database errors during deletion', async () => {

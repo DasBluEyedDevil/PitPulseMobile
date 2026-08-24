@@ -417,11 +417,36 @@ describe('VenueService', () => {
     });
 
     it('should throw error when venue not found', async () => {
-      mockDb.query.mockResolvedValueOnce({ rows: [] });
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
 
       await expect(
         venueService.updateVenue('non-existent', { name: 'New Name' }, owner)
-      ).rejects.toThrow('Venue not found or inactive');
+      ).rejects.toMatchObject({ statusCode: 404, message: 'Venue not found or inactive' });
+    });
+
+    it('should return forbidden when ownership is lost during update', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ is_active: true, claimed_by_user_id: 'user-other' }] });
+
+      await expect(
+        venueService.updateVenue('venue-123', { name: 'New Name' }, owner)
+      ).rejects.toMatchObject({
+        statusCode: 403,
+        message: 'Only admins or claimed owners can update this venue',
+      });
+    });
+
+    it('should return not found when venue is inactive during update', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ is_active: false }] });
+
+      await expect(
+        venueService.updateVenue('venue-123', { name: 'New Name' }, owner)
+      ).rejects.toMatchObject({ statusCode: 404, message: 'Venue not found or inactive' });
     });
 
     it('should ignore undefined values in update data', async () => {
@@ -534,13 +559,44 @@ describe('VenueService', () => {
     });
 
     it('does not deny claims when the actor is not the owner or admin', async () => {
-      mockDb.query.mockResolvedValueOnce({ rowCount: 0 });
+      mockDb.query
+        .mockResolvedValueOnce({ rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ is_active: true, claimed_by_user_id: 'user-other' }] });
 
       await expect(venueService.deleteVenue('venue-123', stranger)).rejects.toThrow(
         'Only admins or claimed owners can delete this venue'
       );
-      expect(mockDb.query).toHaveBeenCalledTimes(1);
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
       expect(mockDb.query.mock.calls[0][1]).toEqual(['venue-123', stranger.id, false]);
+    });
+
+    it('should return not found when deleting a missing venue', async () => {
+      mockDb.query.mockResolvedValueOnce({ rowCount: 0 }).mockResolvedValueOnce({ rows: [] });
+
+      await expect(venueService.deleteVenue('missing', stranger)).rejects.toMatchObject({
+        statusCode: 404,
+        message: 'Venue not found or inactive',
+      });
+    });
+
+    it('should return not found when deleting an inactive venue', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ is_active: false }] });
+
+      await expect(venueService.deleteVenue('venue-123', stranger)).rejects.toMatchObject({
+        statusCode: 404,
+        message: 'Venue not found or inactive',
+      });
+    });
+
+    it('should preserve idempotent admin deletes for missing venues', async () => {
+      mockDb.query
+        .mockResolvedValueOnce({ rowCount: 0 })
+        .mockResolvedValueOnce({ rowCount: 0 });
+
+      await expect(venueService.deleteVenue('missing', admin)).resolves.toBeUndefined();
+      expect(mockDb.query).toHaveBeenCalledTimes(2);
     });
 
     it('should handle database errors during deletion', async () => {

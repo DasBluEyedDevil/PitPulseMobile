@@ -1,6 +1,6 @@
 import Database from '../config/database';
 import { Venue, CreateVenueRequest, SearchQuery } from '../types';
-import { ForbiddenError } from '../utils/errors';
+import { ForbiddenError, NotFoundError } from '../utils/errors';
 
 interface CatalogActor {
   id: string;
@@ -251,7 +251,13 @@ export class VenueService {
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new Error('Venue not found or inactive');
+      const stateResult = await this.db.query('SELECT is_active FROM venues WHERE id = $1', [venueId]);
+
+      if (stateResult.rows.length === 0 || !stateResult.rows[0].is_active) {
+        throw new NotFoundError('Venue not found or inactive');
+      }
+
+      throw new ForbiddenError('Only admins or claimed owners can update this venue');
     }
 
     return this.mapDbVenueToVenue(result.rows[0]);
@@ -265,15 +271,30 @@ export class VenueService {
     const query = `
       UPDATE venues
       SET is_active = false, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1 AND (claimed_by_user_id = $2 OR $3::boolean)
+      WHERE id = $1
+        AND is_active = true
+        AND (claimed_by_user_id = $2 OR $3::boolean)
     `;
 
     const result = await this.db.query(query, [venueId, actor.id, actor.isAdmin]);
     if ((result.rowCount ?? 0) === 0) {
+      if (actor.isAdmin) {
+        await this.denyPendingVerificationClaims(venueId);
+        return;
+      }
+
+      const stateResult = await this.db.query('SELECT is_active FROM venues WHERE id = $1', [venueId]);
+      if (stateResult.rows.length === 0 || !stateResult.rows[0].is_active) {
+        throw new NotFoundError('Venue not found or inactive');
+      }
+
       throw new ForbiddenError('Only admins or claimed owners can delete this venue');
     }
 
-    // CFR-DI-007: Deny pending verification claims for this venue (entity deleted)
+    await this.denyPendingVerificationClaims(venueId);
+  }
+
+  private async denyPendingVerificationClaims(venueId: string): Promise<void> {
     await this.db.query(
       `UPDATE verification_claims SET status = 'denied', review_notes = 'entity_deleted', updated_at = CURRENT_TIMESTAMP
        WHERE entity_type = 'venue' AND entity_id = $1 AND status = 'pending'`,

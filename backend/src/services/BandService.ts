@@ -1,6 +1,6 @@
 import Database from '../config/database';
 import { Band, CreateBandRequest, SearchQuery } from '../types';
-import { ForbiddenError } from '../utils/errors';
+import { ForbiddenError, NotFoundError } from '../utils/errors';
 
 interface CatalogActor {
   id: string;
@@ -226,7 +226,13 @@ export class BandService {
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new Error('Band not found or inactive');
+      const stateResult = await this.db.query('SELECT is_active FROM bands WHERE id = $1', [bandId]);
+
+      if (stateResult.rows.length === 0 || !stateResult.rows[0].is_active) {
+        throw new NotFoundError('Band not found or inactive');
+      }
+
+      throw new ForbiddenError('Only admins or claimed owners can update this band');
     }
 
     return this.mapDbBandToBand(result.rows[0]);
@@ -240,15 +246,30 @@ export class BandService {
     const query = `
       UPDATE bands
       SET is_active = false, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1 AND (claimed_by_user_id = $2 OR $3::boolean)
+      WHERE id = $1
+        AND is_active = true
+        AND (claimed_by_user_id = $2 OR $3::boolean)
     `;
 
     const result = await this.db.query(query, [bandId, actor.id, actor.isAdmin]);
     if ((result.rowCount ?? 0) === 0) {
+      if (actor.isAdmin) {
+        await this.denyPendingVerificationClaims(bandId);
+        return;
+      }
+
+      const stateResult = await this.db.query('SELECT is_active FROM bands WHERE id = $1', [bandId]);
+      if (stateResult.rows.length === 0 || !stateResult.rows[0].is_active) {
+        throw new NotFoundError('Band not found or inactive');
+      }
+
       throw new ForbiddenError('Only admins or claimed owners can delete this band');
     }
 
-    // CFR-DI-007: Deny pending verification claims for this band (entity deleted)
+    await this.denyPendingVerificationClaims(bandId);
+  }
+
+  private async denyPendingVerificationClaims(bandId: string): Promise<void> {
     await this.db.query(
       `UPDATE verification_claims SET status = 'denied', review_notes = 'entity_deleted', updated_at = CURRENT_TIMESTAMP
        WHERE entity_type = 'band' AND entity_id = $1 AND status = 'pending'`,

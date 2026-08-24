@@ -5,6 +5,7 @@ import { VenueController } from '../../controllers/VenueController';
 import { SearchController } from '../../controllers/SearchController';
 import { DiscoveryController } from '../../controllers/DiscoveryController';
 import { UserDiscoveryController } from '../../controllers/UserDiscoveryController';
+import { ForbiddenError, NotFoundError } from '../../utils/errors';
 
 jest.mock('../../services/BandService', () => ({ BandService: jest.fn() }));
 jest.mock('../../services/VenueService', () => ({ VenueService: jest.fn() }));
@@ -166,12 +167,36 @@ describe('BandController catalog contract', () => {
   });
 
   it('forbids a non-owner from updating a band', async () => {
-    bandService.isClaimedOwner.mockResolvedValue(false);
+    bandService.updateBand.mockRejectedValue(
+      new ForbiddenError('Only admins or claimed owners can update this band')
+    );
     const response = await request(createApp({ id: 'user-1' }))
       .put('/bands/band-1')
       .send({ name: 'Updated' });
     expect(response.status).toBe(403);
-    expect(bandService.updateBand).not.toHaveBeenCalled();
+    expect(bandService.updateBand).toHaveBeenCalledWith(
+      'band-1',
+      { name: 'Updated' },
+      { id: 'user-1', isAdmin: false }
+    );
+  });
+
+  it('returns not found when a band update targets an inactive band', async () => {
+    bandService.updateBand.mockRejectedValue(new NotFoundError('Band not found or inactive'));
+    const response = await request(createApp({ id: 'user-1' }))
+      .put('/bands/band-1')
+      .send({ name: 'Updated' });
+    expect(response.status).toBe(404);
+  });
+
+  it('maps an ownership race during band update to forbidden', async () => {
+    bandService.updateBand.mockRejectedValue(
+      new ForbiddenError('Only admins or claimed owners can update this band')
+    );
+    const response = await request(createApp({ id: 'user-1' }))
+      .put('/bands/band-1')
+      .send({ name: 'Updated' });
+    expect(response.status).toBe(403);
   });
 
   it('allows a claimed owner to update a band', async () => {
@@ -190,7 +215,6 @@ describe('BandController catalog contract', () => {
   });
 
   it('allows an administrator to delete a band without ownership', async () => {
-    bandService.isClaimedOwner.mockResolvedValue(false);
     bandService.deleteBand.mockResolvedValue(undefined);
     const response = await request(createApp({ id: 'admin-1', isAdmin: true })).delete(
       '/bands/band-1'
@@ -201,6 +225,20 @@ describe('BandController catalog contract', () => {
       id: 'admin-1',
       isAdmin: true,
     });
+  });
+
+  it('returns not found when a band delete targets a missing entry', async () => {
+    bandService.deleteBand.mockRejectedValue(new NotFoundError('Band not found or inactive'));
+    const response = await request(createApp({ id: 'user-1' })).delete('/bands/missing');
+    expect(response.status).toBe(404);
+  });
+
+  it('returns forbidden when a band delete is not owned', async () => {
+    bandService.deleteBand.mockRejectedValue(
+      new ForbiddenError('Only admins or claimed owners can delete this band')
+    );
+    const response = await request(createApp({ id: 'user-1' })).delete('/bands/band-1');
+    expect(response.status).toBe(403);
   });
 
   it.each([
@@ -355,14 +393,18 @@ describe('VenueController catalog contract', () => {
   });
 
   it('forbids a non-owner from deleting a venue', async () => {
-    venueService.isClaimedOwner.mockResolvedValue(false);
+    venueService.deleteVenue.mockRejectedValue(
+      new ForbiddenError('Only admins or claimed owners can delete this venue')
+    );
     const response = await request(createApp({ id: 'user-1' })).delete('/venues/venue-1');
     expect(response.status).toBe(403);
-    expect(venueService.deleteVenue).not.toHaveBeenCalled();
+    expect(venueService.deleteVenue).toHaveBeenCalledWith(
+      'venue-1',
+      { id: 'user-1', isAdmin: false }
+    );
   });
 
   it('allows a claimed owner to update a venue', async () => {
-    venueService.isClaimedOwner.mockResolvedValue(true);
     venueService.updateVenue.mockResolvedValue({ ...venue, name: 'Updated' });
     const response = await request(createApp({ id: 'user-1' }))
       .put('/venues/venue-1')
@@ -375,8 +417,25 @@ describe('VenueController catalog contract', () => {
     );
   });
 
+  it('returns not found when a venue update targets an inactive venue', async () => {
+    venueService.updateVenue.mockRejectedValue(new NotFoundError('Venue not found or inactive'));
+    const response = await request(createApp({ id: 'user-1' }))
+      .put('/venues/venue-1')
+      .send({ name: 'Updated' });
+    expect(response.status).toBe(404);
+  });
+
+  it('maps an ownership race during venue update to forbidden', async () => {
+    venueService.updateVenue.mockRejectedValue(
+      new ForbiddenError('Only admins or claimed owners can update this venue')
+    );
+    const response = await request(createApp({ id: 'user-1' }))
+      .put('/venues/venue-1')
+      .send({ name: 'Updated' });
+    expect(response.status).toBe(403);
+  });
+
   it('allows an administrator to delete a venue without ownership', async () => {
-    venueService.isClaimedOwner.mockResolvedValue(false);
     const response = await request(createApp({ id: 'admin-1', isAdmin: true })).delete(
       '/venues/venue-1'
     );
@@ -385,6 +444,12 @@ describe('VenueController catalog contract', () => {
       id: 'admin-1',
       isAdmin: true,
     });
+  });
+
+  it('returns not found when a venue delete targets a missing entry', async () => {
+    venueService.deleteVenue.mockRejectedValue(new NotFoundError('Venue not found or inactive'));
+    const response = await request(createApp({ id: 'user-1' })).delete('/venues/missing');
+    expect(response.status).toBe(404);
   });
 
   it('bounds popular venue limits', async () => {
