@@ -34,15 +34,13 @@ import {
 
 const WINDOW_MS = 15 * 60 * 1000;
 
-function rateLimitedEnvelope() {
-  return {
-    success: false,
-    error: {
-      code: 'RATE_LIMITED',
-      message: 'Too many requests, please try again later',
-    },
-  };
-}
+const RATE_LIMITED_ENVELOPE = {
+  success: false,
+  error: {
+    code: 'RATE_LIMITED',
+    message: 'Too many requests, please try again later',
+  },
+};
 
 describe('rateLimit security behavior', () => {
   let json: jest.Mock;
@@ -75,7 +73,7 @@ describe('rateLimit security behavior', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(status).toHaveBeenCalledWith(429);
-    expect(json).toHaveBeenCalledWith(rateLimitedEnvelope());
+    expect(json).toHaveBeenCalledWith(RATE_LIMITED_ENVELOPE);
   });
 
   it('allows non-critical paths to use the in-memory fallback', async () => {
@@ -172,7 +170,7 @@ describe('rateLimit security behavior', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(status).toHaveBeenCalledWith(429);
-    expect(json).toHaveBeenCalledWith(rateLimitedEnvelope());
+    expect(json).toHaveBeenCalledWith(RATE_LIMITED_ENVELOPE);
   });
 
   it('fail-closes a new login IP when the in-memory store is at capacity after purge', async () => {
@@ -187,7 +185,7 @@ describe('rateLimit security behavior', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(status).toHaveBeenCalledWith(429);
-    expect(json).toHaveBeenCalledWith(rateLimitedEnvelope());
+    expect(json).toHaveBeenCalledWith(RATE_LIMITED_ENVELOPE);
   });
 
   it('still fail-opens a new non-critical IP when the in-memory store is at capacity', async () => {
@@ -202,6 +200,7 @@ describe('rateLimit security behavior', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(status).not.toHaveBeenCalled();
+    expect(setHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', '10');
   });
 });
 
