@@ -148,9 +148,14 @@ describe('WebSocket Authentication', () => {
       };
       const mockWs = createMockWs();
 
-      mockDbQuery
-        .mockResolvedValueOnce({ rows: [{ is_active: true }] })
-        .mockResolvedValueOnce({ rows: [{ is_active: false }] });
+      mockGetAuthUser.mockResolvedValueOnce({
+        id: USER_123,
+        username: 'testuser',
+        isActive: true,
+        isAdmin: false,
+        isPremium: false,
+      });
+      mockDbQuery.mockResolvedValueOnce({ rows: [{ is_active: false }] });
       await verifyClient({ req }, callback);
       wss.emit('connection', mockWs, req);
       await new Promise<void>((resolve) => setImmediate(resolve));
