@@ -47,6 +47,36 @@ export function publicApiOriginFromBaseUrl(apiBaseUrl) {
   return url.origin;
 }
 
+export function extractPublicApiBaseUrlFromHtml(html) {
+  const matches = [
+    ...html.matchAll(/\bconst\s+apiBaseUrl\s*=\s*("(?:\\.|[^"\\])*")/g),
+  ];
+  if (matches.length === 0) {
+    throw new Error(
+      'Built reset-password page is missing the PUBLIC_API_BASE_URL value.',
+    );
+  }
+
+  const values = matches.map((match) => {
+    try {
+      return JSON.parse(match[1]).trim().replace(/\/+$/, '');
+    } catch {
+      throw new Error(
+        'Built reset-password page contains an invalid PUBLIC_API_BASE_URL value.',
+      );
+    }
+  });
+  const uniqueValues = [...new Set(values)];
+  if (uniqueValues.length !== 1) {
+    throw new Error(
+      'Built reset-password page contains conflicting PUBLIC_API_BASE_URL values.',
+    );
+  }
+
+  publicApiOriginFromBaseUrl(uniqueValues[0]);
+  return uniqueValues[0];
+}
+
 export function applyPublicApiOriginToHeaders(headersText, origin) {
   if (!headersText.includes(PUBLIC_API_ORIGIN_PLACEHOLDER)) {
     throw new Error(
