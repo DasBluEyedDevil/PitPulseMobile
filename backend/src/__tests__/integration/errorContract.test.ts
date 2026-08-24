@@ -1,32 +1,13 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import express, { Request, Response, NextFunction } from 'express';
 import request from 'supertest';
-import { z } from 'zod';
 import { createPerUserRateLimit } from '../../middleware/perUserRateLimit';
-import { validate } from '../../middleware/validate';
 import { buildErrorResponseForStatus } from '../../middleware/validate';
 import { authenticateToken, rateLimit, requireAdmin, requirePremium } from '../../middleware/auth';
 import { dailyCheckinRateLimit } from '../../middleware/checkinRateLimit';
-import adminController from '../../controllers/AdminController';
-import { moderateContentSchema } from '../../routes/adminRoutes';
+import adminRoutes from '../../routes/adminRoutes';
 
 const mockDbQuery = jest.fn<(...args: unknown[]) => Promise<unknown>>();
-const adminUser = {
-  id: '99999999-9999-4999-8999-999999999999',
-  email: 'admin@example.com',
-  username: 'admin',
-  isVerified: true,
-  isActive: true,
-  isAdmin: true,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-};
-
-const userActivityQuerySchema = z.object({
-  query: z.object({
-    userId: z.string().uuid('userId must be a valid UUID'),
-  }),
-});
 
 jest.mock('../../utils/redisRateLimiter', () => {
   const actual = jest.requireActual(
@@ -64,7 +45,13 @@ jest.mock('../../services/UserService', () => ({
 }));
 
 jest.mock('../../services/user/authUserCache', () => ({
-  getAuthUser: jest.fn(async () => null),
+  getAuthUser: jest.fn(async () => ({
+    id: 'admin-user',
+    username: 'admin',
+    isActive: true,
+    isAdmin: true,
+    isPremium: false,
+  })),
   invalidateAuthUserCache: jest.fn(),
 }));
 
@@ -146,12 +133,14 @@ describe('API error contract', () => {
         res.status(200).json({ success: true });
       }
     );
-    app.use('/admin', (req, _res, next) => {
-      (req as any).user = adminUser;
-      next();
-    });
-    app.post('/admin/moderate', validate(moderateContentSchema), adminController.moderateContent);
-    app.get('/admin/user-activity', validate(userActivityQuerySchema), adminController.getUserActivity);
+    app.use(
+      '/admin',
+      (req, _res, next) => {
+        req.headers.authorization = 'Bearer valid-token';
+        next();
+      },
+      adminRoutes
+    );
     app.use((req, res) => {
       res.status(404).json(buildErrorResponseForStatus(404, `Route ${req.originalUrl} not found`));
     });
@@ -241,6 +230,9 @@ describe('API error contract', () => {
         }),
       })
     );
+    expect(missingFields.body.error.details).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: expect.stringContaining('body.') })])
+    );
 
     const missingUserId = await request(app).get('/admin/user-activity');
     expect(missingUserId.status).toBe(400);
@@ -252,6 +244,9 @@ describe('API error contract', () => {
           message: 'Validation failed',
         }),
       })
+    );
+    expect(missingUserId.body.error.details).toEqual(
+      expect.arrayContaining([expect.objectContaining({ field: expect.stringContaining('query.') })])
     );
   });
 });

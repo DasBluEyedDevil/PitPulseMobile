@@ -5,6 +5,7 @@ import { authenticateToken } from '../middleware/auth';
 import { createPerUserRateLimit, RateLimitPresets } from '../middleware/perUserRateLimit';
 import { validate } from '../middleware/validate';
 import { decodeCursor } from '../services/FeedService';
+import { eventIdSchema } from './eventRoutes';
 
 const router = Router();
 const feedController = new FeedController();
@@ -25,7 +26,7 @@ export const feedQuerySchema = z.object({
 
 export const eventFeedSchema = z.object({
   params: z.object({
-    eventId: z.string().uuid('Event ID must be a valid UUID'),
+    eventId: eventIdSchema,
   }),
   query: feedQueryFields,
 });
