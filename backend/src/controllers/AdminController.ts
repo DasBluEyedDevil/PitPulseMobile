@@ -242,16 +242,11 @@ export class AdminController {
       disconnectUser(targetId, 'account_banned');
       logWarn(`Admin banned user: ${targetId}. Reason: ${reason || 'Not specified'}`);
     } else if (action === 'delete_venue' && targetType === 'venue') {
-      if (!req.user) {
-        res.status(401).json(buildErrorResponseForStatus(401, 'Authentication required'));
-        return;
-      }
-
       const result = await db.query(
         `UPDATE venues
          SET is_active = false, updated_at = CURRENT_TIMESTAMP
          WHERE id = $1 AND (claimed_by_user_id = $2 OR $3::boolean)`,
-        [targetId, req.user.id, !!req.user.isAdmin]
+        [targetId, req.user!.id, !!req.user!.isAdmin]
       );
 
       if (!result.rowCount) {
@@ -260,9 +255,6 @@ export class AdminController {
       }
 
       logWarn(`Admin deleted venue: ${targetId}. Reason: ${reason || 'Not specified'}`);
-    } else {
-      res.status(400).json(buildErrorResponseForStatus(400, 'Invalid action'));
-      return;
     }
 
     const response: ApiResponse = {

@@ -97,7 +97,9 @@ describe('WebSocket Authentication', () => {
         headers: { host: 'localhost', authorization: 'Bearer valid-token' },
       };
 
-      mockDbQuery.mockResolvedValueOnce({ rows: [{ is_active: true }] });
+      mockDbQuery
+        .mockResolvedValueOnce({ rows: [{ is_active: true }] })
+        .mockResolvedValueOnce({ rows: [{ is_active: true }] });
       await verifyClient({ req }, callback);
 
       expect(callback).toHaveBeenCalledWith(true);
@@ -110,9 +112,42 @@ describe('WebSocket Authentication', () => {
       const mockWs = createMockWs(sentMessages);
 
       wss.emit('connection', mockWs, req);
+      await new Promise<void>((resolve) => setImmediate(resolve));
 
       expect(sentMessages.map((message) => message.type)).toEqual(['connected', 'authenticated']);
       expect(sentMessages[1].payload.userId).toBe(USER_123);
+    });
+
+    test('closes a socket when the user is banned during the upgrade race', async () => {
+      process.env.ENABLE_WEBSOCKET = 'true';
+      httpServer = createServer();
+      websocket.init(httpServer);
+
+      const clientsMap = (websocket as any).clients as Map<string, any>;
+      const userClientsMap = (websocket as any).userClients as Map<string, Set<string>>;
+      clientsMap.clear();
+      userClientsMap.clear();
+
+      const wss = (websocket as any).wss;
+      const verifyClient = wss.options.verifyClient;
+      const callback = jest.fn();
+      const req: any = {
+        url: '/ws',
+        headers: { host: 'localhost', authorization: 'Bearer valid-token' },
+      };
+      const mockWs = createMockWs();
+
+      mockDbQuery
+        .mockResolvedValueOnce({ rows: [{ is_active: true }] })
+        .mockResolvedValueOnce({ rows: [{ is_active: false }] });
+      await verifyClient({ req }, callback);
+      wss.emit('connection', mockWs, req);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(callback).toHaveBeenCalledWith(true);
+      expect(mockWs.close).toHaveBeenCalledWith(4003, 'account_banned');
+      expect(clientsMap.size).toBe(0);
+      expect(userClientsMap.has(USER_123)).toBe(false);
     });
 
     test('missing, query-string, and invalid tokens are rejected before upgrade', async () => {
@@ -487,7 +522,7 @@ describe('WebSocket Authentication', () => {
       expect(sentMessages).toEqual([
         { type: 'disconnected', payload: { reason: 'account_banned' } },
       ]);
-      expect(mockWs.close).toHaveBeenCalledWith(4003, 'Account banned');
+      expect(mockWs.close).toHaveBeenCalledWith(4003, 'account_banned');
       expect(clientsMap.has(clientId)).toBe(false);
       expect(userClientsMap.has(USER_123)).toBe(false);
     });
@@ -512,7 +547,7 @@ describe('WebSocket Authentication', () => {
       expect(sentMessages).toEqual([
         { type: 'disconnected', payload: { reason: 'account_banned' } },
       ]);
-      expect(mockWs.close).toHaveBeenCalledWith(4003, 'Account banned');
+      expect(mockWs.close).toHaveBeenCalledWith(4003, 'account_banned');
       expect(clientsMap.has(clientId)).toBe(false);
     });
 

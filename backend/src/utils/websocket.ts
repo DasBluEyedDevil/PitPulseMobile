@@ -167,6 +167,7 @@ class WebSocketServer {
       this.send(clientId, 'connected', { clientId });
       if (userId) {
         this.send(clientId, 'authenticated', { userId });
+        void this.revalidateClientIsActive(clientId, userId);
       }
     });
 
@@ -565,6 +566,29 @@ class WebSocketServer {
     winstonLogger.info(`WebSocket client disconnected: ${clientId}`);
   }
 
+  private async revalidateClientIsActive(clientId: string, userId: string): Promise<void> {
+    try {
+      const result = await this.db.query('SELECT is_active FROM users WHERE id = $1', [userId]);
+      if (!this.clients.has(clientId)) return;
+
+      if (!result.rows[0] || result.rows[0].is_active !== true) {
+        this.disconnectUser(userId, 'account_banned');
+      }
+    } catch (error) {
+      winstonLogger.error('WebSocket active-state revalidation failed', {
+        clientId,
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      if (this.clients.has(clientId)) {
+        const client = this.clients.get(clientId);
+        client?.ws.close(1011, 'Authentication check failed');
+        this.handleDisconnect(clientId);
+      }
+    }
+  }
+
   /**
    * Send message to specific client
    */
@@ -605,7 +629,7 @@ class WebSocketServer {
       this.send(clientId, WebSocketEvents.DISCONNECTED, { reason });
       const client = this.clients.get(clientId);
       if (client) {
-        client.ws.close(4003, 'Account banned');
+        client.ws.close(4003, reason);
       }
       this.handleDisconnect(clientId);
       closed++;

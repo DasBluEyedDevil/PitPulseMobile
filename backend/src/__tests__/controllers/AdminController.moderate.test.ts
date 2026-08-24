@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import express from 'express';
 import request from 'supertest';
-import { z } from 'zod';
 
 const mockDbQuery = jest.fn<(...args: unknown[]) => Promise<any>>();
 const mockRevokeAllUserTokens = jest.fn<(userId: string) => Promise<void>>();
@@ -41,24 +40,7 @@ jest.mock('../../utils/cache', () => ({
 
 import { validate } from '../../middleware/validate';
 import adminController from '../../controllers/AdminController';
-
-const targetId = z.string().uuid('targetId must be a valid UUID');
-const moderateContentSchema = z.object({
-  body: z.discriminatedUnion('action', [
-    z.object({
-      action: z.literal('ban_user'),
-      targetType: z.literal('user'),
-      targetId,
-      reason: z.string().max(1000).optional(),
-    }),
-    z.object({
-      action: z.literal('delete_venue'),
-      targetType: z.literal('venue'),
-      targetId,
-      reason: z.string().max(1000).optional(),
-    }),
-  ]),
-});
+import { moderateContentSchema } from '../../routes/adminRoutes';
 
 const ADMIN_ID = '99999999-9999-4999-8999-999999999999';
 const USER_ID = '11111111-1111-4111-8111-111111111111';
