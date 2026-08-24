@@ -248,22 +248,20 @@ export class CheckinPhotoService {
         throw invalidPendingPhotoKeysError();
       }
 
-      const pendingResult = await this.db.query(
-        `SELECT object_key FROM pending_photo_uploads
-         WHERE checkin_id = $1 AND user_id = $2 AND object_key = ANY($3::text[])`,
-        [checkinId, userId, photoKeys]
-      );
       const existingUrls: string[] = checkinResult.rows[0].image_urls || [];
       const newUrls = photoKeys.map((key) => r2Service.getPublicUrl(key));
-      const allAlreadyAttached = newUrls.every((url) => existingUrls.includes(url));
+      const existingUrlSet = new Set(existingUrls);
+      const photoKeysRequiringConfirmation = photoKeys.filter(
+        (_, index) => !existingUrlSet.has(newUrls[index])
+      );
 
-      if (pendingResult.rows.length !== photoKeys.length && !allAlreadyAttached) {
-        throw invalidPendingPhotoKeysError();
-      }
-
-      if (!allAlreadyAttached) {
-        const headResults = await Promise.all(photoKeys.map((key) => r2Service.headObject(key)));
-        const missingPhotoKeys = photoKeys.filter((_, index) => !headResults[index].exists);
+      if (photoKeysRequiringConfirmation.length > 0) {
+        const headResults = await Promise.all(
+          photoKeysRequiringConfirmation.map((key) => r2Service.headObject(key))
+        );
+        const missingPhotoKeys = photoKeysRequiringConfirmation.filter(
+          (_, index) => !headResults[index].exists
+        );
 
         if (missingPhotoKeys.length > 0) {
           logger.warn('[CheckinPhotoService] Photo confirmation rejected for missing R2 objects', {
@@ -279,7 +277,7 @@ export class CheckinPhotoService {
           throw err;
         }
 
-        const invalidPhotoKeys = photoKeys.filter(
+        const invalidPhotoKeys = photoKeysRequiringConfirmation.filter(
           (key, index) => !validateUploadedPhotoMetadata(key, headResults[index])
         );
 
@@ -299,11 +297,11 @@ export class CheckinPhotoService {
       }
 
       if (
-        !allAlreadyAttached &&
-        existingUrls.length + newUrls.length > this.MAX_PHOTOS_PER_CHECKIN
+        existingUrls.length + photoKeysRequiringConfirmation.length >
+        this.MAX_PHOTOS_PER_CHECKIN
       ) {
         const err = new Error(
-          `Maximum ${this.MAX_PHOTOS_PER_CHECKIN} photos per check-in. Would have ${existingUrls.length + newUrls.length}.`
+          `Maximum ${this.MAX_PHOTOS_PER_CHECKIN} photos per check-in. Would have ${existingUrls.length + photoKeysRequiringConfirmation.length}.`
         );
         (err as any).statusCode = 400;
         throw err;
@@ -371,7 +369,7 @@ export class CheckinPhotoService {
         (key, index) => !pendingKeys.has(key) && !lockedUrls.includes(newUrls[index])
       );
 
-      if (missingKeys.length > 0 || pendingResult.rows.length > photoKeys.length) {
+      if (missingKeys.length > 0) {
         throw invalidPendingPhotoKeysError();
       }
 

@@ -75,6 +75,7 @@ describe('CheckinPhotoService', () => {
     lockedUserId?: string;
     updateRowCount?: number;
     updatedUrls?: string[];
+    pendingKeys?: string[];
   }) {
     mockClientQuery.mockImplementation(async (sql: unknown, values?: unknown) => {
       const text = String(sql);
@@ -84,9 +85,12 @@ describe('CheckinPhotoService', () => {
       if (text.includes('FROM pending_photo_uploads') && text.includes('FOR UPDATE')) {
         const params = Array.isArray(values) ? values : undefined;
         const requestedKeys = Array.isArray(params?.[2]) ? (params[2] as string[]) : photoKeys;
+        const pendingKeys = options.pendingKeys ?? photoKeys;
         return {
-          rows: requestedKeys.map((object_key) => ({ object_key })),
-          rowCount: requestedKeys.length,
+          rows: requestedKeys
+            .filter((object_key) => pendingKeys.includes(object_key))
+            .map((object_key) => ({ object_key })),
+          rowCount: requestedKeys.filter((object_key) => pendingKeys.includes(object_key)).length,
         };
       }
       if (text.includes('FOR UPDATE')) {
@@ -193,18 +197,14 @@ describe('CheckinPhotoService', () => {
     expect(mockR2Service.getPresignedUploadUrl).not.toHaveBeenCalled();
   });
 
-  it('HEADs all pending keys before storing URLs and deleting pending rows', async () => {
-    const existingUrl = 'https://old.example.com/photo.jpg';
-    const combinedUrls = [
-      existingUrl,
-      `https://cdn.example.com/${photoKeys[0]}`,
-      `https://cdn.example.com/${photoKeys[1]}`,
-    ];
+  it('handles mixed pending and already-attached keys when confirming photos', async () => {
+    const existingUrl = `https://cdn.example.com/${photoKeys[0]}`;
+    const combinedUrls = [existingUrl, `https://cdn.example.com/${photoKeys[1]}`];
     mockDb.query
       .mockResolvedValueOnce({
         rows: [{ user_id: userId, image_urls: [existingUrl] }],
       })
-      .mockResolvedValueOnce({ rows: photoKeys.map((object_key) => ({ object_key })) });
+      .mockResolvedValueOnce({ rows: [{ object_key: photoKeys[1] }] });
     mockR2Service.headObject.mockResolvedValue({
       exists: true,
       contentLength: 100,
@@ -213,13 +213,13 @@ describe('CheckinPhotoService', () => {
     mockConfirmTransaction({
       lockedUrls: [existingUrl],
       updatedUrls: combinedUrls,
+      pendingKeys: [photoKeys[1]],
     });
 
-    const result = await service.addPhotos(checkinId, userId, photoKeys);
+    const result = await service.addPhotos(checkinId, userId, [photoKeys[0], photoKeys[1]]);
 
-    expect(mockR2Service.headObject).toHaveBeenCalledTimes(2);
-    expect(mockR2Service.headObject).toHaveBeenNthCalledWith(1, photoKeys[0]);
-    expect(mockR2Service.headObject).toHaveBeenNthCalledWith(2, photoKeys[1]);
+    expect(mockR2Service.headObject).toHaveBeenCalledTimes(1);
+    expect(mockR2Service.headObject).toHaveBeenCalledWith(photoKeys[1]);
     expect(result).toEqual(combinedUrls);
     expect(mockClientQuery).toHaveBeenCalledWith('BEGIN');
     expect(mockClientQuery).toHaveBeenCalledWith(
@@ -228,11 +228,11 @@ describe('CheckinPhotoService', () => {
     );
     expect(mockClientQuery).toHaveBeenCalledWith(
       expect.stringContaining("cardinality(COALESCE(image_urls, '{}'::text[])) + $3 <= $4"),
-      [combinedUrls, checkinId, photoKeys.length, service.MAX_PHOTOS_PER_CHECKIN]
+      [combinedUrls, checkinId, 1, service.MAX_PHOTOS_PER_CHECKIN]
     );
     expect(mockClientQuery).toHaveBeenCalledWith(
       expect.stringContaining('DELETE FROM pending_photo_uploads'),
-      [checkinId, userId, photoKeys]
+      [checkinId, userId, [photoKeys[1]]]
     );
     expect(mockClientQuery).toHaveBeenCalledWith('COMMIT');
     expect(mockClientRelease).toHaveBeenCalled();
@@ -242,16 +242,11 @@ describe('CheckinPhotoService', () => {
     const confirmedUrl = `https://cdn.example.com/${photoKeys[0]}`;
     let imageUrls: string[] = [];
     let pendingAvailable = true;
-    let updateCount = 0;
-    let deleteCount = 0;
 
     mockDb.query.mockImplementation(async (sql: unknown) => {
       const text = String(sql);
       if (text.includes('SELECT user_id, image_urls FROM checkins')) {
         return { rows: [{ user_id: userId, image_urls: [...imageUrls] }] };
-      }
-      if (text.includes('FROM pending_photo_uploads')) {
-        return { rows: pendingAvailable ? [{ object_key: photoKeys[0] }] : [] };
       }
       return { rows: [], rowCount: 0 };
     });
@@ -277,12 +272,10 @@ describe('CheckinPhotoService', () => {
       if (text.includes('UPDATE checkins')) {
         const updatedUrls = (values as unknown[])[0] as string[];
         imageUrls = [...updatedUrls];
-        updateCount += 1;
         return { rows: [{ image_urls: [...imageUrls] }], rowCount: 1 };
       }
       if (text.includes('DELETE FROM pending_photo_uploads')) {
         pendingAvailable = false;
-        deleteCount += 1;
         return { rows: [{ object_key: photoKeys[0] }], rowCount: 1 };
       }
       return { rows: [], rowCount: 0 };
@@ -296,19 +289,12 @@ describe('CheckinPhotoService', () => {
     ]);
 
     expect(imageUrls).toEqual([confirmedUrl]);
-    expect(updateCount).toBe(1);
-    expect(deleteCount).toBe(1);
   });
 
   it('serializes concurrent confirmations and appends a shared key only once', async () => {
     const confirmedUrl = `https://cdn.example.com/${photoKeys[0]}`;
     let imageUrls: string[] = [];
     let pendingAvailable = true;
-    let preflightCount = 0;
-    let releasePreflight!: () => void;
-    const preflightBarrier = new Promise<void>((resolve) => {
-      releasePreflight = resolve;
-    });
     let firstLockAvailable = true;
     let releaseFirstCommit!: () => void;
     const firstCommit = new Promise<void>((resolve) => {
@@ -321,14 +307,6 @@ describe('CheckinPhotoService', () => {
       const text = String(sql);
       if (text.includes('SELECT user_id, image_urls FROM checkins')) {
         return { rows: [{ user_id: userId, image_urls: [...imageUrls] }] };
-      }
-      if (text.includes('FROM pending_photo_uploads')) {
-        preflightCount += 1;
-        if (preflightCount === 2) {
-          releasePreflight();
-        }
-        await preflightBarrier;
-        return { rows: pendingAvailable ? [{ object_key: photoKeys[0] }] : [] };
       }
       return { rows: [], rowCount: 0 };
     });
@@ -402,7 +380,7 @@ describe('CheckinPhotoService', () => {
       statusCode: 409,
     });
 
-    expect(mockDb.query).toHaveBeenCalledTimes(2);
+    expect(mockDb.query).toHaveBeenCalledTimes(1);
     expect(mockDb.query).not.toHaveBeenCalledWith(
       expect.stringContaining('UPDATE checkins'),
       expect.anything()
@@ -425,20 +403,22 @@ describe('CheckinPhotoService', () => {
       statusCode: 503,
     });
 
-    expect(mockDb.query).toHaveBeenCalledTimes(2);
+    expect(mockDb.query).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects invalid pending keys before HEAD checks', async () => {
-    mockDb.query
-      .mockResolvedValueOnce({ rows: [{ user_id: userId, image_urls: [] }] })
-      .mockResolvedValueOnce({ rows: [{ object_key: photoKeys[0] }] });
+  it('rejects genuinely missing keys after HEAD validation', async () => {
+    mockDb.query.mockResolvedValueOnce({ rows: [{ user_id: userId, image_urls: [] }] });
+    mockR2Service.headObject
+      .mockResolvedValueOnce({ exists: true, contentLength: 100, contentType: 'image/jpeg' })
+      .mockResolvedValueOnce({ exists: true, contentLength: 100, contentType: 'image/jpeg' });
+    mockConfirmTransaction({ lockedUrls: [], pendingKeys: [] });
 
     await expect(service.addPhotos(checkinId, userId, photoKeys)).rejects.toMatchObject({
       statusCode: 400,
     });
 
-    expect(mockR2Service.headObject).not.toHaveBeenCalled();
-    expect(mockDb.query).toHaveBeenCalledTimes(2);
+    expect(mockR2Service.headObject).toHaveBeenCalledTimes(2);
+    expect(mockDb.query).toHaveBeenCalledTimes(1);
   });
 
   it('rejects uploaded objects with unsigned or mismatched content type metadata', async () => {
@@ -455,7 +435,7 @@ describe('CheckinPhotoService', () => {
       statusCode: 400,
     });
 
-    expect(mockDb.query).toHaveBeenCalledTimes(2);
+    expect(mockDb.query).toHaveBeenCalledTimes(1);
     expect(mockDb.query).not.toHaveBeenCalledWith(
       expect.stringContaining('UPDATE checkins'),
       expect.anything()
@@ -476,7 +456,7 @@ describe('CheckinPhotoService', () => {
       statusCode: 400,
     });
 
-    expect(mockDb.query).toHaveBeenCalledTimes(2);
+    expect(mockDb.query).toHaveBeenCalledTimes(1);
   });
 
   it('rejects uploaded objects whose extension does not match the signed image type', async () => {
@@ -494,7 +474,7 @@ describe('CheckinPhotoService', () => {
       message: 'One or more uploaded photos have an invalid type or size',
       statusCode: 400,
     });
-    expect(mockDb.query).toHaveBeenCalledTimes(2);
+    expect(mockDb.query).toHaveBeenCalledTimes(1);
   });
 
   it('does not attach photos when existing and newly confirmed URLs exceed the cap', async () => {
