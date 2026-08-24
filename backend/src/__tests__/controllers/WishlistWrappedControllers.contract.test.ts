@@ -3,11 +3,12 @@ import fs from 'fs';
 import request from 'supertest';
 import { WishlistController } from '../../controllers/WishlistController';
 import { WrappedController } from '../../controllers/WrappedController';
+import { requirePremium } from '../../middleware/auth';
 
 jest.mock('../../services/WrappedService', () => ({ WrappedService: jest.fn() }));
 jest.mock('../../services/ShareCardService', () => ({ ShareCardService: jest.fn() }));
 
-type User = { id: string; username?: string };
+type User = { id: string; username?: string; isPremium?: boolean };
 const realReadFileSync = fs.readFileSync.bind(fs);
 
 function appFor(
@@ -253,9 +254,9 @@ describe('WrappedController annual summary and sharing contract', () => {
     });
     return appFor(user, (app) => {
       app.get('/wrapped/:year', controller.getWrapped);
-      app.get('/wrapped/:year/detail', controller.getWrappedDetail);
+      app.get('/wrapped/:year/detail', requirePremium(), controller.getWrappedDetail);
       app.post('/wrapped/:year/card', controller.generateSummaryCard);
-      app.post('/wrapped/:year/card/:statType', controller.generateStatCard);
+      app.post('/wrapped/:year/card/:statType', requirePremium(), controller.generateStatCard);
       app.get('/public/:userId/:year', controller.renderWrappedLanding);
     });
   };
@@ -304,12 +305,16 @@ describe('WrappedController annual summary and sharing contract', () => {
     expect(wrappedService.getWrappedStats).toHaveBeenCalledWith(userId, year);
   });
 
-  it('returns detailed annual wrapped stats', async () => {
+  it('rejects detailed annual wrapped stats without premium', async () => {
     const detail = { ...stats, shows: [{ id: 'checkin-1' }] };
     wrappedService.getWrappedDetailStats.mockResolvedValue(detail);
     const response = await request(createApp({ id: userId })).get(`/wrapped/${year}/detail`);
-    expect(response.status).toBe(200);
-    expect(response.body.data).toEqual(detail);
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({
+      success: false,
+      error: { code: 'FORBIDDEN', message: 'SoundCheck Pro subscription required' },
+    });
+    expect(wrappedService.getWrappedDetailStats).not.toHaveBeenCalled();
   });
 
   it('rejects a summary card before the minimum activity threshold', async () => {
@@ -345,7 +350,7 @@ describe('WrappedController annual summary and sharing contract', () => {
   });
 
   it('rejects an unsupported wrapped stat card type', async () => {
-    const response = await request(createApp({ id: userId })).post(
+    const response = await request(createApp({ id: userId, isPremium: true })).post(
       `/wrapped/${year}/card/top-song`
     );
     expect(response.status).toBe(400);
@@ -362,9 +367,9 @@ describe('WrappedController annual summary and sharing contract', () => {
       imageUrl: `https://cdn.example/${statType}.png`,
     });
 
-    const response = await request(createApp({ id: userId, username: 'alice' })).post(
-      `/wrapped/${year}/card/${statType}`
-    );
+    const response = await request(
+      createApp({ id: userId, username: 'alice', isPremium: true })
+    ).post(`/wrapped/${year}/card/${statType}`);
 
     expect(response.status).toBe(200);
     expect(shareCardService.generateWrappedStatCard).toHaveBeenCalledWith(userId, year, {

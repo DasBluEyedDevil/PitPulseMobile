@@ -10,6 +10,8 @@ npm run typecheck
 npm test
 ```
 
+`npm test` requires `JWT_SECRET` of at least 32 characters (`AuthUtils` reads it at import time). `backend/src/__tests__/setup.ts` sets a non-production stub when the variable is unset so local `npm test` works without exporting it (A-022). The stub is never applied when `NODE_ENV=production`. CI still sets `JWT_SECRET` explicitly on coverage and integration jobs.
+
 CI also runs `npm run build`, which writes `backend/dist/`. Do not treat `dist/` changes as source edits.
 
 Phase 30 backend release gates:
@@ -40,6 +42,8 @@ node ../scripts/verify-async-contracts.mjs
 JWT_SECRET=ci-test-secret-must-be-at-least-32-characters-long npm run test:coverage
 ```
 
+A-021: the CI **coverage** job (`npm run test:coverage` in `backend-lint-and-test`) is unit-only and does not set `RUN_INTEGRATION_TESTS`. The **integration** job runs against disposable Postgres/Redis with `RUN_INTEGRATION_TESTS=true` and includes `CheckinService.integration.test.ts`. Do not point the coverage job at Postgres. Coverage percentage is not proof of event-delete RESTRICT, check-in window, daily 10/day, or premium HTTP 403 — those are the EventService deleteEvent suite (PR 1), window tests (PR 4), `checkinRateLimit.test.ts`, and mounted `wrappedRoutes` tests.
+
 The HTTP contract gate parses the TypeScript route AST, verifies every router
 mount and endpoint signature against
 `docs/contracts/http-route-contract.json`, and resolves auth, validation,
@@ -69,9 +73,10 @@ npm test -- --runTestsByPath src/__tests__/services/TicketmasterAdapter.test.ts
 npm test -- --runTestsByPath src/__tests__/utils/cache.test.ts src/__tests__/services/FeedService.cache.test.ts src/__tests__/services/CheckinCreatorService.cache.test.ts src/__tests__/middleware/perUserRateLimit.test.ts
 npm test -- --runTestsByPath src/__tests__/services/R2Service.test.ts src/__tests__/services/CheckinPhotoService.test.ts
 npm test -- --runTestsByPath src/__tests__/jobs/asyncWorkers.test.ts src/__tests__/controllers/SubscriptionController.contract.test.ts
+npm test -- --runTestsByPath src/__tests__/middleware/checkinRateLimit.test.ts src/__tests__/routes/wrappedRoutes.test.ts src/__tests__/controllers/WishlistWrappedControllers.contract.test.ts
 ```
 
-These targeted suites cover WebSocket JWT query auth, authenticated acknowledgements, room validation, Redis realtime Pub/Sub envelopes, push token ownership/batching, canonical error envelopes, CORS PATCH preflight, Ticketmaster recursion/rate limiting, versioned cache invalidation, SCAN/UNLINK rate-limit reset, and R2 photo confirmation. The async worker/controller suites additionally cover retry propagation, moderation side effects, queue payload routing, and RevenueCat webhook authentication, malformed envelopes, mapping, idempotency, and failures.
+These targeted suites cover WebSocket JWT query auth, authenticated acknowledgements, room validation (`user:` isolation must not regress), Redis realtime Pub/Sub envelopes, push token ownership/batching, canonical error envelopes, CORS PATCH preflight, Ticketmaster recursion/rate limiting, versioned cache invalidation, SCAN/UNLINK rate-limit reset, and R2 photo confirmation. The async worker/controller suites additionally cover retry propagation, moderation side effects, queue payload routing, and RevenueCat webhook authentication, malformed envelopes, mapping, idempotency, and failures. Daily check-in cap (9 next / 10 → 429 / DB throw fail-closed / missing user 401) and Wrapped `requirePremium` HTTP 403 are locked by the dedicated limiter and mounted-router tests.
 
 ## Mobile
 
