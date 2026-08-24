@@ -26,6 +26,7 @@ import { SyncLogService, SyncCounters, SyncRegion } from './SyncLogService';
 import { RegionSyncService, RegionSyncResult } from './RegionSyncService';
 import { NormalizedEvent } from '../../types/ticketmaster';
 import Database from '../../config/database';
+import { isPgErrorCode } from '../../utils/errors';
 
 export interface SyncResult {
   success: boolean;
@@ -295,7 +296,7 @@ export class EventSyncOrchestrator {
           ELSE EXCLUDED.status
         END,
         updated_at = CURRENT_TIMESTAMP
-      RETURNING id, (xmax = 0) AS is_new`,
+      RETURNING id, status, (xmax = 0) AS is_new`,
       [
         venueResult.venueId,
         event.date,
@@ -310,6 +311,7 @@ export class EventSyncOrchestrator {
     );
 
     const eventId = upsertResult.rows[0].id;
+    const persistedStatus = upsertResult.rows[0].status;
     const isNew = upsertResult.rows[0].is_new;
 
     if (counters) {
@@ -331,8 +333,8 @@ export class EventSyncOrchestrator {
     }
 
     // Step 7: Detect status changes and notify users
-    if (oldStatus && oldStatus !== event.status) {
-      await this.handleStatusChange(eventId, event.status, oldStatus);
+    if (oldStatus && oldStatus !== persistedStatus) {
+      await this.handleStatusChange(eventId, persistedStatus, oldStatus);
     }
 
     return eventId;
@@ -412,13 +414,4 @@ export class EventSyncOrchestrator {
     if (!normalized) return null;
     return this.processEvent(normalized);
   }
-}
-
-function isPgErrorCode(error: unknown, code: string): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code: unknown }).code === code
-  );
 }

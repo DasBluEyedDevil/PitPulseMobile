@@ -114,6 +114,21 @@ async function verifyExistingHistoryUpgrade() {
 
 async function verifyRollbackAndReupgrade() {
   const { runner } = await import('node-pg-migrate');
+  await withClient('phase30-rollback-fixture', async (client) => {
+    const venue = await client.query(
+      "INSERT INTO venues (name) VALUES ('Rollback Venue') RETURNING id"
+    );
+    const user = await client.query(
+      "INSERT INTO users (email, password_hash, username) VALUES ('rollback@example.test', 'hash', 'rollback-user') RETURNING id"
+    );
+    await client.query(
+      `INSERT INTO events
+         (venue_id, event_date, event_name, created_by_user_id, source, status)
+       VALUES ($1, DATE '2026-08-24', 'Replacement Pair', $2, 'user_created', 'cancelled'),
+              ($1, DATE '2026-08-24', 'Replacement Pair', $2, 'user_created', 'active')`,
+      [venue.rows[0].id, user.rows[0].id]
+    );
+  });
   await withClient('phase30-rollback', async (client) => {
     await runner({
       dbClient: client,

@@ -180,7 +180,7 @@ describe('EventSyncOrchestrator provider and idempotency behavior', () => {
     mockQuery.mockImplementation(async (sql: string) => {
       if (sql.includes('SELECT id, status FROM events')) return { rows: [] };
       if (sql.includes('INSERT INTO events')) {
-        return { rows: [{ id: 'event-1', is_new: true }] };
+        return { rows: [{ id: 'event-1', status: 'active', is_new: true }] };
       }
       if (sql.includes('INSERT INTO event_lineup')) return { rowCount: 1, rows: [] };
       throw new Error(`Unexpected query: ${sql}`);
@@ -250,7 +250,7 @@ describe('EventSyncOrchestrator provider and idempotency behavior', () => {
     mockQuery.mockImplementation(async (sql: string) => {
       if (sql.includes('SELECT id, status FROM events')) return { rows: [] };
       if (sql.includes('INSERT INTO events')) {
-        return { rows: [{ id: 'event-live', is_new: true }] };
+        return { rows: [{ id: 'event-live', status: 'active', is_new: true }] };
       }
       if (sql.includes('INSERT INTO event_lineup')) return { rows: [], rowCount: 1 };
       throw new Error(`Unexpected query: ${sql}`);
@@ -270,7 +270,7 @@ describe('EventSyncOrchestrator provider and idempotency behavior', () => {
     mockQuery.mockImplementation(async (sql: string) => {
       if (sql.includes('SELECT id, status FROM events')) return { rows: [] };
       if (sql.includes('INSERT INTO events')) {
-        return { rows: [{ id: 'event-live', is_new: true }] };
+        return { rows: [{ id: 'event-live', status: 'active', is_new: true }] };
       }
       if (sql.includes('INSERT INTO event_lineup')) return { rows: [], rowCount: 1 };
       throw new Error(`Unexpected query: ${sql}`);
@@ -280,14 +280,14 @@ describe('EventSyncOrchestrator provider and idempotency behavior', () => {
   });
 
   it('does not apply provider status onto a cancelled attended event', async () => {
-    const { orchestrator, regionSync } = createDependencies();
-    regionSync.ingestSingleEvent.mockResolvedValue(makeEvent({ status: 'active' }));
+    const { orchestrator, regionSync, notificationService } = createDependencies();
+    regionSync.ingestSingleEvent.mockResolvedValue(makeEvent({ status: 'rescheduled' }));
     mockQuery.mockImplementation(async (sql: string) => {
       if (sql.includes('SELECT id, status FROM events')) {
         return { rows: [{ id: 'event-1', status: 'cancelled' }] };
       }
       if (sql.includes('INSERT INTO events')) {
-        return { rows: [{ id: 'event-1', is_new: false }] };
+        return { rows: [{ id: 'event-1', status: 'cancelled', is_new: false }] };
       }
       if (sql.includes('INSERT INTO event_lineup')) return { rows: [], rowCount: 1 };
       throw new Error(`Unexpected query: ${sql}`);
@@ -301,6 +301,7 @@ describe('EventSyncOrchestrator provider and idempotency behavior', () => {
     expect(upsertSql).toContain("WHEN events.status = 'cancelled'");
     expect(upsertSql).toContain('EXISTS (SELECT 1 FROM checkins');
     expect(upsertSql).toContain('ELSE EXCLUDED.status');
+    expect(notificationService.createNotification).not.toHaveBeenCalled();
   });
 
   it('returns null when a single provider event cannot be normalized', async () => {
@@ -319,7 +320,7 @@ describe('EventSyncOrchestrator provider and idempotency behavior', () => {
         return { rows: [{ id: 'event-1', status: 'active' }] };
       }
       if (sql.includes('INSERT INTO events')) {
-        return { rows: [{ id: 'event-1', is_new: false }] };
+        return { rows: [{ id: 'event-1', status: 'cancelled', is_new: false }] };
       }
       if (sql.includes('INSERT INTO event_lineup')) return { rows: [], rowCount: 1 };
       if (sql.includes('SELECT DISTINCT user_id FROM checkins')) {
@@ -351,7 +352,7 @@ describe('EventSyncOrchestrator provider and idempotency behavior', () => {
         return { rows: [{ id: 'event-1', status: 'active' }] };
       }
       if (sql.includes('INSERT INTO events')) {
-        return { rows: [{ id: 'event-1', is_new: false }] };
+        return { rows: [{ id: 'event-1', status: 'rescheduled', is_new: false }] };
       }
       if (sql.includes('INSERT INTO event_lineup')) return { rows: [] };
       if (sql.includes('SELECT DISTINCT user_id FROM checkins')) {
@@ -376,7 +377,7 @@ describe('EventSyncOrchestrator provider and idempotency behavior', () => {
     mockQuery.mockImplementation(async (sql: string) => {
       if (sql.includes('SELECT id, status FROM events')) return { rows: [] };
       if (sql.includes('INSERT INTO events')) {
-        return { rows: [{ id: 'event-good', is_new: true }] };
+        return { rows: [{ id: 'event-good', status: 'active', is_new: true }] };
       }
       if (sql.includes('INSERT INTO event_lineup')) return { rows: [] };
       throw new Error(`Unexpected query: ${sql}`);
