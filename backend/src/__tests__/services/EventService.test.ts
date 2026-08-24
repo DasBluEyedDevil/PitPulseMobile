@@ -2,6 +2,7 @@ import { EventService } from '../../services/EventService';
 import Database from '../../config/database';
 import { cache } from '../../utils/cache';
 import logger from '../../utils/logger';
+import { NotFoundError } from '../../utils/errors';
 
 // Mock dependencies
 jest.mock('../../config/database');
@@ -129,10 +130,13 @@ describe('EventService', () => {
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({ rows: [{ checkin_count: '0' }] });
 
-      await expect(eventService.getEventById('non-existent')).rejects.toMatchObject({
-        message: 'Event not found',
-        statusCode: 404,
-      });
+      try {
+        await eventService.getEventById('non-existent');
+        throw new Error('expected NotFoundError');
+      } catch (error) {
+        expect(error).toBeInstanceOf(NotFoundError);
+        expect(error).toMatchObject({ message: 'Event not found', statusCode: 404 });
+      }
     });
 
     it('should handle event with empty lineup', async () => {

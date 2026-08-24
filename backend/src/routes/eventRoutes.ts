@@ -8,11 +8,9 @@ import { validate } from '../middleware/validate';
 const router = Router();
 const eventController = new EventController();
 
-const eventIdParam = z.string().uuid('Event ID must be a valid UUID');
-
 export const eventIdParamSchema = z.object({
   params: z.object({
-    id: eventIdParam,
+    id: z.string().uuid('Event ID must be a valid UUID'),
   }),
 });
 
