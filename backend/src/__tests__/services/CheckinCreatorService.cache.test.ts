@@ -28,7 +28,7 @@ jest.mock('../../utils/cache', () => ({
 }));
 jest.mock('../../utils/logger', () => ({
   __esModule: true,
-  default: { error: jest.fn(), debug: jest.fn(), info: jest.fn() },
+  default: { error: jest.fn(), warn: jest.fn(), debug: jest.fn(), info: jest.fn() },
 }));
 
 describe('CheckinCreatorService feed cache invalidation', () => {

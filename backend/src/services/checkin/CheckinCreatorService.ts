@@ -21,6 +21,8 @@ import { getRedis } from '../../utils/redisRateLimiter';
 import { notificationBatchService } from '../NotificationBatchService';
 import { Checkin, CreateEventCheckinRequest, CreateManualCheckinRequest } from './types';
 import logger from '../../utils/logger';
+import { BadRequestError } from '../../utils/errors';
+import { CHECKIN_OUTSIDE_WINDOW_MESSAGE, isCheckinWithinTimeWindow } from './checkinTimeWindow';
 
 // Venue type radius mapping for location verification
 const VENUE_TYPE_RADIUS_KM: Record<string, number> = {
@@ -100,8 +102,8 @@ export class CheckinCreatorService {
       const event = eventResult.rows[0];
 
       // Validate time window using venue timezone
-      if (!this.isWithinTimeWindow(event)) {
-        throw new Error('Check-in is not within the event time window');
+      if (!isCheckinWithinTimeWindow(event)) {
+        throw new BadRequestError(CHECKIN_OUTSIDE_WINDOW_MESSAGE);
       }
 
       // Non-blocking location verification
@@ -273,9 +275,8 @@ export class CheckinCreatorService {
 
   /**
    * Create a manual check-in when no event is available.
-   * Fallback for users at shows not in the Ticketmaster pipeline.
-   * Skips event lookup and time window validation.
-   * Enforces one check-in per user per band+venue per day via application logic.
+   * Unlisted shows have no event clocks, so this path is window-exempt;
+   * the daily unique (user, band, venue, day) index is the anti-dupe control.
    */
   async createManualCheckin(data: CreateManualCheckinRequest): Promise<Checkin> {
     try {
@@ -562,106 +563,6 @@ export class CheckinCreatorService {
       Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
-  }
-
-  // ============================================
-  // Time window validation
-  // ============================================
-
-  /**
-   * Check if current time is within the event's check-in window.
-   * Uses venue timezone when available for correct local-time comparison.
-   *
-   * Window logic:
-   *   start: doors_time or (start_time - 2h) or 16:00 (default)
-   *   end: (end_time + 1h buffer) or (start_time + 6h) or 23:59
-   *
-   * If no timezone: allow all day on event_date (generous fallback).
-   * If no times at all: allow all day on event_date.
-   */
-  private isWithinTimeWindow(event: any): boolean {
-    try {
-      const eventDate = event.event_date; // DATE type from Postgres
-      if (!eventDate) return false;
-
-      // Normalize event_date to YYYY-MM-DD string
-      const eventDateStr =
-        typeof eventDate === 'string'
-          ? eventDate.substring(0, 10)
-          : new Date(eventDate).toISOString().substring(0, 10);
-
-      const timezone = event.timezone;
-
-      // Get "now" in the venue's timezone (or UTC if no timezone)
-      let nowLocal: Date;
-      let todayStr: string;
-
-      if (timezone) {
-        try {
-          const nowInTz = new Date().toLocaleString('en-US', { timeZone: timezone });
-          nowLocal = new Date(nowInTz);
-          // Get today's date string in venue timezone
-          const parts = new Date().toLocaleDateString('en-CA', { timeZone: timezone }).split('-');
-          todayStr = parts.join('-');
-        } catch {
-          // Invalid timezone -- fall back to UTC
-          nowLocal = new Date();
-          todayStr = nowLocal.toISOString().substring(0, 10);
-        }
-      } else {
-        nowLocal = new Date();
-        todayStr = nowLocal.toISOString().substring(0, 10);
-      }
-
-      // If today's date doesn't match event date, disallow
-      if (todayStr !== eventDateStr) return false;
-
-      // If no time information at all, allow all-day window
-      const doorsTime = event.doors_time;
-      const startTime = event.start_time;
-      const endTime = event.end_time;
-
-      if (!doorsTime && !startTime && !endTime) {
-        return true; // All-day window
-      }
-
-      // Parse time helper: converts "HH:MM:SS" or "HH:MM" to minutes since midnight
-      const parseTimeToMinutes = (timeStr: string): number => {
-        const parts = timeStr.split(':');
-        return parseInt(parts[0]) * 60 + parseInt(parts[1] || '0');
-      };
-
-      // Current time in minutes since midnight (in venue timezone)
-      const nowMinutes = nowLocal.getHours() * 60 + nowLocal.getMinutes();
-
-      // Calculate window start
-      let windowStartMinutes: number;
-      if (doorsTime) {
-        windowStartMinutes = parseTimeToMinutes(doorsTime);
-      } else if (startTime) {
-        windowStartMinutes = Math.max(0, parseTimeToMinutes(startTime) - 120); // 2 hours before
-      } else {
-        windowStartMinutes = 16 * 60; // 4:00 PM default
-      }
-
-      // Calculate window end
-      let windowEndMinutes: number;
-      if (endTime) {
-        windowEndMinutes = Math.min(24 * 60 - 1, parseTimeToMinutes(endTime) + 60); // 1 hour after
-      } else if (startTime) {
-        windowEndMinutes = Math.min(24 * 60 - 1, parseTimeToMinutes(startTime) + 360); // 6 hours after
-      } else {
-        windowEndMinutes = 23 * 60 + 59; // 11:59 PM
-      }
-
-      return nowMinutes >= windowStartMinutes && nowMinutes <= windowEndMinutes;
-    } catch (error) {
-      // On any error, be permissive -- allow the check-in
-      logger.debug('Time window validation error, allowing check-in', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return true;
-    }
   }
 
   // ============================================
