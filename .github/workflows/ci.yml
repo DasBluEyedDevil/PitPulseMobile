@@ -96,6 +96,8 @@ jobs:
           POSTGRES_DB: soundcheck_ci
           POSTGRES_USER: soundcheck
           POSTGRES_PASSWORD: soundcheck
+        ports:
+          - 5432
         options: >-
           --health-cmd "pg_isready -U soundcheck -d soundcheck_ci"
           --health-interval 10s
@@ -103,6 +105,8 @@ jobs:
           --health-retries 5
       redis:
         image: redis:7-alpine
+        ports:
+          - 6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -128,31 +132,31 @@ jobs:
     - name: Run bootstrap and migrations against disposable PostgreSQL
       run: npm run migrate:deploy
       env:
-        DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:5432/soundcheck_ci
+        DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:${{ job.services.postgres.ports[5432] }}/soundcheck_ci
         DB_SSL: 'false'
 
     - name: Run backend unit and contract suites
       run: npm test
       env:
         JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
-        DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:5432/soundcheck_ci
+        DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:${{ job.services.postgres.ports[5432] }}/soundcheck_ci
         DB_SSL: 'false'
         REDIS_HOST: localhost
-        REDIS_PORT: '6379'
+        REDIS_PORT: ${{ job.services.redis.ports[6379] }}
         RUN_INTEGRATION_TESTS: 'true'
 
     - name: Verify PostgreSQL suite closes without open handles
       run: npm run test:postgres:integration
       env:
         JWT_SECRET: ci-test-secret-must-be-at-least-32-characters-long
-        DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:5432/soundcheck_ci
+        DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:${{ job.services.postgres.ports[5432] }}/soundcheck_ci
         DB_SSL: 'false'
         RUN_INTEGRATION_TESTS: 'true'
 
     - name: Run migration deployment recovery matrix
       run: npm run test:migrations:integration
       env:
-        PHASE30_DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:5432/soundcheck_ci
+        PHASE30_DATABASE_URL: postgresql://soundcheck:soundcheck@localhost:${{ job.services.postgres.ports[5432] }}/soundcheck_ci
 
   mobile-analyze-and-test:
     runs-on: ubuntu-latest
@@ -203,6 +207,17 @@ jobs:
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
       with:
         node-version: '24'
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+      with:
+        channel: 'stable'
+        flutter-version: '3.41.9'
+        cache: true
+
+    - name: Write Android local.properties
+      working-directory: ./mobile/android
+      run: printf 'flutter.sdk=%s\n' "$FLUTTER_ROOT" > local.properties
 
     - name: Verify fail-closed Android release configuration
       run: node --test scripts/__tests__/prepare-android-release.test.mjs
